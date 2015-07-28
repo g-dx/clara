@@ -13,10 +13,12 @@ const (
 	fnArgsEnd = "FN_ARGS_END"
 	fnName = "FN_NAME"
 	strLit = "STRING_LIT"
+	keyword = "KEYWORD"
+	fnKeyword = "fn"
 )
 
 var patterns = [][]string {
-	{"fn|print", "KEYWORD"},
+	{fnKeyword, keyword}, // TODO: add other keywords
 	{"\"[\\s!\\w]*\"", strLit},
 	{"[a-zA-Z]+", fnName},
 	{"\\{", fnBodyStart},

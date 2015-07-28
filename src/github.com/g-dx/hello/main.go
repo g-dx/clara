@@ -32,7 +32,7 @@ func main() {
 
 	// Parse
 	parser := NewParser(tokens)
-	parser.Parse2()
+	parser.Parse()
 	if parser.hasErrors() {
 		for _, msg := range parser.errors {
 			fmt.Printf("Parsing Error: %s\n", msg)

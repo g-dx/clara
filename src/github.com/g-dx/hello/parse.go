@@ -1,6 +1,7 @@
 package main
 import (
 	"fmt"
+	"errors"
 )
 
 /**
@@ -8,14 +9,7 @@ import (
  GRAMMAR
  =======
 
-program ::= { fn ident() fnBodyStart { ident( args ) } fnBodyEnd }
-
- <program> ::= { <fnDcl> }
- <fnDcl> ::= fn ident() fnBodyStart fnBody fnBodyEnd
- <fnBody> ::= block | empty
- <block> ::= { function }
- <function> ::= ident(args)
- <args> ::= string_literal | empty
+ <program> ::= { fn ident() fnBodyStart { ident( args ) } fnBodyEnd }
  <ident> ::= name
  <fnBodyStart> ::= {
  <fnBodyEnd> ::= }
@@ -28,6 +22,8 @@ type Parser struct {
 	errors []string
 }
 
+var eof = errors.New("EOF")
+
 func NewParser(tokens []*Token) *Parser {
 	return &Parser{ 0, tokens, make([]string, 0, 5) }
 }
@@ -37,95 +33,71 @@ func (p *Parser) hasErrors() bool {
 }
 
 func (p *Parser) error(expected string) {
+	token := p.tokens[p.pos]
 	p.errors = append(p.errors,
-		fmt.Sprintf("Unexpected token: %v, Expected: %v", p.tokens[p.pos], expected))
-}
-
-func (p *Parser) Parse2() {
-
-	// Setup recover on EndOfInput
-	defer func() {
-		if r := recover(); r != nil {
-			// TODO:
-			fmt.Println("END OF INPUT")
-		}
-	}()
-
-	for p.expectOrSkip("KEYWORD") { // TODO: Fix me to point to "fn'
-		p.expectOrSkip(fnName)
-		p.expectOrSkip(fnArgsStart)
-		p.expectOrSkip(fnArgsEnd)
-		p.expectOrSkip(fnBodyStart)
-		for p.accept("KEYWORD") || p.accept(fnName) {
-			p.expectOrSkip(fnArgsStart)
-			if p.accept(strLit) {
-				// Store literal for node creation
-			}
-			p.expectOrSkip(fnArgsEnd)
-			// Build node for function call
-		}
-		p.expectOrSkip(fnBodyEnd)
-	}
+		fmt.Sprintf("Unexpected token: '%v' @ %d:%d, Expected: %v",
+			token.val, token.line, token.pos, expected))
 }
 
 func (p *Parser) Parse() {
 
-	// Recover no input
+	// Setup recover on EndOfInput
 	defer func() {
 		if r := recover(); r != nil {
-			// TODO:
 			fmt.Println("END OF INPUT")
 		}
 	}()
 
-	for p.pos != len(p.tokens) {
-		// skip tokens until we find function declaration
-		if !p.accept("KEYWORD") {
-//			p.error(nil)
+	for p.matchKindValueOrSkip(keyword, fnKeyword) { // TODO: Fix me to point to "fn'
+		p.matchKindOrSkip(fnName)
+		p.matchKindOrSkip(fnArgsStart)
+		p.matchKindOrSkip(fnArgsEnd)
+		p.matchKindOrSkip(fnBodyStart)
+		for p.matchKind(fnName) {
+			p.matchKindOrSkip(fnArgsStart)
+			if p.matchKind(strLit) {
+				// Store literal for node creation
+			}
+			p.matchKindOrSkip(fnArgsEnd)
+			// Build node for function call
 		}
-		p.FN()
+		p.matchKindOrSkip(fnBodyEnd)
 	}
 }
 
-func (p *Parser) FN() {
-	p.expectOrSkip("KEYWORD")
-	p.expectOrSkip(fnName)
-	p.expectOrSkip(fnArgsStart)
-	p.expectOrSkip(fnArgsEnd)
-	p.expectOrSkip(fnBodyStart)
-	p.FN_BODY()
-	p.expectOrSkip(fnBodyEnd)
-}
-
-func (p *Parser) FN_BODY() {
-	for !p.current(fnBodyEnd) {
-		p.expectOrSkip("KEYWORD")
-		p.expectOrSkip(fnArgsStart)
-		if p.current(strLit) {
-			p.next()
-		}
-		p.expectOrSkip(fnArgsEnd)
-	}
-}
-
-func (p *Parser) expectOrSkip(kind string) bool {
-	if !p.accept(kind) {
+func (p *Parser) matchKindOrSkip(kind string) bool {
+	if !p.matchKind(kind) {
 		p.error(kind)
-		for !p.accept(kind) {
-			// Skip until found...
+		p.next()
+		for !p.matchKind(kind) {
 			p.next()
 		}
 	}
 	return true
 }
 
-func (p *Parser) current(kind string) bool {
-	return p.tokens[p.pos].kind == kind
+func (p *Parser) matchKindValueOrSkip(kind string, val string) bool {
+	if !p.matchKindValue(kind, val) {
+		p.error(kind)
+		p.next()
+		for !p.matchKindValue(kind, val) {
+			p.next()
+		}
+	}
+	return true
 }
 
-func (p *Parser) accept(kind string) bool {
+func (p *Parser) matchKindValue(kind string, val string) bool {
 	var ok bool
-	if ok = p.current(kind); ok {
+	if ok = (p.tokens[p.pos].val == val && p.tokens[p.pos].kind == kind); ok {
+		p.next()
+	}
+	return ok
+}
+
+func (p *Parser) matchKind(kind string) bool {
+	ok := p.tokens[p.pos].kind == kind
+	if ok {
 		p.next()
 	}
 	return ok
@@ -134,6 +106,6 @@ func (p *Parser) accept(kind string) bool {
 func (p *Parser) next() {
 	p.pos++
 	if p.pos == len(p.tokens) {
-		panic("eof")
+		panic(eof)
 	}
 }
