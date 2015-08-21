@@ -1,11 +1,11 @@
 package main
+
 import (
 	"fmt"
 	"os"
 )
 
-const prog =
-`fn main() {
+const prog = `fn main() {
    print("Hello")
    print("World")
    print("!")
@@ -26,9 +26,9 @@ func main() {
 		fmt.Printf("Lexing error: %s\n", err)
 		os.Exit(1)
 	}
-//	for _, t := range tokens {
-//		fmt.Println(t)
-//	}
+	//	for _, t := range tokens {
+	//		fmt.Println(t)
+	//	}
 
 	// Parse
 	parser := NewParser(tokens)

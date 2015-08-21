@@ -1,23 +1,25 @@
 package main
+
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
-	"errors"
 )
 
 const (
-	fnBodyStart = "FN_BODY_START"
-	fnBodyEnd = "FN_BODY_END"
-	fnArgsStart = "FN_ARGS_START"
-	fnArgsEnd = "FN_ARGS_END"
-	fnName = "FN_NAME"
-	strLit = "STRING_LIT"
-	keyword = "KEYWORD"
-	fnKeyword = "fn"
+	fnBodyStart   = "FN_BODY_START"
+	fnBodyEnd     = "FN_BODY_END"
+	fnArgsStart   = "FN_ARGS_START"
+	fnArgsEnd     = "FN_ARGS_END"
+	fnName        = "FN_NAME"
+	strLit        = "STRING_LIT"
+	keyword       = "KEYWORD"
+	fnKeyword     = "fn"
+	argsSeperator = "COMMA"
 )
 
-var patterns = [][]string {
+var patterns = [][]string{
 	{fnKeyword, keyword}, // TODO: add other keywords
 	{"\"[\\s!\\w]*\"", strLit},
 	{"[a-zA-Z]+", fnName},
@@ -25,6 +27,7 @@ var patterns = [][]string {
 	{"\\}", fnBodyEnd},
 	{"\\(", fnArgsStart},
 	{"\\)", fnArgsEnd},
+	{",", argsSeperator},
 	{"\\r?\\n", "NEWLINE"},
 	{"\\s+", "WHITESPACE"},
 }
@@ -55,7 +58,7 @@ func lex(prog string) ([]*Token, error) {
 		}
 
 		// Get value and type
-		for i := 2; i < len(res); i+=2 {
+		for i := 2; i < len(res); i += 2 {
 			if res[i] == -1 {
 				continue
 			}
@@ -84,9 +87,9 @@ func lex(prog string) ([]*Token, error) {
 
 type Token struct {
 	kind string
-	val string
+	val  string
 	line int
-	pos int
+	pos  int
 }
 
 func (t *Token) String() string {
