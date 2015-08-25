@@ -18,4 +18,5 @@ const (
 	opFuncDcl = iota
 	opFuncCall
 	opStrLit
+	opRoot
 )

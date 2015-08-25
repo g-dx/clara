@@ -26,19 +26,19 @@ func main() {
 		fmt.Printf("Lexing error: %s\n", err)
 		os.Exit(1)
 	}
-	//	for _, t := range tokens {
-	//		fmt.Println(t)
-	//	}
+//		for _, t := range tokens {
+//			fmt.Println(t)
+//		}
 
 	// Parse
 	parser := NewParser(tokens)
-	parser.Parse()
-	if parser.hasErrors() {
-		for _, msg := range parser.errors {
-			fmt.Printf("Parsing Error: %s\n", msg)
+	errs, _ := parser.program()
+	if errs != nil {
+		for _, err := range errs {
+			fmt.Printf("Parsing Error: %v\n", err)
 		}
-		os.Exit(1)
 	}
+	os.Exit(1)
 
 	// Semantic
 

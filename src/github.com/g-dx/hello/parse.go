@@ -28,13 +28,15 @@ string_lit : "[a-zA-Z0-9]"
 
 */
 
+
 type Parser struct {
 	pos    int
 	tokens []*Token
 	errors []string
 }
 
-var eof = errors.New("EOF")
+var errEof = errors.New("EOF")
+var errNoMatch = errors.New("No match")
 
 func NewParser(tokens []*Token) *Parser {
 	return &Parser{0, tokens, make([]string, 0, 5)}
@@ -51,69 +53,107 @@ func (p *Parser) error(expected string) {
 			token.val, token.line, token.pos, expected))
 }
 
-func (p *Parser) program() []error {
+func isEOF(err error) bool {
+	return err == errEof
+}
+
+func noMatch(err error) bool {
+	return err == errNoMatch
+}
+
+func (p *Parser) program() (errs []error, root *Node) {
 
 	// Create root node
-	root := &Node()
+	root = &Node{nil, nil, nil, nil, opRoot}
 
 	// Loop until EOF
 	err, node := p.function_dcl()
-	for !isEOF() {
+	for !isEOF(err) {
+		// Log & skip. Try to find next function declaration
+		errs = append(errs, err)
 		if noMatch(err) {
-			// Log it and continue to next function
-			for noMatch(err) || isEOF(err) { // WHILE NO-MATCH AND NOT EOF
-				p.next()
-				err, node = p.function_dcl()
+			for noMatch(err) || isEOF(err) {
+				if p.pos+1 == len(p.tokens) {
+					err = errEof
+				} else {
+					p.next()
+					_, node = p.function_dcl()
+				}
 			}
 		}
-		// Add node
+		// Add function declaration and continue matching
 		root.Add(node)
-
-		// Attempt next match
 		err, node = p.function_dcl()
 	}
-	return nil
+	return errs, root
 }
 
-func (p *Parser) function_dcl() (error, *Node) {
+func (p *Parser) function_dcl() (err error, fn *Node) {
 
 	// Catch match panics and return error
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic: %v\n", r)
+			err = r.(error)
+		}
+	}()
 
-	_, _ = p.matchOrPanic(fnKeyword)
-	_, name := p.matchOrPanic(fnName)
-	_, _ = p.matchOrPanic(fnArgsStart)
-	_, _ = p.matchOrPanic(fnArgsEnd)
-	_, _ = p.matchOrPanic(fnBodyStart)
+	// Match declaration
+	_ = p.matchOrPanic(keyword)
+	name := p.matchOrPanic(fnName)
+	_ = p.matchOrPanic(fnArgsStart)
+	_ = p.matchOrPanic(fnArgsEnd)
+	_ = p.matchOrPanic(fnBodyStart)
 
-	// Use 1 token lookahead
+	// Use lookahead to determine
 	var fnCalls []*Node
-	if p.next(fnName){ // IDENT
-		fnCalls = p.fnCalls()
-	} else if p.next(fnBodyEnd) { // END OF FUNCTION DECL
-		p.match(fnBodyEnd)
-	} else {
-		panic() // EXPECTED 'fn name' or '}', Found: 'xxx'
+	for {
+		if p.lookAhead(fnName) {
+			fnCalls = append(fnCalls, p.fnCall())
+		} else if p.lookAhead(fnBodyEnd) {
+			p.match(fnBodyEnd)
+			break
+		} else {
+			panic(errors.New("EXPECTED 'fn name' or '}', Found: 'xxx'"))
+		}
 	}
+	// Create node
+	fn = &Node{name, nil, nil, nil, opFuncDcl}
+	for _, f := range fnCalls {
+		fn.Add(f)
+	}
+	return err, fn
 }
 
-func (p *Parser) fnCalls() (bool, []*Node) {
-	var calls []*Node
-	for !p.next(fnBodyEnd)
-	{
-		name := p.matchOrPanic(fnName)
-		_ = p.matchOrPanic(fnArgsStart)
-		args := p.FnArgs()
-		_ = p.matchOrPanic(fnArgsEnd)
-		// build node and add to list
-	}
-	return calls
+func (p *Parser) fnCall() *Node {
+	name := p.matchOrPanic(fnName)
+	_ = p.matchOrPanic(fnArgsStart)
+	args := p.FnArgs()
+	_ = p.matchOrPanic(fnArgsEnd)
+	return &Node{name, nil, nil, args, opFuncCall}
 }
 
-func (p *Parser) FnArgs() ([]*Node) {
+func (p *Parser) FnArgs() []*Node {
 	var args []*Node
-	for !p.next(fnArgsEnd) {
-		arg := p.matchOrPanic(strLit)
-		_ = p.matchOrPanic(argsSeperator)
+	if p.lookAhead(fnArgsEnd) {
+		return args
+	}
+
+	// Match first argument
+	arg := p.matchOrPanic(strLit)
+	args = append(args, &Node{arg, nil, nil, nil, opStrLit})
+
+	// Match all remaining args
+	for {
+		if p.lookAhead(argsSeperator) {
+			_ = p.matchOrPanic(argsSeperator)
+			arg = p.matchOrPanic(strLit)
+			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
+		} else if p.lookAhead(fnArgsEnd) {
+			break
+		} else {
+			panic(errors.New("Expected: ')' or ',', Found: 'xxx'"))
+		}
 	}
 	return args
 }
@@ -161,6 +201,18 @@ func (p *Parser) Parse() {
 	}
 }
 
+func (p *Parser) matchOrPanic(kind string) (*Token) {
+	fmt.Printf("Matching %v, Expected: %v\n", p.tokens[p.pos].kind, kind)
+	ok := p.tokens[p.pos].kind == kind
+	if !ok {
+		panic(errNoMatch)
+	}
+	token := p.tokens[p.pos]
+	p.next()
+	return token
+}
+
+
 func (p *Parser) matchKindOrSkip(kind string) bool {
 	if !p.matchKind(kind) {
 		p.error(kind)
@@ -202,6 +254,13 @@ func (p *Parser) matchKind(kind string) bool {
 func (p *Parser) next() {
 	p.pos++
 	if p.pos == len(p.tokens) {
-		panic(eof)
+		panic(errEof)
 	}
+}
+
+func (p *Parser) lookAhead(kind string) bool {
+//	if p.pos == len(p.tokens) {
+//		panic(noMatch) // TODO: Shouldn't get here!
+//	}
+	return p.tokens[p.pos].kind == kind
 }
