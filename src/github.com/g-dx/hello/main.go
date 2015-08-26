@@ -7,7 +7,7 @@ import (
 
 const prog = `fn main() {
    print("Hello")
-   print("World")
+   print("World", "!")
    print("!")
    helper()
  }
@@ -35,10 +35,10 @@ func main() {
 	errs, _ := parser.program()
 	if errs != nil {
 		for _, err := range errs {
-			fmt.Printf("Parsing Error: %v\n", err)
+			fmt.Printf("%v\n", err)
 		}
 	}
-	os.Exit(1)
+	os.Exit(0)
 
 	// Semantic
 

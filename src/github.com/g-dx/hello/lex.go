@@ -17,6 +17,7 @@ const (
 	keyword       = "KEYWORD"
 	fnKeyword     = "fn"
 	argsSeperator = "COMMA"
+	tokenEOF      = "EOF"
 )
 
 var patterns = [][]string{
@@ -81,7 +82,8 @@ func lex(prog string) ([]*Token, error) {
 			break
 		}
 	}
-
+	// Add EOF token to mark end of stream
+	tokens = append(tokens, &Token{tokenEOF, "EOF", line, pos - linePos})
 	return tokens, nil
 }
 

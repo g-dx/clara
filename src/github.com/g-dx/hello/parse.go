@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 /**
@@ -10,51 +11,24 @@ import (
 GRAMMAR
 =======
 
-<program> ::= { fn ident() fnBodyStart { ident( args ) } fnBodyEnd }
-<ident> ::= name
-<fnBodyStart> ::= {
-<fnBodyEnd> ::= }
+<program>       ::= fnDeclaration*
+<fnDeclaration> ::= fn ident () { fnCall* }
+<fnCall>        ::= ident(fnArgs)
+<fnArgs>        ::= string_lit (, string_lit)*
+<string_lit>    ::= "[a-zA-Z0-9]"
+<ident>         ::= [a-zA-Z]
 
 */
-
-/**
-program :: = function_dcl *
-function_dcl :: fn ident () { fn_call * }
-ident :: [a-zA-Z]
-fn_call : ident(args)
-args : arg (, arg)*
-arg : string_lit
-string_lit : "[a-zA-Z0-9]"
-
-*/
-
 
 type Parser struct {
 	pos    int
 	tokens []*Token
-	errors []string
 }
 
-var errEof = errors.New("EOF")
 var errNoMatch = errors.New("No match")
 
 func NewParser(tokens []*Token) *Parser {
-	return &Parser{0, tokens, make([]string, 0, 5)}
-}
-
-func (p *Parser) hasErrors() bool {
-	return len(p.errors) > 0
-}
-
-func (p *Parser) error(expected string) {
-	token := p.tokens[p.pos]
-	p.errors = append(p.errors,
-		fmt.Sprintf("Unexpected token: '%v' @ %d:%d, Expected: %v",
-			token.val, token.line, token.pos, expected))
-}
-
-func isEOF(err error) bool {
-	return err == errEof
+	return &Parser{tokens : tokens}
 }
 
 func noMatch(err error) bool {
@@ -67,51 +41,62 @@ func (p *Parser) program() (errs []error, root *Node) {
 	root = &Node{nil, nil, nil, nil, opRoot}
 
 	// Loop until EOF
-	err, node := p.function_dcl()
-	for !isEOF(err) {
-		// Log & skip. Try to find next function declaration
-		errs = append(errs, err)
-		if noMatch(err) {
-			for noMatch(err) || isEOF(err) {
-				if p.pos+1 == len(p.tokens) {
-					err = errEof
-				} else {
-					p.next()
-					_, node = p.function_dcl()
+	var err error
+	var node *Node
+	for
+	{
+		if p.match(tokenEOF) {
+			break;
+		} else if p.match(keyword) {
+			err, node = p.fnDeclaration()
+			if err == nil {
+				root.Add(node)
+			} else {
+				errs = append(errs, err)
+				for !noMatch(err) && !p.match(tokenEOF) {
+					// Move to next token & try again
+					p.consume()
+					err, node = p.fnDeclaration()
 				}
 			}
+		} else {
+			p.syntaxError([]string{"'fn'", "<EOF>"})
 		}
-		// Add function declaration and continue matching
-		root.Add(node)
-		err, node = p.function_dcl()
 	}
 	return errs, root
 }
 
-func (p *Parser) function_dcl() (err error, fn *Node) {
+func (p *Parser) syntaxError(expected []string) {
+	token := p.tokens[p.pos]
+	panic(errors.New(fmt.Sprintf("%d:%d: syntax error, Unexpected '%v', Expecting: %v",
+		token.line,
+		token.pos,
+		p.tokens[p.pos].val,
+		strings.Join(expected, " or "))))
+}
+
+func (p *Parser) fnDeclaration() (err error, fn *Node) {
 
 	// Catch match panics and return error
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Panic: %v\n", r)
 			err = r.(error)
 		}
 	}()
 
-	// Match declaration
-	_ = p.matchOrPanic(keyword)
-	name := p.matchOrPanic(fnName)
-	_ = p.matchOrPanic(fnArgsStart)
-	_ = p.matchOrPanic(fnArgsEnd)
-	_ = p.matchOrPanic(fnBodyStart)
+	// Consume tokens
+	_ = p.consumeOrPanic(keyword)
+	name := p.consumeOrPanic(fnName)
+	_ = p.consumeOrPanic(fnArgsStart)
+	_ = p.consumeOrPanic(fnArgsEnd)
+	_ = p.consumeOrPanic(fnBodyStart)
 
-	// Use lookahead to determine
 	var fnCalls []*Node
 	for {
-		if p.lookAhead(fnName) {
+		if p.match(fnName) {
 			fnCalls = append(fnCalls, p.fnCall())
-		} else if p.lookAhead(fnBodyEnd) {
-			p.match(fnBodyEnd)
+		} else if p.match(fnBodyEnd) {
+			p.consume()
 			break
 		} else {
 			panic(errors.New("EXPECTED 'fn name' or '}', Found: 'xxx'"))
@@ -126,141 +111,55 @@ func (p *Parser) function_dcl() (err error, fn *Node) {
 }
 
 func (p *Parser) fnCall() *Node {
-	name := p.matchOrPanic(fnName)
-	_ = p.matchOrPanic(fnArgsStart)
-	args := p.FnArgs()
-	_ = p.matchOrPanic(fnArgsEnd)
+	name := p.consumeOrPanic(fnName)
+	_ = p.consumeOrPanic(fnArgsStart)
+	args := p.fnArgs()
+	_ = p.consumeOrPanic(fnArgsEnd)
 	return &Node{name, nil, nil, args, opFuncCall}
 }
 
-func (p *Parser) FnArgs() []*Node {
+func (p *Parser) fnArgs() []*Node {
 	var args []*Node
-	if p.lookAhead(fnArgsEnd) {
+	if p.match(fnArgsEnd) {
 		return args
 	}
 
 	// Match first argument
-	arg := p.matchOrPanic(strLit)
+	arg := p.consumeOrPanic(strLit)
 	args = append(args, &Node{arg, nil, nil, nil, opStrLit})
 
 	// Match all remaining args
 	for {
-		if p.lookAhead(argsSeperator) {
-			_ = p.matchOrPanic(argsSeperator)
-			arg = p.matchOrPanic(strLit)
+		if p.match(argsSeperator) {
+			_ = p.consumeOrPanic(argsSeperator)
+			arg = p.consumeOrPanic(strLit)
 			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
-		} else if p.lookAhead(fnArgsEnd) {
+		} else if p.match(fnArgsEnd) {
 			break
 		} else {
-			panic(errors.New("Expected: ')' or ',', Found: 'xxx'"))
+			p.syntaxError([]string{"')'", "','"})
 		}
 	}
 	return args
 }
 
-func (p *Parser) match(kind string) (ok bool, t *Token) {
-	ok = p.tokens[p.pos].kind == kind
-	if ok {
-		t = p.tokens[p.pos]
-		p.next()
-	}
-	return ok, t
-}
-
-func (p *Parser) Parse() {
-
-	// Setup recover on EndOfInput
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("END OF INPUT")
-		}
-	}()
-
-	for p.matchKindValueOrSkip(keyword, fnKeyword) { // TODO: Fix me to point to "fn'
-		p.matchKindOrSkip(fnName)
-		p.matchKindOrSkip(fnArgsStart)
-		p.matchKindOrSkip(fnArgsEnd)
-		p.matchKindOrSkip(fnBodyStart)
-
-		// Fun declaration
-		fnDcl := &Node{op: opFuncDcl}
-		for p.matchKind(fnName) {
-
-			// Fun call
-			fnCall := &Node{op: opFuncCall}
-			p.matchKindOrSkip(fnArgsStart)
-			if p.matchKind(strLit) {
-				fnCall.left = &Node{op: opStrLit} // Store arg
-			}
-			p.matchKindOrSkip(fnArgsEnd)
-
-			// Add statement to list
-			fnDcl.Add(fnCall)
-		}
-		p.matchKindOrSkip(fnBodyEnd)
-	}
-}
-
-func (p *Parser) matchOrPanic(kind string) (*Token) {
-	fmt.Printf("Matching %v, Expected: %v\n", p.tokens[p.pos].kind, kind)
-	ok := p.tokens[p.pos].kind == kind
+func (p *Parser) consumeOrPanic(kind string) (*Token) {
+	ok := p.match(kind)
 	if !ok {
 		panic(errNoMatch)
 	}
 	token := p.tokens[p.pos]
-	p.next()
+	p.consume()
 	return token
 }
 
-
-func (p *Parser) matchKindOrSkip(kind string) bool {
-	if !p.matchKind(kind) {
-		p.error(kind)
-		p.next()
-		for !p.matchKind(kind) {
-			p.next()
-		}
-	}
-	return true
-}
-
-func (p *Parser) matchKindValueOrSkip(kind string, val string) bool {
-	if !p.matchKindValue(kind, val) {
-		p.error(kind)
-		p.next()
-		for !p.matchKindValue(kind, val) {
-			p.next()
-		}
-	}
-	return true
-}
-
-func (p *Parser) matchKindValue(kind string, val string) bool {
-	var ok bool
-	if ok = (p.tokens[p.pos].val == val && p.tokens[p.pos].kind == kind); ok {
-		p.next()
-	}
-	return ok
-}
-
-func (p *Parser) matchKind(kind string) bool {
-	ok := p.tokens[p.pos].kind == kind
-	if ok {
-		p.next()
-	}
-	return ok
-}
-
-func (p *Parser) next() {
-	p.pos++
-	if p.pos == len(p.tokens) {
-		panic(errEof)
+func (p *Parser) consume() {
+	// Move forward if possible
+	if (p.pos+1 < len(p.tokens)) {
+		p.pos++
 	}
 }
 
-func (p *Parser) lookAhead(kind string) bool {
-//	if p.pos == len(p.tokens) {
-//		panic(noMatch) // TODO: Shouldn't get here!
-//	}
+func (p *Parser) match(kind string) bool {
 	return p.tokens[p.pos].kind == kind
 }
