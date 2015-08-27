@@ -32,12 +32,14 @@ func main() {
 
 	// Parse
 	parser := NewParser(tokens)
-	errs, _ := parser.program()
-	if errs != nil {
+	errs, tree := parser.program()
+	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Printf("Parsing Error: %v\n", err)
 		}
 	}
+	printAST(tree)
+
 	os.Exit(1)
 
 	// Semantic
@@ -45,4 +47,33 @@ func main() {
 	// Code-gen
 
 	// Link
+}
+
+func printAST(n *Node) {
+	fmt.Println("\nParse Tree\n")
+	printASTImpl(n, "    ", true)
+	fmt.Println()
+}
+
+func printASTImpl(n *Node, prefix string, isTail bool) {
+	// Handle current node
+	row := "├── "
+	if isTail {
+		row = "└── "
+	}
+	fmt.Printf("%v%v%v (\u001B[95m%v\u001B[0m)\n", prefix, row, n.token.val, nodeTypes[n.op])
+
+	// Handle n-1 children
+	row = "|    "
+	if isTail {
+		row = "   "
+	}
+	for i := 0; i < len(n.stats)-1; i++ {
+		printASTImpl(n.stats[i], prefix + row, false)
+	}
+
+	// Handle last child
+	if len(n.stats) > 0 {
+		printASTImpl(n.stats[len(n.stats)-1], prefix + row, true)
+	}
 }
