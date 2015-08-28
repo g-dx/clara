@@ -49,7 +49,7 @@ func (p *Parser) Parse() (root *Node) {
 	}()
 
     // Create root & loop
-    root = &Node{&Token{"", "ROOT", 0, 0}, nil, nil, nil, opRoot}
+    root = &Node{token : &Token{"", "ROOT", 0, 0}, op : opRoot}
     for
 	{
 		if p.match(tokenEOF) {
@@ -84,7 +84,7 @@ func (p *Parser) fnDeclaration() *Node {
 			p.syntaxError(kindValues[fnName], kindValues[fnBodyEnd])
 		}
 	}
-	return &Node{name, nil, nil, fnCalls, opFuncDcl}
+	return &Node{token : name, stats : fnCalls, op : opFuncDcl}
 }
 
 func (p *Parser) fnCall() *Node {
@@ -92,7 +92,7 @@ func (p *Parser) fnCall() *Node {
 	_ = p.consumeOrSkip(fnArgsStart)
 	args := p.fnArgs()
 	_ = p.consumeOrSkip(fnArgsEnd)
-	return &Node{name, nil, nil, args, opFuncCall}
+	return &Node{token : name, stats : args, op : opFuncCall}
 }
 
 func (p *Parser) fnRestArgs() (args []*Node) {
@@ -103,7 +103,7 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 
 			// Must be an argument next
 			arg := p.consumeOrSkip(strLit)
-			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
+			args = append(args, &Node{token : arg, op : opStrLit})
 		} else if p.match(fnArgsEnd) {
 			break
 		} else {
@@ -122,7 +122,7 @@ func (p *Parser) fnArgs() (args []*Node) {
 
 			// Match first arg
 			arg := p.consume()
-			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
+			args = append(args, &Node{token : arg, op : opStrLit})
 
 			// Match rest of args
 			args = append(args, p.fnRestArgs()...)

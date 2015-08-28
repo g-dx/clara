@@ -26,7 +26,7 @@ var nodeTypes = map[int]string {
 	opFuncDcl : "Func Decl",
 	opFuncCall : "Func Call",
 	opStrLit : "String Lit",
-	opRoot : "<root>",
+	opRoot : "<none>",
 }
 
 func printTree(n *Node) {
