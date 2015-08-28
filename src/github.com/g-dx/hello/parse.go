@@ -20,11 +20,15 @@ GRAMMAR
 
 */
 
+const (
+	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
+)
+
 type Parser struct {
 	pos    int
 	tokens []*Token
 	errs   []error
-	discard bool
+	discard bool // Are we in "discard" mode?
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
@@ -53,11 +57,7 @@ func (p *Parser) Parse() (root *Node) {
 		} else if p.match(keyword) {
 			root.Add(p.fnDeclaration())
 		} else {
-			// If we aren't discarding, record error & continue
-			if !p.discarding() {
-				p.syntaxError([]string{kindValues[keyword], kindValues[tokenEOF]})
-			}
-			p.consume()
+			p.syntaxError(kindValues[keyword], kindValues[tokenEOF])
 		}
 	}
 	return root
@@ -65,13 +65,14 @@ func (p *Parser) Parse() (root *Node) {
 
 func (p *Parser) fnDeclaration() *Node {
 
-	// Consume tokens
+	// Match declaration
 	_ = p.consumeOrSkip(keyword)
 	name := p.consumeOrSkip(fnName)
 	_ = p.consumeOrSkip(fnArgsStart)
 	_ = p.consumeOrSkip(fnArgsEnd)
 	_ = p.consumeOrSkip(fnBodyStart)
 
+	// Match calls
 	var fnCalls []*Node
 	for {
 		if p.match(fnName) {
@@ -80,19 +81,10 @@ func (p *Parser) fnDeclaration() *Node {
 			p.consume()
 			break
 		} else {
-			// If we aren't discarding, record error & continue
-			if !p.discarding() {
-				p.syntaxError([]string{kindValues[fnName], kindValues[fnBodyEnd]})
-			}
-			p.consume()
+			p.syntaxError(kindValues[fnName], kindValues[fnBodyEnd])
 		}
 	}
-	// Create node
-	fn := &Node{name, nil, nil, nil, opFuncDcl}
-	for _, f := range fnCalls {
-		fn.Add(f)
-	}
-	return fn
+	return &Node{name, nil, nil, fnCalls, opFuncDcl}
 }
 
 func (p *Parser) fnCall() *Node {
@@ -103,83 +95,86 @@ func (p *Parser) fnCall() *Node {
 	return &Node{name, nil, nil, args, opFuncCall}
 }
 
-func (p *Parser) fnArgs() []*Node {
-	var args []*Node
-	if p.match(fnArgsEnd) {
-		return args
-	}
-
-	// Match first argument
-	arg := p.consumeOrSkip(strLit)
-	args = append(args, &Node{arg, nil, nil, nil, opStrLit})
-
-	// Match all remaining args
+func (p *Parser) fnRestArgs() (args []*Node) {
+	// Match rest args or end of args
 	for {
 		if p.match(argsSeperator) {
-			_ = p.consumeOrSkip(argsSeperator)
-			arg = p.consumeOrSkip(strLit)
+			p.consume()
+
+			// Must be an argument next
+			arg := p.consumeOrSkip(strLit)
 			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
 		} else if p.match(fnArgsEnd) {
 			break
 		} else {
-			// If we aren't discarding, record error & continue
-			if !p.discarding() {
-				p.syntaxError([]string{kindValues[fnArgsEnd], kindValues[argsSeperator]})
-			}
-			p.consume()
+			p.syntaxError(kindValues[fnArgsEnd], kindValues[argsSeperator])
 		}
 	}
 	return args
 }
 
-func (p *Parser) consumeOrSkip(kind string) (*Token) {
+func (p *Parser) fnArgs() (args []*Node) {
+	// Match none or some args
+	for {
+		if p.match(fnArgsEnd) {
+			break
+		} else if p.match(strLit) {
+
+			// Match first arg
+			arg := p.consume()
+			args = append(args, &Node{arg, nil, nil, nil, opStrLit})
+
+			// Match rest of args
+			args = append(args, p.fnRestArgs()...)
+			break
+		} else {
+			p.syntaxError(kindValues[fnArgsEnd], kindValues[fnArgsEnd])
+		}
+	}
+	return args
+}
+
+func (p *Parser) consumeOrSkip(kind string) *Token {
 	// Attempt to match until we find
 	ok := p.match(kind)
 	for !ok {
-		if !p.discarding() {
-			p.syntaxError([]string{kindValues[kind]})
-		}
-		p.consume()
+		p.syntaxError(kindValues[kind])
 		ok = p.match(kind)
 	}
-
-	// Store token and advance
-	token := p.tokens[p.pos]
-	p.consume()
-	return token
+	return p.consume()
 }
 
-func (p *Parser) consume() {
+func (p *Parser) consume() *Token {
 	// Panic if unexpectedly no more input
 	if (p.pos+1 >= len(p.tokens)) {
 		panic(errUnexpectedEof)
 	}
+	token := p.tokens[p.pos]
 	p.pos++
+	return token
 }
 
 func (p *Parser) match(kind string) bool {
 	ok := p.tokens[p.pos].kind == kind
 	if ok {
-		p.restore()
+		p.discard = false // Clear discard mode
 	}
 	return ok
 }
 
-func (p *Parser) discarding() bool {
-	wasOk := p.discard
-	p.discard = true
-	return wasOk
-}
+func (p *Parser) syntaxError(expected...string) {
+	if !p.discard {
+		// Enable discard mode
+		p.discard = true
 
-func (p *Parser) restore() {
-	p.discard = false
-}
-
-func (p *Parser) syntaxError(expected []string) {
-	token := p.tokens[p.pos]
-	p.errs = append(p.errs, errors.New(fmt.Sprintf("%d:%d: syntax error, Unexpected '%v', Expecting: '%v'",
-	token.line,
-	token.pos,
-	p.tokens[p.pos].val,
-	strings.Join(expected, "' or '"))))
+		// Store error
+		token := p.tokens[p.pos]
+		p.errs = append(p.errs,
+			errors.New(fmt.Sprintf(syntaxErrMsg,
+				token.line,
+				token.pos,
+				p.tokens[p.pos].val,
+				strings.Join(expected, "' or '"))))
+	}
+	p.consume()
 }
