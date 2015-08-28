@@ -20,6 +20,18 @@ const (
 	tokenEOF      = "EOF"
 )
 
+var kindValues = map[string]string {
+	fnBodyStart : "{",
+	fnBodyEnd : "}",
+	fnArgsStart : "(",
+	fnArgsEnd : ")",
+	fnName: "<identifier>",
+	strLit: "<string lit>",
+	keyword: "fn", // TODO: Fix me!
+	argsSeperator : ",",
+	tokenEOF : "<EOF>",
+}
+
 var patterns = [][]string{
 	{fnKeyword, keyword}, // TODO: add other keywords
 	{"\"[\\s!\\w]*\"", strLit},
