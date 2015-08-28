@@ -55,9 +55,9 @@ func printAST(n *Node) {
 
 func printASTImpl(n *Node, prefix string, isTail bool) {
 	// Handle current node
-	row := "??? "
+	row := "├── "
 	if isTail {
-		row = "??? "
+		row = "└── "
 	}
 	fmt.Printf("%v%v%v (\u001B[95m%v\u001B[0m)\n", prefix, row, n.token.val, nodeTypes[n.op])
 

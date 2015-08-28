@@ -20,3 +20,10 @@ const (
 	opStrLit
 	opRoot
 )
+
+var nodeTypes = map[int]string {
+	opFuncDcl : "Func Decl",
+	opFuncCall : "Func Call",
+	opStrLit : "String Lit",
+	opRoot : "<root>",
+}

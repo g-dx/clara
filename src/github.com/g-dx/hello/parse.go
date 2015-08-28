@@ -38,7 +38,7 @@ func noMatch(err error) bool {
 func (p *Parser) program() (errs []error, root *Node) {
 
 	// Create root node
-	root = &Node{nil, nil, nil, nil, opRoot}
+	root = &Node{&Token{"", "ROOT", 0, 0}, nil, nil, nil, opRoot}
 
 	// Loop until EOF
 	var err error
