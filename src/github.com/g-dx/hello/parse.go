@@ -117,7 +117,7 @@ func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
 func (p *Parser) fnRestArgs() (args []*Node) {
 	// Match rest args or end of args
 	for {
-		if p.match(argsSeperator) {
+		if p.match(argsSeparator) {
 			p.consume()
 
 			// Must be an argument next
@@ -126,7 +126,7 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 		} else if p.match(fnArgsEnd) {
 			break
 		} else {
-			p.syntaxError(kindValues[fnArgsEnd], kindValues[argsSeperator])
+			p.syntaxError(kindValues[fnArgsEnd], kindValues[argsSeparator])
 		}
 	}
 	return args

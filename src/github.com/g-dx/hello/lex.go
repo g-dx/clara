@@ -16,7 +16,7 @@ const (
 	strLit        = "STRING_LIT"
 	keyword       = "KEYWORD"
 	fnKeyword     = "fn"
-	argsSeperator = "COMMA"
+	argsSeparator = "COMMA"
 	tokenEOF      = "EOF"
 )
 
@@ -28,7 +28,7 @@ var kindValues = map[string]string {
 	fnName: "<identifier>",
 	strLit: "<string lit>",
 	keyword: "fn", // TODO: Fix me!
-	argsSeperator : ",",
+	argsSeparator : ",",
 	tokenEOF : "<EOF>",
 }
 
@@ -40,7 +40,7 @@ var patterns = [][]string{
 	{"\\}", fnBodyEnd},
 	{"\\(", fnArgsStart},
 	{"\\)", fnArgsEnd},
-	{",", argsSeperator},
+	{",", argsSeparator},
 	{"\\r?\\n", "NEWLINE"},
 	{"\\s+", "WHITESPACE"},
 	{"//.*", "COMMENT"},
