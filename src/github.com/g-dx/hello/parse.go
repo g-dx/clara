@@ -24,6 +24,7 @@ const (
 	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
 	errRedeclaredMsg = "%d:%d: error, '%v' redeclared"
 	errUndefinedMsg = "%d:%d: error, '%v' undefined"
+	errArgCountMsg = "%d:%d: error, wrong argument count to call '%v'"
 )
 
 type Parser struct {

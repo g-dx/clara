@@ -9,13 +9,29 @@ import (
 //
 
 func resolveFnCall(symtab SymTab, n *Node) (err error) {
-	if n.op == opFuncCall && symtab.Resolve(n.token.val) == nil{
-		// Undefined
-		err = errors.New(fmt.Sprintf(errUndefinedMsg,
-			n.token.line,
-			n.token.pos,
-			n.token.val))
+
+	if n.op == opFuncCall {
+		// Check exists
+		s := symtab.Resolve(n.token.val)
+		if s == nil {
+			// Undefined
+			err = errors.New(fmt.Sprintf(errUndefinedMsg,
+				n.token.line,
+				n.token.pos,
+				n.token.val))
+
+		} else if fn, ok := s.(*BuiltInFunction); ok { // TODO: We only have functions!
+			// Wrong arg count
+			if fn.argCount() != len(n.stats) {
+				err = errors.New(fmt.Sprintf(errArgCountMsg,
+					n.token.line,
+					n.token.pos,
+					n.token.val))
+			}
+		}
 	}
+
+	// Check args
 	return err
 }
 
