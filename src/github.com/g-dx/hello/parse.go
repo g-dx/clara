@@ -22,6 +22,8 @@ GRAMMAR
 
 const (
 	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
+	errRedeclaredMsg = "%d:%d: error, '%v' redeclared"
+	errUndefinedMsg = "%d:%d: error, '%v' undefined"
 )
 
 type Parser struct {
@@ -29,19 +31,21 @@ type Parser struct {
 	tokens []*Token
 	errs   []error
 	discard bool // Are we in "discard" mode?
+	symtab Symtab
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
 func NewParser(tokens []*Token) *Parser {
-	return &Parser{tokens : tokens}
+	return &Parser{tokens : tokens, symtab: NewSymtab()}
 }
 
-func (p *Parser) Parse() (root *Node) {
+func (p *Parser) Parse() (errs []error, root *Node) {
 
     // We only recover from unexpected EOF
 	defer func() {
 		if r := recover(); r != nil {
+			errs = p.errs
 			if r != errUnexpectedEof {
                 panic(r)
             }
@@ -60,7 +64,7 @@ func (p *Parser) Parse() (root *Node) {
 			p.syntaxError(kindValues[keyword], kindValues[tokenEOF])
 		}
 	}
-	return root
+	return p.errs, root
 }
 
 func (p *Parser) fnDeclaration() *Node {
@@ -84,7 +88,17 @@ func (p *Parser) fnDeclaration() *Node {
 			p.syntaxError(kindValues[fnName], kindValues[fnBodyEnd])
 		}
 	}
-	return &Node{token : name, stats : fnCalls, op : opFuncDcl}
+	return p.fnDclNode(name, fnCalls)
+}
+
+func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
+	// Check symtab for redeclare
+	if  p.symtab.Resolve(token.val) != nil {
+		p.symbolError(errRedeclaredMsg, token)
+	} else {
+		p.symtab.Define(&BuiltInFunction{token.val, 0}) // Functions don't take params yet
+	}
+	return &Node{token : token, stats : fnCalls, op : opFuncDcl}
 }
 
 func (p *Parser) fnCall() *Node {
@@ -92,7 +106,15 @@ func (p *Parser) fnCall() *Node {
 	_ = p.consumeOrSkip(fnArgsStart)
 	args := p.fnArgs()
 	_ = p.consumeOrSkip(fnArgsEnd)
-	return &Node{token : name, stats : args, op : opFuncCall}
+	return p.fnCallNode(name, args)
+}
+
+func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
+	// Check symtab for undefined
+	if p.symtab.Resolve(token.val) == nil {
+		p.symbolError(errUndefinedMsg, token)
+	}
+	return &Node{token : token, stats : args, op : opFuncCall}
 }
 
 func (p *Parser) fnRestArgs() (args []*Node) {
@@ -139,6 +161,7 @@ func (p *Parser) consumeOrSkip(kind string) *Token {
 	ok := p.match(kind)
 	for !ok {
 		p.syntaxError(kindValues[kind])
+		p.consume()
 		ok = p.match(kind)
 	}
 	return p.consume()
@@ -160,6 +183,14 @@ func (p *Parser) match(kind string) bool {
 		p.discard = false // Clear discard mode
 	}
 	return ok
+}
+
+func (p *Parser) symbolError(err string, token *Token) {
+	p.errs = append(p.errs,
+		errors.New(fmt.Sprintf(err,
+			token.line,
+			token.pos,
+			token.val)))
 }
 
 func (p *Parser) syntaxError(expected...string) {

@@ -37,10 +37,10 @@ func main() {
 
 	// Parse
 	parser := NewParser(tokens)
-	tree := parser.Parse()
-	if len(parser.errs) > 0 {
+	errs, tree := parser.Parse()
+	if len(errs) > 0 {
         fmt.Println("\nParse Errors\n")
-		for _, err := range parser.errs {
+		for _, err := range errs {
 			fmt.Printf(" - %v\n", err)
 		}
 	}
