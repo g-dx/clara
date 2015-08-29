@@ -38,6 +38,10 @@ func main() {
 	// Parse
 	parser := NewParser(tokens)
 	errs, tree := parser.Parse()
+
+    // Resolve function calls
+    errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
+
 	if len(errs) > 0 {
         fmt.Println("\nParse Errors\n")
 		for _, err := range errs {

@@ -31,7 +31,7 @@ type Parser struct {
 	tokens []*Token
 	errs   []error
 	discard bool // Are we in "discard" mode?
-	symtab Symtab
+	symtab SymTab
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
@@ -110,10 +110,6 @@ func (p *Parser) fnCall() *Node {
 }
 
 func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
-	// Check symtab for undefined
-	if p.symtab.Resolve(token.val) == nil {
-		p.symbolError(errUndefinedMsg, token)
-	}
 	return &Node{token : token, stats : args, op : opFuncCall}
 }
 
