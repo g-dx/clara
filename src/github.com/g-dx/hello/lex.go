@@ -43,6 +43,7 @@ var patterns = [][]string{
 	{",", argsSeperator},
 	{"\\r?\\n", "NEWLINE"},
 	{"\\s+", "WHITESPACE"},
+	{"//.*", "COMMENT"},
 }
 
 func lex(prog string) ([]*Token, error) {
@@ -76,10 +77,10 @@ func lex(prog string) ([]*Token, error) {
 				continue
 			}
 
-			// Create token (skip whitespace and newlines)
+			// Create token (skip whitespace, newlines and comments)
 			kind := names[i/2]
 			val := s[res[i]:res[i+1]]
-			if kind != "NEWLINE" && kind != "WHITESPACE" {
+			if kind != "NEWLINE" && kind != "WHITESPACE" && kind != "COMMENT"{
 				t := &Token{kind, val, line, pos - linePos}
 				tokens = append(tokens, t)
 			}
