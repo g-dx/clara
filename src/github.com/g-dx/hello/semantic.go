@@ -22,6 +22,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 
 		} else if fn, ok := s.(*BuiltInFunction); ok { // TODO: We only have functions!
 			// Wrong arg count
+			// TODO: Return the position of the wrong argument - not the function
 			if fn.argCount() != len(n.stats) {
 				err = errors.New(fmt.Sprintf(errArgCountMsg,
 					n.token.line,
