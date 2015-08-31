@@ -22,6 +22,10 @@ const (
 	opRoot
 )
 
+const (
+disableConsoleColour = "\u001B[0m"
+)
+
 var nodeTypes = map[int]string {
 	opFuncDcl : "Func Decl",
 	opFuncCall : "Func Call",
@@ -51,7 +55,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
         val = n.token.val
     }
 
-	fmt.Printf("%v%v%v (\u001B[95m%v\u001B[0m)\n", prefix, row, val, nodeTypes[n.op])
+	fmt.Printf("%v%v%v (%v%v%v)\n", prefix, row, val, nodeTypeColour, nodeTypes[n.op], disableConsoleColour)
 
 	// Handle 0..n-1 children
 	row = "|    "
