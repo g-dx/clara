@@ -6,6 +6,7 @@ import (
     "strings"
     "io/ioutil"
     "flag"
+	"bytes"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
     flag.Parse()
 
     // Read program file
-    bytes, err := ioutil.ReadFile(*path)
+    progBytes, err := ioutil.ReadFile(*path)
     if err != nil {
         fmt.Println(err)
         os.Exit(1)
@@ -23,7 +24,7 @@ func main() {
 
     // Print
     fmt.Println("\nInput Program\n")
-    prog := string(bytes)
+    prog := string(progBytes)
     for i, line := range strings.Split(prog, "\n") {
         fmt.Printf("%2d. %v\n", i+1, line)
     }
@@ -49,6 +50,12 @@ func main() {
 		}
 	}
 	printTree(tree)
+
+	var buf bytes.Buffer
+	err = writePE(&buf)
+	if err != nil {
+		fmt.Printf("I/O err: %v\n", err)
+	}
 
 	// Semantic analysis
 
