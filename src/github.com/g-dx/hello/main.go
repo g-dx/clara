@@ -6,7 +6,7 @@ import (
     "strings"
     "io/ioutil"
     "flag"
-	"bytes"
+//	"bytes"
 )
 
 func main() {
@@ -51,11 +51,18 @@ func main() {
 	}
 	printTree(tree)
 
-	var buf bytes.Buffer
-	err = writePE(&buf)
+	os.Remove("F:\\hello.exe")
+	f, err := os.Create("F:\\hello.exe")
+//	var buf bytes.Buffer
+	if err != nil {
+		fmt.Printf(" - %v\n", err)
+	}
+	err = writePE(f)
 	if err != nil {
 		fmt.Printf("I/O err: %v\n", err)
 	}
+
+	fmt.Printf("Binary Written!\n")
 
 	// Semantic analysis
 
