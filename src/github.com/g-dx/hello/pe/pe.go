@@ -146,7 +146,7 @@ func NewOptionalHeader64() OptionalHeader64 {
 
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms680339(v=vs.85).aspx
 	return OptionalHeader64{
-		Magic : 0x20,              // 64-bit application
+		Magic : 0x20B,             // 64-bit application
 		ImageBase: 0x400000,       // Default value
 		MajorSubsystemVersion: 4,  // NT 4 or later
 		Subsystem: 3,              // CUI (Console application)
