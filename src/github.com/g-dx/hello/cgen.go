@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"bytes"
 	"math"
+	"github.com/g-dx/hello/pe"
 )
 
 /**
@@ -34,73 +35,58 @@ func writePE(writer io.Writer) error {
 	w := &leWriter{w : writer, debug : true}
 
 	// Write PE header
-	w.Write([]byte("MZ"))
-	w.Write(make([]byte, 58)) // Padding
-	w.Write([]byte{0x40, 0, 0, 0})
-	fmt.Println("\nPE Header")
+	w.Write(pe.NewDosHeader())
 
-	w.Write([]byte("PE\x00\x00"))
-	w.Write(uint16(0x8684)) // AMD 64 arch
-	w.Write(uint16(2))      // No of sections
-	w.Write(make([]byte, 12))
-	w.Write(uint16(0xF0))       // Size of option
-	w.Write(uint16(0x102)) // TODO: Should be 64b exe!, Maybe not!
-	fmt.Println("\nOptional Header")
+	// Configure optional header
+	optionalHeader := pe.NewOptionalHeader64()
+	optionalHeader.AddressOfEntryPoint = 0x1000
+	optionalHeader.SectionAlignment = 0x1000
+	optionalHeader.FileAlignment = 0x200
+	optionalHeader.SizeOfImage = 0x4000
+	optionalHeader.SizeOfHeaders = 0x200
 
-	// Write Optional Header
-	w.Write(byte(0x20)) // 64-bit app
-	w.Write(make([]byte, 14))
-	w.Write(uint16(0x1000)) // Entry point
-	w.Write(make([]byte, 8))
-	w.Write(uint32(0x400000)) // Mapping address
-	w.Write(uint32(0x1000)) // Section alignment
-	w.Write(uint32(0x200)) // File alignment
-	w.Write(make([]byte, 8))
-	w.Write(uint16(4))
-	w.Write(make([]byte, 6))
-	w.Write(uint32(0x4000)) // Total memory space required
-	w.Write(uint32(0x200)) // Total size of headers
-	w.Write(make([]byte, 4))
-	w.Write(uint16(3)) // Subsystem GUI,commandline, etc
-	w.Write(make([]byte, 22))
-	w.Write(uint32(0x10)) // No of RVA and sizes
-	fmt.Println("\nData Directories")
+	// Configure file header
+	fileHeader := pe.NewFileHeader64(&optionalHeader)
+	fileHeader.NumberOfSections = 2
 
-	// Write data directories
-	w.Write(make([]byte, 8))
-	w.Write(uint32(0x10)) // RVA of data directories
-	w.Write(make([]byte, 0x130-w.pos)) // Add padding!!!!
+	// Build & write PE header
+	peHeader := pe.NewPeHeader64()
+	peHeader.FileHeader = fileHeader
+	peHeader.OptionalHeader = optionalHeader
+	fmt.Println("\n.PE Header, Optional Header & Data directories")
+	w.Write(peHeader)
+
+	// Write sections (TEXT & DATA)
+	textSection := pe.SectionHeader{}
+	textSection.Name = [8]byte { 0x2E, 0x74, 0x65, 0x78, 0x74, 0, 0, 0 } // Annoying!
+	textSection.VirtualSize = 0x1000
+	textSection.VirtualAddress = 0x1000
+	textSection.SizeOfRawData = 0x200
+	textSection.PointerToRawData = 0x200
+	textSection.Characteristics = 0x60000020
 	fmt.Println("\n.TEXT Section")
+	w.Write(textSection)
 
-	// Write sections (TEXT)
-	w.Write(make([]byte, 8))
-	w.Write([]byte(".text\x00\x00\x00"))
-	w.Write(uint32(0x1000))
-	w.Write(uint32(0x1000))
-	w.Write(uint32(0x200))
-	w.Write(uint32(0x200))
-	w.Write(make([]byte, 12))
-	w.Write([]byte{0x20, 0, 0, 0x60})
+	dataSection := pe.SectionHeader{}
+	dataSection.Name = [8]byte { 0x2E, 0x64, 0x61, 0x74, 0x71, 0, 0, 0 } // Annoying!
+	dataSection.VirtualSize = 0x1000
+	dataSection.VirtualAddress = 0x2000
+	dataSection.SizeOfRawData = 0x200
+	dataSection.PointerToRawData = 0x400
+	dataSection.Characteristics = 0xC0000040
 	fmt.Println("\n.DATA Section")
+	w.Write(dataSection)
 
-	w.Write([]byte(".data\x00\x00\x00"))
-	w.Write(uint32(0x1000))
-	w.Write(uint32(0x2000))
-	w.Write(uint32(0x200))
-	w.Write(uint32(0x400))
-	w.Write([]byte{0x40, 0, 0, 0xC0})
-	w.Write(make([]byte, 0x200-w.pos)) // Add padding!!!!
+	// Pad
+	fmt.Println("\nPadding")
+	w.Pad(uint64(peHeader.OptionalHeader.FileAlignment))
+
 	fmt.Println("\n.TEXT (x64 assembly)")
-
-	// Actually write .TEXT Section
-	// TODO: Must have correct physical offset 0x200 & 0x400 so may need to pad?
 	// TODO: Assembly code goes here!
+	w.Pad(0x400)
 
-	w.Write(make([]byte, 0x400-w.pos)) // Add padding!!!!
 	fmt.Println("\n.DATA (strings)")
-
 	w.Write([]byte("Hello world!\x00"))
-
 	w.Finish()
 	return w.err
 }
@@ -138,6 +124,10 @@ func (ew *leWriter) Write(data interface{}) {
 	}
 
 	ew.err = binary.Write(ew.w, binary.LittleEndian, data)
+}
+
+func (ew *leWriter) Pad(pos uint64) {
+	ew.Write(make([]byte, pos-ew.pos))
 }
 
 func (ew *leWriter) Finish() {
