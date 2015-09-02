@@ -42,7 +42,7 @@ func writePE(writer io.Writer) error {
 	optionalHeader.AddressOfEntryPoint = 0x1000
 	optionalHeader.SectionAlignment = 0x1000
 	optionalHeader.FileAlignment = 0x200
-	optionalHeader.SizeOfImage = 0x4000
+	optionalHeader.SizeOfImage = 0x3000 // Address of entry point (0x1000) + (2 sections @ 0x1000 VM size)
 	optionalHeader.SizeOfHeaders = 0x200
 
 	// Configure file header
@@ -68,7 +68,7 @@ func writePE(writer io.Writer) error {
 	w.Write(textSection)
 
 	dataSection := pe.SectionHeader{}
-	dataSection.Name = [8]byte { 0x2E, 0x64, 0x61, 0x74, 0x71, 0, 0, 0 } // Annoying!
+	dataSection.Name = [8]byte { 0x2E, 0x64, 0x61, 0x74, 0x61, 0, 0, 0 } // Annoying!
 	dataSection.VirtualSize = 0x1000
 	dataSection.VirtualAddress = 0x2000
 	dataSection.SizeOfRawData = 0x200
@@ -87,6 +87,7 @@ func writePE(writer io.Writer) error {
 
 	fmt.Println("\n.DATA (strings)")
 	w.Write([]byte("Hello world!\x00"))
+	w.Pad(0x600)
 	w.Finish()
 	return w.err
 }
