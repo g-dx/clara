@@ -25,6 +25,39 @@ MACH-O TODO:
 
 */
 
+/*
+
+	Windows syscalls:
+
+	- Always import kernel32.ConsoleWrite
+	- When encountering a print("...") in AST generate ASM to invoke this function
+	 -- What about RVA of string literal? We don't know this when generating opcodes. We
+	 could just pick an image base (default to 0x400000?) and build a .data section as
+	 we go?
+
+	 baseRva := uint64(0x400000)
+	 strings := Strings { baseRva }
+	 string.Add(<string lit>)  Adds NULL termination
+	 // Add all string literals
+
+	 //...
+
+	 // Generate opcodes for print
+	 node.name == 'print'
+	 instructions.Add(x64.MOV{ x64.rd9, Val(0) })
+	 instructions.Add(x64.MOV{ x64.rd9, StringRva(node.stats[0].val) })
+	 instructions.Add(x64.CALL{ FuncRva("ConsoleWrite") })
+
+	 type OpCode {
+	 	resolveRVAs(s Strings, Functions fns)
+	 }
+
+	 // Once PE built we
+
+	 // How does funcs get initialised?
+
+ */
+
 func cgen() {
 
 }
