@@ -1,5 +1,8 @@
 package pe
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"bytes"
+)
 
 type DosHeader struct {
 	e_magic [2]byte;
@@ -188,6 +191,104 @@ type ImportByName struct {
 
 func NewImportByName(name string) ImportByName {
 	i := ImportByName{}
-	copy(i.Name[:], name)
+	copy(i.Name[:], name + "\x00")
 	return i
+}
+
+// Struct designed to simplify RVA calculations for imported DLL functions
+
+type Imports struct {
+	rva uint32
+	Descriptors []ImportDescriptor
+	Thunks [][]uint64
+	FnNames [][]ImportByName
+	ModuleNames []string
+}
+
+func NewImports(rva uint32) Imports {
+	return Imports{ rva : rva }
+}
+
+func (im * Imports) Module(name string, fns ... string) {
+	im.Descriptors = append(im.Descriptors, ImportDescriptor{})
+	im.ModuleNames = append(im.ModuleNames, name + "\x00")
+
+	var fnNames []ImportByName
+	for _, fn := range fns {
+		fnNames = append(fnNames, NewImportByName(fn))
+	}
+	im.FnNames = append(im.FnNames, fnNames)
+	im.Thunks = append(im.Thunks, make([]uint64, len(fns) + 1))
+}
+
+func (im * Imports) ToBuffer() *bytes.Buffer {
+
+	// Calculate starting offsets
+	originalThunkRva := im.rva + (uint32(binary.Size(ImportDescriptor{}) * (len(im.Descriptors) + 1)))
+	firstThunkRva := originalThunkRva + im.thunksSize()
+	importByNameRva := firstThunkRva + im.thunksSize()
+	importNameRva := importByNameRva + im.fnNamesSize()
+
+	for i := 0; i < len(im.Descriptors); i++ {
+
+		// Populate descriptor
+		desc := &im.Descriptors[i]
+		desc.OriginalFirstThunk = originalThunkRva
+		desc.Name = importNameRva
+		desc.FirstThunk = firstThunkRva
+
+		// Populate thunk
+		thunk := im.Thunks[i]
+		for j := 0; j < len(thunk)-1; j++ {
+			thunk[j] = uint64(importByNameRva)
+			importByNameRva += uint32(binary.Size(ImportByName{}))
+		}
+
+		// Increment offsets
+		originalThunkRva += uint32(binary.Size(im.Thunks[i]))
+		firstThunkRva += uint32(binary.Size(im.Thunks[i]))
+		importNameRva += uint32(binary.Size([]byte(im.ModuleNames[i])))
+	}
+
+	// Write
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.LittleEndian, im.Descriptors)
+	binary.Write(&buf, binary.LittleEndian, ImportDescriptor{}) // Terminating descriptor
+
+	// First thunk
+	for _, thunk := range im.Thunks {
+		binary.Write(&buf, binary.LittleEndian, thunk)
+	}
+
+	// Original first thunk
+	for _, thunk := range im.Thunks {
+		binary.Write(&buf, binary.LittleEndian, thunk)
+	}
+
+	// Func names
+	for _, fnName := range im.FnNames {
+		binary.Write(&buf, binary.LittleEndian, fnName)
+	}
+
+	// Module names
+	for _, module := range im.ModuleNames {
+		binary.Write(&buf, binary.LittleEndian, []byte(module))
+	}
+	return &buf
+}
+
+func (im * Imports) thunksSize() uint32 {
+	n := 0
+	for _, thunk := range im.Thunks {
+		n += binary.Size(thunk)
+	}
+	return uint32(n)
+}
+
+func (im * Imports) fnNamesSize() uint32 {
+	n := 0
+	for _, fns := range im.FnNames {
+		n += binary.Size(fns)
+	}
+	return uint32(n)
 }

@@ -56,14 +56,14 @@ func writePE(writer io.Writer) error {
 
 	// Configure optional header
 	optionalHeader := pe.NewOptionalHeader64()
-	optionalHeader.AddressOfEntryPoint = 0x1000
+	optionalHeader.AddressOfEntryPoint = 0x3000
 	optionalHeader.SectionAlignment = 0x1000
 	optionalHeader.FileAlignment = 0x200
 	optionalHeader.SizeOfImage = 0x4000 // Address of entry point (0x1000) + (3 sections @ 0x1000 VM size)
 	optionalHeader.SizeOfHeaders = 0x200
 
 	// Define an "Imports" data directory
-	optionalHeader.Rvas[1].VirtualAddress = 0x2000 // Declared below when writing RDATA section
+	optionalHeader.Rvas[1].VirtualAddress = 0x1000 // Declared below when writing RDATA section
 
 	// Configure file header
 	fileHeader := pe.NewFileHeader64(&optionalHeader)
@@ -76,23 +76,13 @@ func writePE(writer io.Writer) error {
 	fmt.Println("\n.PE Header, Optional Header & Data directories")
 	w.Write(peHeader)
 
-	// Write sections (TEXT, RDATA & DATA)
-	textSection := pe.SectionHeader{}
-	copy(textSection.Name[:], ".text\x00")
-	textSection.VirtualSize = 0x1000
-	textSection.VirtualAddress = 0x1000
-	textSection.SizeOfRawData = 0x200
-	textSection.PointerToRawData = 0x200
-	textSection.Characteristics = 0x60000020
-	fmt.Println("\n.TEXT Section")
-	w.Write(textSection)
-
+	// Write sections (RDATA, DATA & TEXT)
 	rdataSection := pe.SectionHeader{}
 	copy(rdataSection.Name[:], ".rdata\x00")
 	rdataSection.VirtualSize = 0x1000
-	rdataSection.VirtualAddress = 0x2000
+	rdataSection.VirtualAddress = 0x1000
 	rdataSection.SizeOfRawData = 0x200
-	rdataSection.PointerToRawData = 0x400
+	rdataSection.PointerToRawData = 0x200
 	rdataSection.Characteristics = 0x40000040
 	fmt.Println("\n.RDATA Section")
 	w.Write(rdataSection)
@@ -100,19 +90,45 @@ func writePE(writer io.Writer) error {
 	dataSection := pe.SectionHeader{}
 	copy(dataSection.Name[:], ".data\x00")
 	dataSection.VirtualSize = 0x1000
-	dataSection.VirtualAddress = 0x3000
+	dataSection.VirtualAddress = 0x2000
 	dataSection.SizeOfRawData = 0x200
-	dataSection.PointerToRawData = 0x600
+	dataSection.PointerToRawData = 0x400
 	dataSection.Characteristics = 0xC0000040
 	fmt.Println("\n.DATA Section")
 	w.Write(dataSection)
+
+	textSection := pe.SectionHeader{}
+	copy(textSection.Name[:], ".text\x00")
+	textSection.VirtualSize = 0x1000
+	textSection.VirtualAddress = 0x3000
+	textSection.SizeOfRawData = 0x200
+	textSection.PointerToRawData = 0x600
+	textSection.Characteristics = 0x60000020
+	fmt.Println("\n.TEXT Section")
+	w.Write(textSection)
 
 	// Pad
 	fmt.Println("\nPadding")
 	w.Pad(uint64(peHeader.OptionalHeader.FileAlignment), 0x00)
 
+	fmt.Println("\n.RDATA")
+
+	// Create imports for DLLs
+	imports := pe.NewImports(rdataSection.VirtualAddress)
+	imports.Module("kernel32.dll", "ExitProcess", "GetStdHandle", "WriteConsoleA")
+	w.Write(imports.ToBuffer().Bytes())
+	w.Pad(0x400, 0x00)
+
+	fmt.Println("\n.DATA (strings)")
+
+	// Calculate RVA
+	//	startingRva := optionalHeader.ImageBase + dataSection.VirtualAddress
+	w.Write([]byte("Hello world!\x00"))
+	// TODO: Add this RVA to the symbol in the SymbolTable for this string literal
+	w.Pad(0x600, 0x00)
+
 	fmt.Println("\n.TEXT (x64 assembly)")
-	// TODO: Assembly code goes here!
+
 
 	/**
 	- Call ConsoleWrite(...) in kernel with string
@@ -125,66 +141,9 @@ retn
 //
 	w.Write([]byte { 0xB9, 0x00, 0x00, 0x00, 0x00  })
 	w.Write([]byte { 0xFF, 0x14, 0x25 })
-	w.Write(uint32(0x402040)) // TODO: This is hack!
+	w.Write(uint32(optionalHeader.ImageBase) + imports.Descriptors[0].FirstThunk) // TODO: first thunk is currently ExitProcess but this may change.
 
-	w.Pad(0x400, 0x90) // Write all no-ops
-
-	fmt.Println("\n.RDATA")
-
-	var buf bytes.Buffer
-
-	// Write descriptors
-	kernel32 := pe.ImportDescriptor{}
-	binary.Write(&buf, binary.LittleEndian, kernel32)
-	binary.Write(&buf, binary.LittleEndian, pe.ImportDescriptor{}) // Terminating descriptor
-
-	// Write Thunk arrays
-	originalFirstThunk := make([]uint64, 3) // Import 2 func rva + 1 zero rva = size (3)
-	firstThunk := make([]uint64, 3)
-
-	startingRva := rdataSection.VirtualAddress
-	kernel32.OriginalFirstThunk = startingRva + uint32(buf.Len())
-	binary.Write(&buf, binary.LittleEndian, originalFirstThunk)
-
-	kernel32.FirstThunk = startingRva + uint32(buf.Len())
-	fmt.Printf("ExitProcess: %x\n", kernel32.FirstThunk)
-	binary.Write(&buf, binary.LittleEndian, firstThunk)
-
-	// Write ImportByName structures
-	originalFirstThunk[0] = uint64(startingRva) + uint64(buf.Len())
-	firstThunk[0] = uint64(startingRva) + uint64(buf.Len())
-
-	exitProcess := pe.NewImportByName("ExitProcess");
-	binary.Write(&buf, binary.LittleEndian, exitProcess)
-
-	originalFirstThunk[1] = uint64(startingRva) + uint64(buf.Len())
-	firstThunk[1] = uint64(startingRva) + uint64(buf.Len())
-
-	writeConsole := pe.NewImportByName("WriteConsoleA");
-	binary.Write(&buf, binary.LittleEndian, writeConsole)
-
-	// Write names of DLL to import
-	kernel32.Name = startingRva + uint32(buf.Len())
-	binary.Write(&buf, binary.LittleEndian, []uint8("kernel32.dll\x00"));
-
-	// Now write populated structures into output
-	w.Write(kernel32)
-	w.Write(pe.ImportDescriptor{})
-	w.Write(originalFirstThunk)
-	w.Write(firstThunk)
-	w.Write(exitProcess)
-	w.Write(writeConsole)
-	w.Write([]uint8("kernel32.dll\x00"));
-
-	w.Pad(0x600, 0x00)
-
-	fmt.Println("\n.DATA (strings)")
-
-	// Calculate RVA
-//	startingRva := optionalHeader.ImageBase + dataSection.VirtualAddress
-	w.Write([]byte("Hello world!\x00"))
-	// TODO: Add this RVA to the symbol in the SymbolTable for this string literal
-	w.Pad(0x800, 0x00)
+	w.Pad(0x800, 0x90) // Write all no-ops
 	w.Finish()
 	return w.err
 }
