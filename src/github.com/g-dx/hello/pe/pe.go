@@ -139,7 +139,6 @@ type OptionalHeader64 struct {
 
 func NewOptionalHeader64() OptionalHeader64 {
 	rvas := [16]DataDirectory{}
-	// We don't import, export, etc so set all to empty
 	for i, _ := range rvas {
 		rvas[i] = DataDirectory{}
 	}
@@ -171,4 +170,24 @@ type SectionHeader struct {
 	NumberOfRelocations uint16;
 	NumberOfLineNumbers uint16;
 	Characteristics uint32;
+}
+
+// https://en.wikibooks.org/wiki/X86_Disassembly/Windows_Executable_Files#Imports_and_Exports_-_Linking_to_other_modules
+type ImportDescriptor struct {
+	OriginalFirstThunk uint32; // RVA to start of array of RVAs to ImportByName structures
+	TimeDateStamp uint32;
+	ForwarderChain uint32;
+	Name uint32;               // RVA to null-terminated string of DLL name
+	FirstThunk uint32;         // RVA to start of array of RVAs to ImportByName structures
+}
+
+type ImportByName struct {
+	Hint uint16;
+	Name [64]byte; // NOTE: We set a fixed 64 byte size in the hope no name goes over this!
+}
+
+func NewImportByName(name string) ImportByName {
+	i := ImportByName{}
+	copy(i.Name[:], name)
+	return i
 }
