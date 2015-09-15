@@ -8,22 +8,6 @@ import (
 	"github.com/g-dx/hello/pe"
 )
 
-/**
-Code Generation:
-
-WINDOWS TODO:
-
- - Need to generate:
-  * PE Header
-  * .rdata section with all string literals
-  * .text section with entry point and all function definitions
-
-MACH-O TODO:
-
-- Need to generate:
-  *
-
-*/
 
 /*
 
