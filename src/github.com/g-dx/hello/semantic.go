@@ -39,8 +39,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 func walk(symtab SymTab, n *Node, visit func(SymTab, *Node) error) (errs []error) {
 
 	// Visit node
-	err := visit(symtab, n)
-	if err != nil {
+	if err := visit(symtab, n); err != nil {
 		errs = append(errs, err)
 	}
 	// Visit children
