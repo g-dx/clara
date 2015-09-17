@@ -94,10 +94,10 @@ func (p *Parser) fnDeclaration() *Node {
 
 func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 	// Check symtab for redeclare
-	if  p.symtab.Resolve(token.val) != nil {
+	if  p.symtab.Resolve(symFnDecl, token.val) != nil {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		p.symtab.Define(&BuiltInFunction{token.val, 0}) // Functions don't take params yet
+		p.symtab.Define(&Function{token.val, 0, 0}) // Functions don't take params yet
 	}
 	return &Node{token : token, stats : fnCalls, op : opFuncDcl}
 }
@@ -122,6 +122,11 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 
 			// Must be an argument next
 			arg := p.consumeOrSkip(strLit)
+
+			// Define symbol
+			if p.symtab.Resolve(symStrLit, arg.val) == nil {
+				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
+			}
 			args = append(args, &Node{token : arg, op : opStrLit})
 		} else if p.match(fnArgsEnd) {
 			break
@@ -141,6 +146,10 @@ func (p *Parser) fnArgs() (args []*Node) {
 
 			// Match first arg
 			arg := p.consume()
+			// Define symbol
+			if p.symtab.Resolve(symStrLit, arg.val) == nil {
+				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
+			}
 			args = append(args, &Node{token : arg, op : opStrLit})
 
 			// Match rest of args

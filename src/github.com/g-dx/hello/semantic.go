@@ -12,7 +12,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 
 	if n.op == opFuncCall {
 		// Check exists
-		s := symtab.Resolve(n.token.val)
+		s := symtab.Resolve(symFnDecl, n.token.val)
 		if s == nil {
 			// Undefined
 			err = errors.New(fmt.Sprintf(errUndefinedMsg,
@@ -20,7 +20,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 				n.token.pos,
 				n.token.val))
 
-		} else if fn, ok := s.(*BuiltInFunction); ok { // TODO: We only have functions!
+		} else if fn, ok := s.(*Function); ok { // TODO: We only have functions!
 			// Wrong arg count
 			// TODO: Return the position of the wrong argument - not the function
 			if fn.argCount() != len(n.stats) {
