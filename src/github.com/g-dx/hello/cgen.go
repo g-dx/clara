@@ -13,7 +13,6 @@ import (
 
 	Windows syscalls:
 
-	- Always import kernel32.ConsoleWrite
 	- When encountering a print("...") in AST generate ASM to invoke this function
 	 -- What about RVA of string literal? We don't know this when generating opcodes. We
 	 could just pick an image base (default to 0x400000?) and build a .data section as
@@ -36,14 +35,54 @@ import (
 	 	resolveRVAs(s Strings, Functions fns)
 	 }
 
-	 // Once PE built we
-
-	 // How does funcs get initialised?
 
  */
 
-func cgen() {
+func cgen(rva uint) {
 
+	// TODO: need opcode writer to keep track of rva and to write little endian
+
+	// - Ensure all string literals have RVAs
+	// - Walk AST from leaf nodes up generating function declarations. This way
+	//   all functions will have an RVA _before_ we have to call them.
+	// - Main() should be the last function generated
+	// - Return RVA of main and set this value = optionalHeader.AddressOfEntryPoint
+}
+
+func fnCall(call *Node) {
+	// CALL fn.RvaAddress()
+}
+
+func fnDec(dec *Node) {
+
+	// TODO: Store current RVA into *Node so other functions can call us!
+
+	// PUSH RBP
+	// MOV RBP RSP
+	// for _, fn := range dec.stats {
+	//    fnCall(fn)
+	// }
+	// POP RBP
+	// RET
+}
+
+func printCall(call *Node) {
+	// Need to setup stack for print call
+	// - Push location of string literal onto stack
+	// - Push RET address onto stack
+	// - CAll function
+
+	// PUSH (string rva) - immediate as we know the value?
+	// PUSH (string len) - immediate as we know the value?
+	//
+}
+
+func printDecl(call *Node) {
+	// - Only one parameter (RVA of string literal)
+	// - Length of string? Compute at compile time and pass? Write a function to implement it?
+	// - Invoke GetStdHandle
+	// - Invoke WriteConsoleA
+	// - Frame teardown
 }
 
 func writePE(writer io.Writer) error {
