@@ -24,6 +24,15 @@ func (str *StringLiteralSymbol) kind() int {
 	return symStrLit
 }
 
+
+func (str *StringLiteralSymbol) Val() string {
+	return str.val
+}
+
+func (str *StringLiteralSymbol) Rva() uint32 {
+	return str.rva
+}
+
 type Function struct {
 	fnName string
 	fnArgCount int
@@ -36,6 +45,10 @@ func (fn *Function) name() string {
 
 func (fn *Function) argCount() int {
 	return fn.fnArgCount
+}
+
+func (fn *Function) Rva() uint32 {
+	return fn.rva
 }
 
 func (fn *Function) kind() int {

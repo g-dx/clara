@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"math"
 	"github.com/g-dx/hello/pe"
+	"github.com/g-dx/hello/x64"
 )
 
 
@@ -47,42 +48,118 @@ func cgen(rva uint) {
 	//   all functions will have an RVA _before_ we have to call them.
 	// - Main() should be the last function generated
 	// - Return RVA of main and set this value = optionalHeader.AddressOfEntryPoint
+
+	//	opcodes = append(opcodes, x64.)
+
+	var ops x64.OpcodeList
+
+
+	// MOVI 0
+	ops.Add(x64.MOVI(x64.Rcx, 0))
+	// CALL (ExitProcess)
+	ops.Add(x64.CALL(0)) // TODO: need RVA for MSDN function!
 }
 
-func fnCall(call *Node) {
-	// CALL fn.RvaAddress()
+func fnCall(fn *Function, ops x64.OpcodeList) {
+
+	// TODO: If this function had parameters we would need to push them here
+
+	ops.Add(x64.CALL(fn.Rva()))
 }
 
-func fnDec(dec *Node) {
+func fnDec(node *Node, ops x64.OpcodeList) {
 
 	// TODO: Store current RVA into *Node so other functions can call us!
 
 	// PUSH RBP
+	ops.Add(x64.PUSH(x64.Rbp))
 	// MOV RBP RSP
+	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+
+	// TODO:
 	// for _, fn := range dec.stats {
 	//    fnCall(fn)
 	// }
+
+	// TODO: When local variables added must update this!
 	// POP RBP
+	ops.Add(x64.POP(x64.Rbp))
 	// RET
+	ops.Add(x64.RET())
 }
 
-func printCall(call *Node) {
-	// Need to setup stack for print call
-	// - Push location of string literal onto stack
-	// - Push RET address onto stack
-	// - CAll function
+func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
 
-	// PUSH (string rva) - immediate as we know the value?
-	// PUSH (string len) - immediate as we know the value?
-	//
+	// Push the base/frame pointer register value onto stack and overwrite base/frame pointer register to point to
+	// the top of stack. This stack pointer can now be modified by us and restored at the end of the function to its
+	// previous state
+
+	// PUSH RBP
+	ops.Add(x64.PUSH(x64.Rbp))
+	// MOV RBP RSP
+	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+
+	// Push values onto stack
+
+	// MOVL RDI (string address)
+	ops.Add(x64.PUSHI(str.Rva()))
+	// MOVL RDI (string length)
+	ops.Add(x64.PUSHI(uint32(len(str.Val()))))
+
+	// Call print
+
+	ops.Add(x64.CALL(fn.Rva()))
+
+	// Clean up stack by overwriting the stack pointer register with the base/frame pointer register. This discards
+	// the two values we pushed onto the stack. Then pop the old base/frame pointer value off the stack & back into
+	// the base/frame pointer register. This restores the caller's stack.
+	// TODO: on x64 we should use 'leave' instruction
+
+	// MOV RSP RBP
+	ops.Add(x64.MOV(x64.Rsp, x64.Rbp))
+	// POP RBP
+	ops.Add(x64.POP(x64.Rbp))
+	// RET
+	ops.Add(x64.RET())
 }
 
-func printDecl(call *Node) {
-	// - Only one parameter (RVA of string literal)
-	// - Length of string? Compute at compile time and pass? Write a function to implement it?
-	// - Invoke GetStdHandle
-	// - Invoke WriteConsoleA
-	// - Frame teardown
+func printDecl(call *Node, ops x64.OpcodeList) {
+
+	// PUSH RBP
+	ops.Add(x64.PUSH(x64.Rbp))
+	// MOV RBP RSP
+	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+
+	// Get the output handle
+
+	// MOVI (STD_OUTPUT_HANDLE)
+	ops.Add(x64.MOVI(x64.Rcx, -11)) // TODO: how to we pass negative values?
+	// CALL (GetStdHandle)
+	ops.Add(x64.CALL(0))  // TODO: need RVA for MSDN function!
+
+	// Write to console
+
+	// PUSH 0
+	ops.Add(x64.PUSHI(0))
+	// MOVL 0
+	ops.Add(x64.MOVI(x64.R9, 0)) // TODO: Does this need to be a local variable?
+	// MOVM r8 [string length value] - copy value at address
+	ops.Add(x64.MOVM(x64.R8, 0)) // String length
+	// MOVM rdx [string memory location]
+	ops.Add(x64.MOVM(x64.Rdx, 0)) // String RVA
+	// MOVI
+	ops.Add(x64.MOV(x64.Rdx, x64.Rax)) // Copy output handle result from AX to input parameter
+	// CALL (WriteConsoleA)
+	ops.Add(x64.CALL(0)) // TODO: need RVA for MSDN function!
+
+	// Clean stack
+
+	// MOV RSP RBP
+	ops.Add(x64.MOV(x64.Rsp, x64.Rbp))
+	// POP RBP
+	ops.Add(x64.POP(x64.Rbp))
+	// RET
+	ops.Add(x64.RET())
 }
 
 func writePE(writer io.Writer) error {
@@ -168,16 +245,6 @@ func writePE(writer io.Writer) error {
 
 	fmt.Println("\n.TEXT (x64 assembly)")
 
-
-	/**
-	- Call ConsoleWrite(...) in kernel with string
-
-mov     r10, rcx
-mov     eax, (syscall number)
-syscall
-retn
-	*/
-//
 	w.Write([]byte { 0xB9, 0x00, 0x00, 0x00, 0x00  })
 	w.Write([]byte { 0xFF, 0x14, 0x25 })
 	w.Write(uint32(optionalHeader.ImageBase) + imports.Descriptors[0].FirstThunk) // TODO: first thunk is currently ExitProcess but this may change.

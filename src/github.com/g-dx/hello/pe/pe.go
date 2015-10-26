@@ -209,6 +209,12 @@ func NewImports(rva uint32) Imports {
 	return Imports{ rva : rva }
 }
 
+func (im * Imports) Rva(fn string) uint32 {
+
+	// Panic if function name not found
+	return 0; // TODO: Fill me in!
+}
+
 func (im * Imports) Module(name string, fns ... string) {
 	im.Descriptors = append(im.Descriptors, ImportDescriptor{})
 	im.ModuleNames = append(im.ModuleNames, name + "\x00")
