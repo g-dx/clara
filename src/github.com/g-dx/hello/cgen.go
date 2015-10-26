@@ -259,7 +259,7 @@ func writePE(writer io.Writer) error {
 
 	// Create op list
 	opCodes := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
-	opCodes.Add(x64.MOVI(x64.Rcx, -1))
+	opCodes.Add(x64.MOVI(x64.Rcx, 0))
 	opCodes.Add(x64.CALL(im.funcRva("ExitProcess")))
 
 	// Write opcodes
