@@ -2,6 +2,7 @@ package pe
 import (
 	"encoding/binary"
 	"bytes"
+	"strings"
 )
 
 type DosHeader struct {
@@ -209,10 +210,18 @@ func NewImports(rva uint32) Imports {
 	return Imports{ rva : rva }
 }
 
-func (im * Imports) Rva(fn string) uint32 {
+func (im * Imports) Rva(fn string) uint64 {
+	// Loop over all functions in all modules
+	for i := 0; i < len(im.FnNames); i++ {
+		for j := 0; j < len(im.FnNames[i]); j++ {
 
-	// Panic if function name not found
-	return 0; // TODO: Fill me in!
+			// Check name
+			if strings.HasPrefix(string(im.FnNames[i][j].Name[:]), fn) {
+				return uint64(im.Descriptors[i].FirstThunk) + uint64((8 * j)) // 64bit values
+			}
+		}
+	}
+	panic("Cannot find function: " + fn)
 }
 
 func (im * Imports) Module(name string, fns ... string) {

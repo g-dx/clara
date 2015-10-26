@@ -247,7 +247,7 @@ func writePE(writer io.Writer) error {
 
 	w.Write([]byte { 0xB9, 0x00, 0x00, 0x00, 0x00  })
 	w.Write([]byte { 0xFF, 0x14, 0x25 })
-	w.Write(uint32(optionalHeader.ImageBase) + imports.Descriptors[0].FirstThunk) // TODO: first thunk is currently ExitProcess but this may change.
+	w.Write(optionalHeader.ImageBase + imports.Rva("ExitProcess"))
 
 	w.Pad(0x800, 0x90) // Write all no-ops
 	w.Finish()
