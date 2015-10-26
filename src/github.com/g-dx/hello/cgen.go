@@ -7,6 +7,7 @@ import (
 	"math"
 	"github.com/g-dx/hello/pe"
 	"github.com/g-dx/hello/x64"
+	"strings"
 )
 
 
@@ -60,30 +61,40 @@ func cgen(rva uint, imports ImportList) {
 
 	//	opcodes = append(opcodes, x64.)
 
-	var ops x64.OpcodeList
+	ops := x64.NewOpcodeList(0)
 
 
-	// MOVI 0
-	ops.Add(x64.MOVI(x64.Rcx, 0))
-	// CALL (ExitProcess)
-	ops.Add(x64.CALL(imports.funcRva("ExitProcess")))
+	ops.MOVI(x64.Rcx, 0)
+	ops.CALL(imports.funcRva("ExitProcess"))
+}
+
+func mainCall(fn *Function, imports ImportList, ops x64.OpcodeList) {
+
+	// Process
+
+	ops.MOVI(x64.Rcx, 0)
+	ops.CALL(imports.funcRva("ExitProcess"))
+
+	// Clean stack
+
+	ops.MOV(x64.Rsp, x64.Rbp)
+	ops.POP(x64.Rbp)
+	ops.RET()
 }
 
 func fnCall(fn *Function, ops x64.OpcodeList) {
 
 	// TODO: If this function had parameters we would need to push them here
 
-	ops.Add(x64.CALL(fn.Rva()))
+	ops.CALL(fn.Rva())
 }
 
 func fnDec(node *Node, ops x64.OpcodeList) {
 
 	// TODO: Store current RVA into *Node so other functions can call us!
 
-	// PUSH RBP
-	ops.Add(x64.PUSH(x64.Rbp))
-	// MOV RBP RSP
-	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+	ops.PUSH(x64.Rbp)
+	ops.MOV(x64.Rbp, x64.Rsp)
 
 	// TODO:
 	// for _, fn := range dec.stats {
@@ -91,10 +102,8 @@ func fnDec(node *Node, ops x64.OpcodeList) {
 	// }
 
 	// TODO: When local variables added must update this!
-	// POP RBP
-	ops.Add(x64.POP(x64.Rbp))
-	// RET
-	ops.Add(x64.RET())
+	ops.POP(x64.Rbp)
+	ops.RET()
 }
 
 func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
@@ -103,75 +112,55 @@ func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
 	// the top of stack. This stack pointer can now be modified by us and restored at the end of the function to its
 	// previous state
 
-	// PUSH RBP
-	ops.Add(x64.PUSH(x64.Rbp))
-	// MOV RBP RSP
-	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+	ops.PUSH(x64.Rbp)
+	ops.MOV(x64.Rbp, x64.Rsp)
 
-	// Push values onto stack
+	// Push values onto stack (string RVA & length)
 
-	// MOVL RDI (string address)
-	ops.Add(x64.PUSHI(str.Rva()))
-	// MOVL RDI (string length)
-	ops.Add(x64.PUSHI(uint32(len(str.Val()))))
+	ops.PUSHI(str.Rva())
+	ops.PUSHI(uint32(len(str.Val())))
 
 	// Call print
 
-	ops.Add(x64.CALL(fn.Rva()))
+	ops.CALL(fn.Rva())
 
 	// Clean up stack by overwriting the stack pointer register with the base/frame pointer register. This discards
 	// the two values we pushed onto the stack. Then pop the old base/frame pointer value off the stack & back into
 	// the base/frame pointer register. This restores the caller's stack.
 	// TODO: on x64 we should use 'leave' instruction
 
-	// MOV RSP RBP
-	ops.Add(x64.MOV(x64.Rsp, x64.Rbp))
-	// POP RBP
-	ops.Add(x64.POP(x64.Rbp))
-	// RET
-	ops.Add(x64.RET())
+	ops.MOV(x64.Rsp, x64.Rbp)
+	ops.POP(x64.Rbp)
+	ops.RET()
 }
 
 func printDecl(call *Node, imports ImportList, ops x64.OpcodeList) {
 
-	// PUSH RBP
-	ops.Add(x64.PUSH(x64.Rbp))
-	// MOV RBP RSP
-	ops.Add(x64.MOV(x64.Rbp, x64.Rsp))
+	ops.PUSH(x64.Rbp)
+	ops.MOV(x64.Rbp, x64.Rsp)
 
 	// Get the output handle
 
-	// MOVI (STD_OUTPUT_HANDLE)
-	ops.Add(x64.MOVI(x64.Rcx, -11)) // TODO: how to we pass negative values?
-	// CALL (GetStdHandle)
-	ops.Add(x64.CALL(imports.funcRva("GetStdHandle")))
+	ops.MOVI(x64.Rcx, -11) // TODO: how to we pass negative values?
+	ops.CALL(imports.funcRva("GetStdHandle"))
 
 	// Write to console
 
-	// PUSH 0
-	ops.Add(x64.PUSHI(0))
-	// MOVL 0
-	ops.Add(x64.MOVI(x64.R9, 0)) // TODO: Does this need to be a local variable?
-	// MOVM r8 [string length value] - copy value at address
-	ops.Add(x64.MOVM(x64.R8, 0)) // String length
-	// MOVM rdx [string memory location]
-	ops.Add(x64.MOVM(x64.Rdx, 0)) // String RVA
-	// MOVI
-	ops.Add(x64.MOV(x64.Rdx, x64.Rax)) // Copy output handle result from AX to input parameter
-	// CALL (WriteConsoleA)
-	ops.Add(x64.CALL(imports.funcRva("WriteConsoleA")))
+	ops.PUSHI(0)
+	ops.MOVI(x64.R9, 0) // TODO: Does this need to be a local variable?
+	ops.MOVM(x64.R8, 0) // String length - copy value at address
+	ops.MOVM(x64.Rdx, 0) // String [string memory location]
+	ops.MOV(x64.Rdx, x64.Rax) // Copy output handle result from AX to input parameter
+	ops.CALL(imports.funcRva("WriteConsoleA"))
 
 	// Clean stack
 
-	// MOV RSP RBP
-	ops.Add(x64.MOV(x64.Rsp, x64.Rbp))
-	// POP RBP
-	ops.Add(x64.POP(x64.Rbp))
-	// RET
-	ops.Add(x64.RET())
+	ops.MOV(x64.Rsp, x64.Rbp)
+	ops.POP(x64.Rbp)
+	ops.RET()
 }
 
-func writePE(writer io.Writer) error {
+func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 
 	// Wrap for convenience
 	w := &leWriter{w : writer, debug : true}
@@ -236,6 +225,8 @@ func writePE(writer io.Writer) error {
 	fmt.Println("\nPadding")
 	w.Pad(uint64(peHeader.OptionalHeader.FileAlignment), 0x00)
 
+	// =================================================================================================================
+
 	fmt.Println("\n.RDATA")
 
 	// Create imports for DLLs
@@ -244,13 +235,21 @@ func writePE(writer io.Writer) error {
 	w.Write(imports.ToBuffer().Bytes())
 	w.Pad(0x400, 0x00)
 
+	// =================================================================================================================
 	fmt.Println("\n.DATA (strings)")
 
-	// Calculate RVA
-	//	startingRva := optionalHeader.ImageBase + dataSection.VirtualAddress
-	w.Write([]byte("Hello world!\x00"))
-	// TODO: Add this RVA to the symbol in the SymbolTable for this string literal
+	// Walk symbol table and assign RVAs
+	symtab.Walk(func(sym Symbol) {
+		if str, ok := sym.(*StringLiteralSymbol); ok {
+			// Set RVA & write
+			str.rva = uint32(optionalHeader.ImageBase) + dataSection.VirtualAddress + uint32(w.pos)
+			w.Write([]byte(strings.Replace(str.Val() + "\x00", "\"", "", -1))) // Remove double quotes!
+		}
+	})
+
 	w.Pad(0x600, 0x00)
+
+	// =================================================================================================================
 
 	fmt.Println("\n.TEXT (x64 assembly)")
 
@@ -258,16 +257,18 @@ func writePE(writer io.Writer) error {
 	im := ImportList{imports : imports, imageBase : optionalHeader.ImageBase}
 
 	// Create op list
-	opCodes := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
-	opCodes.Add(x64.MOVI(x64.Rcx, 0))
-	opCodes.Add(x64.CALL(im.funcRva("ExitProcess")))
+	ops := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
 
-	// Write opcodes
-	for _, code := range opCodes.Ops {
-		w.Write(code)
-	}
 
-	w.Pad(0x800, 0x90) // Write all no-ops
+	ops.MOVI(x64.Rcx, 0)
+	ops.CALL(im.funcRva("ExitProcess"))
+
+	// Write opcode & buffer with no-ops
+	w.Write(ops.ToBuffer())
+	w.Pad(0x800, 0x90)
+
+	// =================================================================================================================
+
 	w.Finish()
 	return w.err
 }

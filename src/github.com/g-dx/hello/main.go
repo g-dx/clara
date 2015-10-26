@@ -53,20 +53,15 @@ func main() {
 
 	os.Remove("F:\\hello.exe")
 	f, err := os.Create("F:\\hello.exe")
-//	var buf bytes.Buffer
 	if err != nil {
 		fmt.Printf(" - %v\n", err)
 	}
-	err = writePE(f)
+
+	err = codegen(parser.symtab, tree, f)
 	if err != nil {
 		fmt.Printf("I/O err: %v\n", err)
 	}
 
 	fmt.Printf("Binary Written!\n")
 
-	// Semantic analysis
-
-	// Code-gen
-
-	// Link
 }
