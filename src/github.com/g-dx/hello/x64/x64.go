@@ -2,6 +2,7 @@ package x64
 import (
     "bytes"
     "encoding/binary"
+    "fmt"
 )
 
 // Background
@@ -41,40 +42,42 @@ const (
 //======================================================================================================================
 
 type OpcodeList struct {
-    ops []Opcode
-    rva uint32
+    Ops []Opcode
+    rva uint64
 }
 
-func NewOpcodeList(rva uint32) *OpcodeList {
+func NewOpcodeList(rva uint64) *OpcodeList {
     return &OpcodeList{rva : rva}
 }
 
 func (ol *OpcodeList) Add(op Opcode) {
-    ol.ops = append(ol.ops, op)
-    ol.rva = ol.rva + op.Len()
+    ol.Ops = append(ol.Ops, op)
+    ol.rva = ol.rva + uint64(op.Len())
 }
 
-func (ol *OpcodeList) Rva() uint32 {
+func (ol *OpcodeList) Rva() uint64 {
     return ol.rva
 }
 
 //======================================================================================================================
 
 type Opcode interface {
-    Len() uint32
+    Len() uint8
 }
 
 //======================================================================================================================
 
 type SimpleOpcode []byte
 
-func (op SimpleOpcode) Len() uint32 {
-    return uint32(len(op))
+func (op SimpleOpcode) Len() uint8 {
+    return uint8(len(op))
 }
 
-func CALL(rva uint32) Opcode {
-    // 0xFF, (0x14 0x25) is probably the mode to use
-    return SimpleOpcode{}
+func CALL(rva uint64) Opcode {
+    var buf bytes.Buffer
+    leWrite(&buf, []byte { 0xFF, 0x14, 0x25 })
+    leWrite(&buf, rva)
+    return SimpleOpcode(buf.Bytes())
 }
 
 func MOV(srcReg int, destReg uint) Opcode {
@@ -91,10 +94,23 @@ func MOVM(srcReg int, destReg uint) Opcode {
 }
 
 // Move immediate value to register
+// TODO:
+//    1. Properly handle register addressing
+//    2. Update to support 64 bit values
+//    3. Double check the representation of negative number is what Microsoft ABI expects
 func MOVI(destReg int, val int32) Opcode {
-    // What kind of mov?
-    // 0x41 is REX prefix required for referencing rd9, rd8 and other registers
-    return SimpleOpcode{}
+
+    opCode := uint8(0)
+    switch destReg {
+        case Rcx: opCode = 0xB9
+        default:
+            panic(fmt.Sprintf("MOVI: %x, %x - register not implemented yet.", destReg, val))
+    }
+
+    var buf bytes.Buffer
+    leWrite(&buf, opCode)
+    leWrite(&buf, val)
+    return SimpleOpcode(buf.Bytes())
 }
 
 // Push from register to top of stack
@@ -107,13 +123,13 @@ func PUSH(srcReg byte) Opcode {
 // Push immediate value to top of stack
 func PUSHI(val uint32) Opcode {
 
-    opCode := 0x68
+    opCode := uint8(0x68)
     if val <= 255 {
         opCode = 0x6A
     }
     var buf bytes.Buffer
-    binary.Write(&buf, binary.LittleEndian, opCode)
-    binary.Write(&buf, binary.LittleEndian, val)
+    leWrite(&buf, opCode)
+    leWrite(&buf, val)
     return SimpleOpcode(buf.Bytes())
 }
 
@@ -131,4 +147,11 @@ func RET() Opcode {
 
 func SUB(reg byte, n uint32) Opcode {
     return SimpleOpcode{}
+}
+
+func leWrite(buf *bytes.Buffer, data interface{}) {
+    err := binary.Write(buf, binary.LittleEndian, data)
+    if err != nil {
+        panic(err)
+    }
 }

@@ -39,7 +39,16 @@ import (
 
  */
 
-func cgen(rva uint) {
+type ImportList struct {
+	imageBase uint64
+	imports *pe.Imports
+}
+
+func (il * ImportList) funcRva(fn string) uint64 {
+	return il.imageBase + il.imports.Rva(fn)
+}
+
+func cgen(rva uint, imports ImportList) {
 
 	// TODO: need opcode writer to keep track of rva and to write little endian
 
@@ -57,7 +66,7 @@ func cgen(rva uint) {
 	// MOVI 0
 	ops.Add(x64.MOVI(x64.Rcx, 0))
 	// CALL (ExitProcess)
-	ops.Add(x64.CALL(0)) // TODO: need RVA for MSDN function!
+	ops.Add(x64.CALL(imports.funcRva("ExitProcess")))
 }
 
 func fnCall(fn *Function, ops x64.OpcodeList) {
@@ -123,7 +132,7 @@ func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
 	ops.Add(x64.RET())
 }
 
-func printDecl(call *Node, ops x64.OpcodeList) {
+func printDecl(call *Node, imports ImportList, ops x64.OpcodeList) {
 
 	// PUSH RBP
 	ops.Add(x64.PUSH(x64.Rbp))
@@ -135,7 +144,7 @@ func printDecl(call *Node, ops x64.OpcodeList) {
 	// MOVI (STD_OUTPUT_HANDLE)
 	ops.Add(x64.MOVI(x64.Rcx, -11)) // TODO: how to we pass negative values?
 	// CALL (GetStdHandle)
-	ops.Add(x64.CALL(0))  // TODO: need RVA for MSDN function!
+	ops.Add(x64.CALL(imports.funcRva("GetStdHandle")))
 
 	// Write to console
 
@@ -150,7 +159,7 @@ func printDecl(call *Node, ops x64.OpcodeList) {
 	// MOVI
 	ops.Add(x64.MOV(x64.Rdx, x64.Rax)) // Copy output handle result from AX to input parameter
 	// CALL (WriteConsoleA)
-	ops.Add(x64.CALL(0)) // TODO: need RVA for MSDN function!
+	ops.Add(x64.CALL(imports.funcRva("WriteConsoleA")))
 
 	// Clean stack
 
@@ -245,9 +254,18 @@ func writePE(writer io.Writer) error {
 
 	fmt.Println("\n.TEXT (x64 assembly)")
 
-	w.Write([]byte { 0xB9, 0x00, 0x00, 0x00, 0x00  })
-	w.Write([]byte { 0xFF, 0x14, 0x25 })
-	w.Write(optionalHeader.ImageBase + imports.Rva("ExitProcess"))
+	// Create import list
+	im := ImportList{imports : imports, imageBase : optionalHeader.ImageBase}
+
+	// Create op list
+	opCodes := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
+	opCodes.Add(x64.MOVI(x64.Rcx, -1))
+	opCodes.Add(x64.CALL(im.funcRva("ExitProcess")))
+
+	// Write opcodes
+	for _, code := range opCodes.Ops {
+		w.Write(code)
+	}
 
 	w.Pad(0x800, 0x90) // Write all no-ops
 	w.Finish()

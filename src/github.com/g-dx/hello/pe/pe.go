@@ -206,8 +206,10 @@ type Imports struct {
 	ModuleNames []string
 }
 
-func NewImports(rva uint32) Imports {
-	return Imports{ rva : rva }
+// TODO: Possibly introduce a builder for this structure
+
+func NewImports(rva uint32) *Imports {
+	return &Imports{ rva : rva }
 }
 
 func (im * Imports) Rva(fn string) uint64 {

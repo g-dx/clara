@@ -36,7 +36,7 @@ func (str *StringLiteralSymbol) Rva() uint32 {
 type Function struct {
 	fnName string
 	fnArgCount int
-	rva uint32
+	rva uint64
 }
 
 func (fn *Function) name() string {
@@ -47,7 +47,7 @@ func (fn *Function) argCount() int {
 	return fn.fnArgCount
 }
 
-func (fn *Function) Rva() uint32 {
+func (fn *Function) Rva() uint64 {
 	return fn.rva
 }
 
