@@ -34,6 +34,13 @@ var nodeTypes = map[int]string {
 	opRoot : "<none>",
 }
 
+func (n * Node) Walk(fn func(*Node)) {
+	fn(n)
+	for _, node := range n.stats {
+		node.Walk(fn)
+	}
+}
+
 func printTree(n *Node) {
 	fmt.Println("\nParse Tree\n")
 	printTreeImpl(n, "    ", true)

@@ -102,7 +102,7 @@ func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 		sym = &Function{token.val, 0, 0}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
-	return &Node{token : token, stats : fnCalls, op : opFuncDcl}
+	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
 }
 
 func (p *Parser) fnCall() *Node {

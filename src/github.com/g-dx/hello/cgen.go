@@ -18,54 +18,25 @@ func (il * ImportList) funcRva(fn string) uint64 {
 	return il.imageBase + il.imports.Rva(fn)
 }
 
-func cgen(rva uint, imports ImportList) {
+func cgenFnCall(node *Node, ops *x64.OpcodeList) {
 
-	// TODO: need opcode writer to keep track of rva and to write little endian
-
-	// - Ensure all string literals have RVAs
-	// - Walk AST from leaf nodes up generating function declarations. This way
-	//   all functions will have an RVA _before_ we have to call them.
-	// - Main() should be the last function generated
-	// - Return RVA of main and set this value = optionalHeader.AddressOfEntryPoint
-
-	//	opcodes = append(opcodes, x64.)
-
-	ops := x64.NewOpcodeList(0)
-
-
-	ops.MOVI(x64.Rcx, 0)
-	ops.CALL(imports.funcRva("ExitProcess"))
-}
-
-func mainCall(fn *Function, imports ImportList, ops x64.OpcodeList) {
-
-	// Process
-
-	ops.MOVI(x64.Rcx, 0)
-	ops.CALL(imports.funcRva("ExitProcess"))
-
-	// Clean stack
-
-	ops.MOV(x64.Rsp, x64.Rbp)
-	ops.POP(x64.Rbp)
-	ops.RET()
-}
-
-func fnCall(node *Node, fn *Function, ops x64.OpcodeList) {
-
-	// TODO: Should check if this builtin function is actually print!
-	if _, ok := fn.(*BuiltinFunction); ok {
-		printCall(node, fn, ops)
-	} else {
-		// TODO: if we had parameters we would pass them here!
-		// Simple call
+	switch fn := node.sym.(type) {
+	default:
+		panic(fmt.Sprintf("Unknown symbol: %v\n", node.sym))
+	case *Function:
 		ops.CALL(fn.Rva())
+	case *BuiltinFunction:
+		cgenPrintCall(node, ops)
 	}
 }
 
-func fnDec(node *Node, fn *Function, ops x64.OpcodeList) {
+func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
-	// Set RVA of function
+	// Get function & set RVA
+	fn, ok := node.sym.(*Function)
+	if !ok {
+		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
+	}
 	fn.rva = ops.Rva()
 
 	ops.PUSH(x64.Rbp)
@@ -73,19 +44,27 @@ func fnDec(node *Node, fn *Function, ops x64.OpcodeList) {
 
 	// Generate calls for all functions
 	for _, n := range node.stats {
-		if f, ok := n.sym.(*Function); ok {
-			fnCall(n, f, ops)
-		} else {
-			panic(fmt.Sprintf("Unknown symbol: %v", n.sym))
-		}
+		cgenFnCall(n, ops)
 	}
 
-	// TODO: When local variables added must update this!
-	ops.POP(x64.Rbp)
-	ops.RET()
+	// Check if we are main - we need to exit!
+	if node.token.val == "main" {
+		ops.MOVI(x64.Rcx, 0)
+		ops.CALL(imports.funcRva("ExitProcess"))
+	} else {
+		// TODO: When local variables added must update this!
+		ops.POP(x64.Rbp)
+		ops.RET()
+	}
 }
 
-func printCall(node *Node, fn *Function, ops x64.OpcodeList) {
+func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
+
+	// Get symbol
+	fn, ok := node.sym.(*BuiltinFunction)
+	if !ok {
+		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
+	}
 
 	// Push the base/frame pointer register value onto stack and overwrite base/frame pointer register to point to
 	// the top of stack. This stack pointer can now be modified by us and restored at the end of the function to its
@@ -96,7 +75,7 @@ func printCall(node *Node, fn *Function, ops x64.OpcodeList) {
 
 	// Push values onto stack (string RVA & length)
 
-	str, ok := node.stats[0].(*StringLiteralSymbol)
+	str, ok := node.stats[0].sym.(*StringLiteralSymbol)
 	if !ok {
 		panic(fmt.Sprintf("print function parameter not string literal! - %v", str))
 	}
@@ -117,9 +96,13 @@ func printCall(node *Node, fn *Function, ops x64.OpcodeList) {
 	ops.RET()
 }
 
-func printDecl(call *Node, fn *BuiltinFunction, imports ImportList, ops x64.OpcodeList) {
+func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
-	// Set RVA of function
+	// Get function & set RVA
+	fn, ok := node.sym.(*BuiltinFunction)
+	if !ok {
+		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
+	}
 	fn.rva = ops.Rva()
 
 	ops.PUSH(x64.Rbp)
@@ -173,7 +156,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	peHeader := pe.NewPeHeader64()
 	peHeader.FileHeader = fileHeader
 	peHeader.OptionalHeader = optionalHeader
-	fmt.Println("\n.PE Header, Optional Header & Data directories")
+	w.Info("\n.PE Header, Optional Header & Data directories")
 	w.Write(peHeader)
 
 	// Write sections (RDATA, DATA & TEXT)
@@ -184,7 +167,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	rdataSection.SizeOfRawData = 0x200
 	rdataSection.PointerToRawData = 0x200
 	rdataSection.Characteristics = 0x40000040
-	fmt.Println("\n.RDATA Section")
+	w.Info("\n.RDATA Section")
 	w.Write(rdataSection)
 
 	dataSection := pe.SectionHeader{}
@@ -194,7 +177,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	dataSection.SizeOfRawData = 0x200
 	dataSection.PointerToRawData = 0x400
 	dataSection.Characteristics = 0xC0000040
-	fmt.Println("\n.DATA Section")
+	w.Info("\n.DATA Section")
 	w.Write(dataSection)
 
 	textSection := pe.SectionHeader{}
@@ -204,16 +187,16 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	textSection.SizeOfRawData = 0x200
 	textSection.PointerToRawData = 0x600
 	textSection.Characteristics = 0x60000020
-	fmt.Println("\n.TEXT Section")
+	w.Info("\n.TEXT Section")
 	w.Write(textSection)
 
 	// Pad
-	fmt.Println("\nPadding")
+	w.Info("\nPadding")
 	w.Pad(uint64(peHeader.OptionalHeader.FileAlignment), 0x00)
 
 	// =================================================================================================================
 
-	fmt.Println("\n.RDATA")
+	w.Info("\n.RDATA")
 
 	// Create imports for DLLs
 	imports := pe.NewImports(rdataSection.VirtualAddress)
@@ -222,7 +205,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	w.Pad(0x400, 0x00)
 
 	// =================================================================================================================
-	fmt.Println("\n.DATA (strings)")
+	w.Info("\n.DATA (strings)")
 
 	// Walk symbol table and assign RVAs
 	symtab.Walk(func(sym Symbol) {
@@ -239,20 +222,31 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 
 	// =================================================================================================================
 
-	fmt.Println("\n.TEXT (x64 assembly)")
+	w.Info("\n.TEXT (x64 assembly)")
 
 	// Create import list
 	im := ImportList{imports : imports, imageBase : optionalHeader.ImageBase}
 
-	// Create op list
+	// Generate code!
 	ops := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
-
-	// TODO:
-	// - Write "main()" first - it's probably just easier
-	// - Iterate over func declarations
-
-	ops.MOVI(x64.Rcx, 0)
-	ops.CALL(im.funcRva("ExitProcess"))
+	tree.Walk(func(n *Node) {
+		switch n.op {
+		case opFuncDcl:
+			if (n.token.val == "print") {
+				cgenPrintDecl(n, im, ops)
+			} else {
+				cgenFnDecl(n, im, ops)
+			}
+		case opFuncCall:
+			if (n.token.val == "print") {
+				cgenPrintCall(n, ops)
+			} else {
+				cgenFnCall(n, ops)
+			}
+		default:
+			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
+		}
+	})
 
 	// Write opcode & buffer with no-ops
 	w.Write(ops.ToBuffer())
@@ -305,6 +299,12 @@ func (ew *leWriter) Pad(pos uint64, val byte) {
 		nop[i] = val
 	}
 	ew.Write(nop)
+}
+
+func (ew *leWriter) Info(s string) {
+	if ew.debug {
+		fmt.Println(s)
+	}
 }
 
 func (ew *leWriter) Finish() {

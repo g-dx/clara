@@ -107,20 +107,21 @@ func (ol *OpcodeList) ToBuffer() []byte {
 
 // Call function at the supplied relative virtual address (RVA).
 func (ol *OpcodeList) CALL(rva uint64) {
-	// TODO: Can't write the value yet!
+	// TODO: Can't write RVA value yet!
     ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
 }
 
 // Call function at the supplied relative virtual address (RVA).
 func (ol *OpcodeList) CALLI(rva Rva) {
-	// TODO: Can't write the value yet!
+	// TODO: Can't write RVA value yet!
 	ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
 }
 
 func (ol *OpcodeList) MOV(srcReg int, destReg uint) {
     // What kind of mov?
     // 0x41 is REX prefix required for referencing rd9, rd8 and other registers
-    ol.Add(SimpleOpcode{})
+//    ol.Add(op(0x8B).Bytes(0).Build()) // TODO: Verify!
+    panic("MOV not implemented")
 }
 
 // Move data from memory location to register
@@ -149,7 +150,7 @@ func (ol *OpcodeList) MOVI(destReg int, val int32) {
 
 // Push from register to top of stack
 func (ol *OpcodeList) PUSH(srcReg byte) {
-    panic("PUSH not implemented")
+    ol.Add(op(0x50 + srcReg).Build()) // TODO: Verify! What about r8 - r15?
 }
 
 // Push immediate value to top of stack
@@ -165,7 +166,7 @@ func (ol *OpcodeList) PUSHI(val uint32) {
 
 // Pop from top of stack to register
 func (ol *OpcodeList) POP(destReg byte) {
-	panic("POP not implemented")
+    ol.Add(op(0x58 + destReg).Build()) // TODO: Verify! What about r8 - r15
 }
 
 // Return from function
