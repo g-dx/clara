@@ -1,5 +1,7 @@
 package main
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	symStrLit = iota
@@ -78,8 +80,9 @@ func (s *SymTab) Define(sym Symbol) {
 	s.symbols[fmt.Sprintf("%v.%v", sym.kind(), sym.name())] = sym
 }
 
-func (s *SymTab) Resolve(symType int, name string) Symbol {
-	return s.symbols[fmt.Sprintf("%v.%v", symType, name)]
+func (s *SymTab) Resolve(symType int, name string) (Symbol, bool) {
+	sym, ok := s.symbols[fmt.Sprintf("%v.%v", symType, name)]
+	return sym, ok
 }
 
 func (s *SymTab) Walk(f func(Symbol)) {

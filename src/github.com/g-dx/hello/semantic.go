@@ -12,8 +12,8 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 
 	if n.op == opFuncCall {
 		// Check exists
-		s := symtab.Resolve(symFnDecl, n.token.val)
-		if s == nil {
+		s, found := symtab.Resolve(symFnDecl, n.token.val)
+		if !found {
 			// Undefined
 			err = errors.New(fmt.Sprintf(errUndefinedMsg,
 				n.token.line,

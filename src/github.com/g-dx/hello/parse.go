@@ -93,11 +93,14 @@ func (p *Parser) fnDeclaration() *Node {
 }
 
 func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
+
 	// Check symtab for redeclare
-	if  p.symtab.Resolve(symFnDecl, token.val) != nil {
+	sym, found := p.symtab.Resolve(symFnDecl, token.val)
+	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		p.symtab.Define(&Function{token.val, 0, 0}) // Functions don't take params yet
+		sym = &Function{token.val, 0, 0}
+		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, stats : fnCalls, op : opFuncDcl}
 }
@@ -124,7 +127,7 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 			arg := p.consumeOrSkip(strLit)
 
 			// Define symbol
-			if p.symtab.Resolve(symStrLit, arg.val) == nil {
+			if _, found := p.symtab.Resolve(symStrLit, arg.val); !found {
 				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
 			}
 			args = append(args, &Node{token : arg, op : opStrLit})
@@ -147,7 +150,7 @@ func (p *Parser) fnArgs() (args []*Node) {
 			// Match first arg
 			arg := p.consume()
 			// Define symbol
-			if p.symtab.Resolve(symStrLit, arg.val) == nil {
+			if _, found := p.symtab.Resolve(symStrLit, arg.val); !found {
 				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
 			}
 			args = append(args, &Node{token : arg, op : opStrLit})

@@ -3,7 +3,6 @@ import (
     "bytes"
     "encoding/binary"
     "fmt"
-	"io"
 )
 
 // Background
@@ -44,7 +43,10 @@ const (
 
 type Opcode interface {
 	Len() uint8
+	Bytes() []byte
 }
+
+type Rva *uint64
 
 //======================================================================================================================
 
@@ -52,6 +54,24 @@ type SimpleOpcode []byte
 
 func (op SimpleOpcode) Len() uint8 {
 	return uint8(len(op))
+}
+
+func (op SimpleOpcode) Bytes() []byte {
+	return []byte(op)
+}
+
+// Opcode containing an unknown RVA value
+type RvaOpcode struct {
+	buf []byte
+    Rva Rva
+}
+
+func (rp RvaOpcode) Len() uint8 {
+	return uint8(len(rp.buf)) + 8 // rva are 64-bit values
+}
+
+func (rp RvaOpcode) Bytes() []byte {
+	panic("Not implemented")
 }
 
 //======================================================================================================================
@@ -78,7 +98,7 @@ func (ol *OpcodeList) Add(op Opcode) {
 func (ol *OpcodeList) ToBuffer() []byte {
 	var buf bytes.Buffer
 	for _, op := range ol.Ops {
-		buf.Write(op)
+		buf.Write(op.Bytes())
 	}
 	return buf.Bytes()
 }
@@ -87,7 +107,14 @@ func (ol *OpcodeList) ToBuffer() []byte {
 
 // Call function at the supplied relative virtual address (RVA).
 func (ol *OpcodeList) CALL(rva uint64) {
+	// TODO: Can't write the value yet!
     ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
+}
+
+// Call function at the supplied relative virtual address (RVA).
+func (ol *OpcodeList) CALLI(rva Rva) {
+	// TODO: Can't write the value yet!
+	ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
 }
 
 func (ol *OpcodeList) MOV(srcReg int, destReg uint) {

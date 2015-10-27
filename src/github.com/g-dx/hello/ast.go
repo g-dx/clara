@@ -9,6 +9,7 @@ type Node struct {
 	right *Node
 	stats []*Node
 	op    int
+	sym Symbol
 }
 
 func (n *Node) Add(stat *Node) {

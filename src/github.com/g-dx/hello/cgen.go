@@ -7,38 +7,7 @@ import (
 	"math"
 	"github.com/g-dx/hello/pe"
 	"github.com/g-dx/hello/x64"
-	"strings"
 )
-
-
-/*
-
-	Windows syscalls:
-
-	- When encountering a print("...") in AST generate ASM to invoke this function
-	 -- What about RVA of string literal? We don't know this when generating opcodes. We
-	 could just pick an image base (default to 0x400000?) and build a .data section as
-	 we go?
-
-	 baseRva := uint64(0x400000)
-	 strings := Strings { baseRva }
-	 string.Add(<string lit>)  Adds NULL termination
-	 // Add all string literals
-
-	 //...
-
-	 // Generate opcodes for print
-	 node.name == 'print'
-	 instructions.Add(x64.MOV{ x64.rd9, Val(0) })
-	 instructions.Add(x64.MOV{ x64.rd9, StringRva(node.stats[0].val) })
-	 instructions.Add(x64.CALL{ FuncRva("ConsoleWrite") })
-
-	 type OpCode {
-	 	resolveRVAs(s Strings, Functions fns)
-	 }
-
-
- */
 
 type ImportList struct {
 	imageBase uint64
@@ -82,31 +51,41 @@ func mainCall(fn *Function, imports ImportList, ops x64.OpcodeList) {
 	ops.RET()
 }
 
-func fnCall(fn *Function, ops x64.OpcodeList) {
+func fnCall(node *Node, fn *Function, ops x64.OpcodeList) {
 
-	// TODO: If this function had parameters we would need to push them here
-
-	ops.CALL(fn.Rva())
+	// TODO: Should check if this builtin function is actually print!
+	if _, ok := fn.(*BuiltinFunction); ok {
+		printCall(node, fn, ops)
+	} else {
+		// TODO: if we had parameters we would pass them here!
+		// Simple call
+		ops.CALL(fn.Rva())
+	}
 }
 
-func fnDec(node *Node, ops x64.OpcodeList) {
+func fnDec(node *Node, fn *Function, ops x64.OpcodeList) {
 
-	// TODO: Store current RVA into *Node so other functions can call us!
+	// Set RVA of function
+	fn.rva = ops.Rva()
 
 	ops.PUSH(x64.Rbp)
 	ops.MOV(x64.Rbp, x64.Rsp)
 
-	// TODO:
-	// for _, fn := range dec.stats {
-	//    fnCall(fn)
-	// }
+	// Generate calls for all functions
+	for _, n := range node.stats {
+		if f, ok := n.sym.(*Function); ok {
+			fnCall(n, f, ops)
+		} else {
+			panic(fmt.Sprintf("Unknown symbol: %v", n.sym))
+		}
+	}
 
 	// TODO: When local variables added must update this!
 	ops.POP(x64.Rbp)
 	ops.RET()
 }
 
-func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
+func printCall(node *Node, fn *Function, ops x64.OpcodeList) {
 
 	// Push the base/frame pointer register value onto stack and overwrite base/frame pointer register to point to
 	// the top of stack. This stack pointer can now be modified by us and restored at the end of the function to its
@@ -117,6 +96,10 @@ func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
 
 	// Push values onto stack (string RVA & length)
 
+	str, ok := node.stats[0].(*StringLiteralSymbol)
+	if !ok {
+		panic(fmt.Sprintf("print function parameter not string literal! - %v", str))
+	}
 	ops.PUSHI(str.Rva())
 	ops.PUSHI(uint32(len(str.Val())))
 
@@ -134,7 +117,10 @@ func printCall(fn *Function, str *StringLiteralSymbol, ops x64.OpcodeList) {
 	ops.RET()
 }
 
-func printDecl(call *Node, imports ImportList, ops x64.OpcodeList) {
+func printDecl(call *Node, fn *BuiltinFunction, imports ImportList, ops x64.OpcodeList) {
+
+	// Set RVA of function
+	fn.rva = ops.Rva()
 
 	ops.PUSH(x64.Rbp)
 	ops.MOV(x64.Rbp, x64.Rsp)
@@ -243,7 +229,9 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 		if str, ok := sym.(*StringLiteralSymbol); ok {
 			// Set RVA & write
 			str.rva = uint32(optionalHeader.ImageBase) + dataSection.VirtualAddress + uint32(w.pos)
-			w.Write([]byte(strings.Replace(str.Val() + "\x00", "\"", "", -1))) // Remove double quotes!
+			// Remove leading and trailing double quotes and add NULL byte
+			str.val = str.val[1:len(str.val)-1] + "\x00"
+			w.Write([]byte(str.val))
 		}
 	})
 
@@ -259,6 +247,9 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	// Create op list
 	ops := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
 
+	// TODO:
+	// - Write "main()" first - it's probably just easier
+	// - Iterate over func declarations
 
 	ops.MOVI(x64.Rcx, 0)
 	ops.CALL(im.funcRva("ExitProcess"))
