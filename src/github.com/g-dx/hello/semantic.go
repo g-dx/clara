@@ -19,7 +19,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 				n.token.line,
 				n.token.pos,
 				n.token.val))
-			return
+			return err
 		}
 
 		// Check is a function
@@ -29,7 +29,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 				n.token.line,
 				n.token.pos,
 				n.token.val))
-			return
+			return err
 		}
 
 		// Check arg count
@@ -39,7 +39,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 				n.token.line,
 				n.token.pos,
 				n.token.val))
-			return
+			return err
 		}
 
 		// Finally set symbol on node
