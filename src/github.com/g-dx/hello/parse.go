@@ -114,7 +114,9 @@ func (p *Parser) fnCall() *Node {
 }
 
 func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
-	return &Node{token : token, stats : args, op : opFuncCall}
+	// TODO: TEMPORARY WORKAROUND!
+	sym, _ := p.symtab.Resolve(symFnDecl, token.val)
+	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
 }
 
 func (p *Parser) fnRestArgs() (args []*Node) {
