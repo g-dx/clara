@@ -24,6 +24,7 @@ const (
 	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
 	errRedeclaredMsg = "%d:%d: error, '%v' redeclared"
 	errUndefinedMsg = "%d:%d: error, '%v' undefined"
+	errNotFuncMsg = "%d:%d: error, '%v' is not a function"
 	errArgCountMsg = "%d:%d: error, wrong argument count to call '%v'"
 )
 

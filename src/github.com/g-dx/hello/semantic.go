@@ -19,17 +19,31 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 				n.token.line,
 				n.token.pos,
 				n.token.val))
-
-		} else if fn, ok := s.(*Function); ok { // TODO: We only have functions!
-			// Wrong arg count
-			// TODO: Return the position of the wrong argument - not the function
-			if fn.argCount() != len(n.stats) {
-				err = errors.New(fmt.Sprintf(errArgCountMsg,
-					n.token.line,
-					n.token.pos,
-					n.token.val))
-			}
+			return
 		}
+
+		// Check is a function
+		fn, ok := s.(*Function)
+		if !ok {
+			err = errors.New(fmt.Sprintf(errNotFuncMsg,
+				n.token.line,
+				n.token.pos,
+				n.token.val))
+			return
+		}
+
+		// Check arg count
+		// TODO: Return the position of the wrong argument - not the function
+		if fn.argCount() != len(n.stats) {
+			err = errors.New(fmt.Sprintf(errArgCountMsg,
+				n.token.line,
+				n.token.pos,
+				n.token.val))
+			return
+		}
+
+		// Finally set symbol on node
+		n.sym = s
 	}
 
 	// Check args
