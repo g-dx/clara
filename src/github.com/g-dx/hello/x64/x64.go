@@ -108,7 +108,7 @@ func (ol *OpcodeList) ToBuffer() []byte {
 // Call function at the supplied relative virtual address (RVA).
 func (ol *OpcodeList) CALL(rva uint64) {
 	// TODO: Can't write RVA value yet!
-    ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
+    ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(uint32(rva)).Build())
 }
 
 // Call function at the supplied relative virtual address (RVA).
@@ -117,11 +117,12 @@ func (ol *OpcodeList) CALLI(rva Rva) {
 	ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
 }
 
-func (ol *OpcodeList) MOV(srcReg int, destReg uint) {
-    // What kind of mov?
-    // 0x41 is REX prefix required for referencing rd9, rd8 and other registers
-//    ol.Add(op(0x8B).Bytes(0).Build()) // TODO: Verify!
-    panic("MOV not implemented")
+func (ol *OpcodeList) MOV(srcReg uint8, destReg uint8) {
+    // set register direct mode
+    mod := uint8(0xC0)
+    mod = mod | (srcReg << 3)
+    mod = mod | destReg
+    ol.Add(op(0x8B).Bytes(mod).Build()) // TODO: Verify! What about r8 - r15?
 }
 
 // Move data from memory location to register
