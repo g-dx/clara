@@ -22,7 +22,7 @@ func cgenFnCall(node *Node, ops *x64.OpcodeList) {
 
 	switch fn := node.sym.(type) {
 	default:
-		panic(fmt.Sprintf("Unknown symbol: %v\n", node.sym))
+		panic(fmt.Sprintf("Unknown symbol: %v, node: %v", node.sym, node))
 	case *Function:
 		ops.CALL(fn.Rva())
 	case *BuiltinFunction:
@@ -35,7 +35,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	// Get function & set RVA
 	fn, ok := node.sym.(*Function)
 	if !ok {
-		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
+		panic(fmt.Sprintf("Unknown symbol: %v, node: %v", node.sym, node.token))
 	}
 	fn.rva = ops.Rva()
 
@@ -227,6 +227,10 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	// Create import list
 	im := ImportList{imports : imports, imageBase : optionalHeader.ImageBase}
 
+//	tree.Walk(func(n *Node) {
+//		fmt.Printf("Node: %v, Type: %v, Sym: %v\n", n.token.val, nodeTypes[n.op], n.sym)
+//	})
+
 	// Generate code!
 	ops := x64.NewOpcodeList(optionalHeader.ImageBase + uint64(textSection.VirtualAddress))
 	tree.Walk(func(n *Node) {
@@ -236,12 +240,6 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 				cgenPrintDecl(n, im, ops)
 			} else {
 				cgenFnDecl(n, im, ops)
-			}
-		case opFuncCall:
-			if (n.token.val == "print") {
-				cgenPrintCall(n, ops)
-			} else {
-				cgenFnCall(n, ops)
 			}
 		default:
 			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
