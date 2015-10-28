@@ -108,7 +108,7 @@ func (ol *OpcodeList) ToBuffer() []byte {
 // Call function at the supplied relative virtual address (RVA).
 func (ol *OpcodeList) CALL(rva uint64) {
 	// TODO: Can't write RVA value yet!
-    ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(uint32(rva)).Build())
+    ol.Add(op(0xFF).Bytes(0x15).Write(uint32(rva)).Build())
 }
 
 // Call function at the supplied relative virtual address (RVA).
