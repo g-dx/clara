@@ -60,18 +60,25 @@ func (op SimpleOpcode) Bytes() []byte {
 	return []byte(op)
 }
 
-// Opcode containing an unknown RVA value
-type RvaOpcode struct {
-	buf []byte
-    Rva Rva
+// Relative 'call' opcode
+type RelativeCallOpcode struct {
+    pos uint64
+    dest *uint32
 }
 
-func (rp RvaOpcode) Len() uint8 {
-	return uint8(len(rp.buf)) + 8 // rva are 64-bit values
+func NewRelativeCallOpcode(dest *uint32, pos uint64) *RelativeCallOpcode {
+    return &RelativeCallOpcode{pos : pos, dest : dest}
 }
 
-func (rp RvaOpcode) Bytes() []byte {
-	panic("Not implemented")
+func (co RelativeCallOpcode) Len() uint8 {
+	return 5 // 1-byte opcode + 32-bit displacement
+}
+
+func (co RelativeCallOpcode) Bytes() []byte {
+    // Calculate displacement
+    dis := int32(uint64(*co.dest) - (co.pos + uint64(co.Len())))
+    fmt.Printf("Displacement: %v\n", dis)
+    return op(0xE8).Write(dis).Build().Bytes()
 }
 
 //======================================================================================================================
@@ -105,16 +112,14 @@ func (ol *OpcodeList) ToBuffer() []byte {
 
 // Instructions
 
-// Call function at the supplied relative virtual address (RVA).
-func (ol *OpcodeList) CALL(rva uint64) {
-	// TODO: Can't write RVA value yet!
-    ol.Add(op(0xFF).Bytes(0x15).Write(uint32(rva)).Build())
+// Call near, relative, displacement relative to next instruction.
+func (ol *OpcodeList) CALL(rva *uint32) {
+    ol.Add(NewRelativeCallOpcode(rva, ol.rva))
 }
 
-// Call function at the supplied relative virtual address (RVA).
-func (ol *OpcodeList) CALLI(rva Rva) {
-	// TODO: Can't write RVA value yet!
-	ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(rva).Build())
+// Call near, absolute indirect, address given in r/m32.
+func (ol *OpcodeList) CALLPTR(rva uint64) {
+    ol.Add(op(0xFF).Bytes(0x14, 0x25).Write(uint32(rva)).Build())
 }
 
 func (ol *OpcodeList) MOV(srcReg uint8, destReg uint8) {

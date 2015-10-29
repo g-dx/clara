@@ -37,7 +37,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	if !ok {
 		panic(fmt.Sprintf("Unknown symbol: %v, node: %v", node.sym, node.token))
 	}
-	fn.rva = ops.Rva()
+	fn.rva = uint32(ops.Rva())
 
 	ops.PUSH(x64.Rbp)
 	ops.MOV(x64.Rbp, x64.Rsp)
@@ -50,7 +50,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	// Check if we are main - we need to exit!
 	if node.token.val == "main" {
 		ops.MOVI(x64.Rcx, 0)
-		ops.CALL(imports.funcRva("ExitProcess"))
+		ops.CALLPTR(imports.funcRva("ExitProcess"))
 	} else {
 		// TODO: When local variables added must update this!
 		ops.POP(x64.Rbp)
@@ -103,7 +103,7 @@ func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	if !ok {
 		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
 	}
-	fn.rva = ops.Rva()
+	fn.rva = uint32(ops.Rva())
 
 	ops.PUSH(x64.Rbp)
 	ops.MOV(x64.Rbp, x64.Rsp)
@@ -111,7 +111,7 @@ func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	// Get the output handle
 
 	ops.MOVI(x64.Rcx, -11) // TODO: how to we pass negative values?
-	ops.CALL(imports.funcRva("GetStdHandle"))
+	ops.CALLPTR(imports.funcRva("GetStdHandle"))
 
 	// Write to console
 
@@ -120,7 +120,7 @@ func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	ops.MOVM(x64.R8, 0) // String length - copy value at address
 	ops.MOVM(x64.Rdx, 0) // String [string memory location]
 	ops.MOV(x64.Rdx, x64.Rax) // Copy output handle result from AX to input parameter
-	ops.CALL(imports.funcRva("WriteConsoleA"))
+	ops.CALLPTR(imports.funcRva("WriteConsoleA"))
 
 	// Clean stack
 
