@@ -11,6 +11,9 @@ import (
 
 const printlnFuncName = "println"
 
+// Used in GetStdHandle call
+const STD_OUTPUT_HANDLE = -11
+
 type ImportList struct {
 	imageBase uint64
 	imports *pe.Imports
@@ -118,15 +121,16 @@ func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
 	// Get the output handle
 
-	ops.MOVI(x64.Rcx, -11)
+	ops.MOVI(x64.Rcx, STD_OUTPUT_HANDLE)
 	ops.CALLPTR(imports.funcRva("GetStdHandle"))
 
 	// Write to console
+	// See [https://msdn.microsoft.com/en-us/library/ms235286.aspx] for more information
 
-	ops.MOV(x64.Rcx, x64.Rax) // Copy output handle result from AX to input parameter
-	ops.MOVM(x64.Rdx, x64.Rbp, 24) // String [string memory location]
-	ops.MOVM(x64.R8, x64.Rbp, 16) // String length - copy value at address
-	ops.MOVI(x64.R9, 0) // TODO: Does this need to be a local variable?
+	ops.MOV(x64.Rcx, x64.Rax)      // Copy output handle result from AX into register
+	ops.MOVM(x64.Rdx, x64.Rbp, 24) // Move string literal RVA into register
+	ops.MOVM(x64.R8, x64.Rbp, 16)  // Move string length into register
+	ops.MOVI(x64.R9, 0)            // TODO: This should be a local variable on the stack!
 	ops.PUSHI(0)
 	ops.CALLPTR(imports.funcRva("WriteConsoleA"))
 
