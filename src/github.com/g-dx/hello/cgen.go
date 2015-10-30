@@ -107,7 +107,7 @@ func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 //	ops.RET()
 }
 
-func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
+func cgenPrintlnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
 	// Get function & set RVA
 	fn, ok := node.sym.(*Function)
@@ -238,7 +238,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 		switch n.op {
 		case opFuncDcl:
 			if (n.token.val == printlnFuncName) {
-				cgenPrintDecl(n, im, ops)
+				cgenPrintlnDecl(n, im, ops)
 			} else {
 				cgenFnDecl(n, im, ops)
 			}
