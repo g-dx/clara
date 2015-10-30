@@ -25,6 +25,7 @@ const (
 
 const (
 disableConsoleColour = "\u001B[0m"
+yellowColour = "\u001B[33m"
 )
 
 var nodeTypes = map[int]string {
@@ -42,7 +43,7 @@ func (n * Node) Walk(fn func(*Node)) {
 }
 
 func printTree(n *Node) {
-	fmt.Println("\nParse Tree\n")
+	fmt.Println("\nAbstract Syntax Tree:\n")
 	printTreeImpl(n, "    ", true)
 	fmt.Println()
 }
@@ -63,7 +64,8 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
         val = n.token.val
     }
 
-	fmt.Printf("%v%v%v (%v%v%v)\n", prefix, row, val, nodeTypeColour, nodeTypes[n.op], disableConsoleColour)
+	fmt.Printf("%v%v%v%v%v (%v%v%v)\n", yellowColour, prefix, row, disableConsoleColour,
+		val, nodeTypeColour, nodeTypes[n.op], disableConsoleColour)
 
 	// Handle 0..n-1 children
 	row = "|    "

@@ -77,7 +77,6 @@ func (co RelativeCallOpcode) Len() uint8 {
 func (co RelativeCallOpcode) Bytes() []byte {
     // Calculate displacement
     dis := int32(uint64(*co.dest) - (co.pos + uint64(co.Len())))
-    fmt.Printf("Displacement: %v\n", dis)
     return op(0xE8).Write(dis).Build().Bytes()
 }
 

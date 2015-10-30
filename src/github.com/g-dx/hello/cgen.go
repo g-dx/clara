@@ -141,10 +141,10 @@ func cgenPrintlnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	ops.RET()
 }
 
-func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
+func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	// Wrap for convenience
-	w := &leWriter{w : writer, debug : true}
+	w := &leWriter{w : writer, debug : debug}
 
 	// Write PE header
 	w.Write(pe.NewDosHeader())
@@ -247,7 +247,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 				cgenPrintCall(n, ops)
 			}
 		default:
-			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
+//			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
 		}
 	})
 
@@ -308,12 +308,10 @@ func (ew *leWriter) Write(data interface{}) {
 				fmt.Printf("       |     | %x\n", b)
 			}
 		}
-
-		// Update pos
-		ew.pos += uint64(buf.Len())
 	}
 
 	ew.err = binary.Write(ew.w, binary.LittleEndian, data)
+	ew.pos += uint64(binary.Size(data))
 }
 
 func (ew *leWriter) Pad(pos uint64, val byte) {

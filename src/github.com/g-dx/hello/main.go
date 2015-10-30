@@ -12,7 +12,9 @@ import (
 func main() {
 
     // Load program path. Default to "examples"
-    path := flag.String("-prog", "../examples/hello.clara", "File with Clara program to compile.")
+    path := flag.String("prog", "../examples/hello.clara", "File with Clara program to compile.")
+	showAst := flag.Bool("ast", false, "Print the generated AST.")
+	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
     flag.Parse()
 
     // Read program file
@@ -22,16 +24,11 @@ func main() {
         os.Exit(1)
     }
 
-    // Print
-    fmt.Println("\nInput Program\n")
-    prog := string(progBytes)
-    for i, line := range strings.Split(prog, "\n") {
-        fmt.Printf("%2d. %v\n", i+1, line)
-    }
-
 	// Lex
+	prog := string(progBytes)
 	tokens, err := lex(prog)
 	if err != nil {
+		printProgram(prog)
 		fmt.Printf("\nLexing errors:\n\n %s\n", err)
 		os.Exit(1)
 	}
@@ -44,12 +41,18 @@ func main() {
     errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
 
 	if len(errs) > 0 {
+		printProgram(prog)
         fmt.Println("\nParse Errors\n")
 		for _, err := range errs {
 			fmt.Printf(" - %v\n", err)
 		}
+		os.Exit(1)
 	}
-	printTree(tree)
+
+	// Print AST if necessary
+	if *showAst {
+		printTree(tree)
+	}
 
 	os.Remove("F:\\hello.exe")
 	f, err := os.Create("F:\\hello.exe")
@@ -57,18 +60,24 @@ func main() {
 		fmt.Printf(" - %v\n", err)
 	}
 
-	err = codegen(parser.symtab, tree, f)
+	// Generate code
+	err = codegen(parser.symtab, tree, f, *showAsm)
 	if err != nil {
-		fmt.Printf("I/O err: %v\n", err)
+		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
+		os.Exit(1)
 	}
-
-	fmt.Printf("Binary Written!\n")
-
 }
 
 func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
 		&Node{token:&Token{val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
+	}
+}
+
+func printProgram(prog string) {
+	fmt.Println("\nInput Program\n")
+	for i, line := range strings.Split(prog, "\n") {
+		fmt.Printf("%2d. %v\n", i+1, line)
 	}
 }
