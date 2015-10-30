@@ -70,7 +70,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 	// Handle 0..n-1 children
 	row = "|    "
 	if isTail {
-		row = "   "
+		row = "     "
 	}
 	for i := 0; i < len(n.stats)-1; i++ {
 		printTreeImpl(n.stats[i], prefix + row, false)
