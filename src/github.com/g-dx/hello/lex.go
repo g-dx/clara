@@ -34,7 +34,7 @@ var kindValues = map[string]string {
 
 var patterns = [][]string{
 	{fnKeyword, keyword}, // TODO: add other keywords
-	{"\"[\\s!\\w]*\"", strLit},
+	{"\"[\\s!\x23-\x7F]*\"", strLit}, // Allow all printable ASCII characters apart from (")
 	{"[a-zA-Z]+", fnName},
 	{"\\{", fnBodyStart},
 	{"\\}", fnBodyEnd},
