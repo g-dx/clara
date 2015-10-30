@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"bytes"
 	"math"
-	"github.com/g-dx/hello/pe"
-	"github.com/g-dx/hello/x64"
+	"github.com/g-dx/clarac/pe"
+	"github.com/g-dx/clarac/x64"
 )
 
 const printlnFuncName = "println"
