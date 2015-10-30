@@ -9,6 +9,8 @@ import (
 	"github.com/g-dx/hello/x64"
 )
 
+const printlnFuncName = "println"
+
 type ImportList struct {
 	imageBase uint64
 	imports *pe.Imports
@@ -20,12 +22,16 @@ func (il * ImportList) funcRva(fn string) uint64 {
 
 func cgenFnCall(node *Node, ops *x64.OpcodeList) {
 
-	switch fn := node.sym.(type) {
-	default:
+	// Check function
+	fn, ok := node.sym.(*Function)
+	if !ok {
 		panic(fmt.Sprintf("Unknown symbol: %v, node: %v", node.sym, node))
-	case *Function:
+	}
+
+	switch fn.fnName {
+	default:
 		ops.CALL(fn.Rva())
-	case *BuiltinFunction:
+	case printlnFuncName:
 		cgenPrintCall(node, ops)
 	}
 }
@@ -53,6 +59,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 		ops.CALLPTR(imports.funcRva("ExitProcess"))
 	} else {
 		// TODO: When local variables added must update this!
+		ops.MOV(x64.Rsp, x64.Rbp)
 		ops.POP(x64.Rbp)
 		ops.RET()
 	}
@@ -61,7 +68,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 
 	// Get symbol
-	fn, ok := node.sym.(*BuiltinFunction)
+	fn, ok := node.sym.(*Function)
 	if !ok {
 		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
 	}
@@ -70,8 +77,9 @@ func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 	// the top of stack. This stack pointer can now be modified by us and restored at the end of the function to its
 	// previous state
 
-	ops.PUSH(x64.Rbp)
-	ops.MOV(x64.Rbp, x64.Rsp)
+	// TODO: commented out as we must inline this call
+//	ops.PUSH(x64.Rbp)
+//	ops.MOV(x64.Rbp, x64.Rsp)
 
 	// Push values onto stack (string RVA & length)
 
@@ -91,15 +99,15 @@ func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 	// the base/frame pointer register. This restores the caller's stack.
 	// TODO: on x64 we should use 'leave' instruction
 
-	ops.MOV(x64.Rsp, x64.Rbp)
-	ops.POP(x64.Rbp)
-	ops.RET()
+//	ops.MOV(x64.Rsp, x64.Rbp)
+//	ops.POP(x64.Rbp)
+//	ops.RET()
 }
 
 func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
 	// Get function & set RVA
-	fn, ok := node.sym.(*BuiltinFunction)
+	fn, ok := node.sym.(*Function)
 	if !ok {
 		panic(fmt.Sprintf("Unknown symbol: %v", node.sym))
 	}
@@ -110,16 +118,16 @@ func cgenPrintDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 
 	// Get the output handle
 
-	ops.MOVI(x64.Rcx, -11) // TODO: how to we pass negative values?
+	ops.MOVI(x64.Rcx, -11)
 	ops.CALLPTR(imports.funcRva("GetStdHandle"))
 
 	// Write to console
 
-	ops.PUSHI(0)
+	ops.MOV(x64.Rcx, x64.Rax) // Copy output handle result from AX to input parameter
+	ops.MOVM(x64.Rdx, x64.Rbp, 24) // String [string memory location]
+	ops.MOVM(x64.R8, x64.Rbp, 16) // String length - copy value at address
 	ops.MOVI(x64.R9, 0) // TODO: Does this need to be a local variable?
-	ops.MOVM(x64.R8, 0) // String length - copy value at address
-	ops.MOVM(x64.Rdx, 0) // String [string memory location]
-	ops.MOV(x64.Rdx, x64.Rax) // Copy output handle result from AX to input parameter
+	ops.PUSHI(0)
 	ops.CALLPTR(imports.funcRva("WriteConsoleA"))
 
 	// Clean stack
@@ -205,18 +213,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	w.Pad(0x400, 0x00)
 
 	// =================================================================================================================
-	w.Info("\n.DATA (strings)")
-
-	// Walk symbol table and assign RVAs
-	symtab.Walk(func(sym Symbol) {
-		if str, ok := sym.(*StringLiteralSymbol); ok {
-			// Set RVA & write
-			str.rva = uint32(optionalHeader.ImageBase) + dataSection.VirtualAddress + uint32(w.pos)
-			// Remove leading and trailing double quotes and add NULL byte
-			str.val = str.val[1:len(str.val)-1] + "\x00"
-			w.Write([]byte(str.val))
-		}
-	})
+	addDataSection(optionalHeader.ImageBase, dataSection, w, symtab)
 
 	w.Pad(0x600, 0x00)
 
@@ -236,10 +233,14 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			if (n.token.val == "print") {
+			if (n.token.val == printlnFuncName) {
 				cgenPrintDecl(n, im, ops)
 			} else {
 				cgenFnDecl(n, im, ops)
+			}
+		case opFuncCall:
+			if (n.token.val == printlnFuncName) {
+				cgenPrintCall(n, ops)
 			}
 		default:
 			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
@@ -254,6 +255,26 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer) error {
 
 	w.Finish()
 	return w.err
+}
+
+func addDataSection(imageBase uint64, dataSection pe.SectionHeader, w *leWriter, symtab SymTab) {
+
+	w.Info("\n.DATA (strings)")
+
+	// RVA position
+	pos := uint32(imageBase) + dataSection.VirtualAddress
+
+	// Walk symbol table and assign RVAs
+	symtab.Walk(func(sym Symbol) {
+		if str, ok := sym.(*StringLiteralSymbol); ok {
+			// Set RVA & write
+			str.rva = pos
+			// Remove leading and trailing double quotes and add newline
+			str.val = str.val[1:len(str.val)-1] + "\x0D\x0A"
+			w.Write([]byte(str.val))
+			pos += uint32(len(str.val))
+		}
+	})
 }
 
 // From https://blog.golang.org/errors-are-values

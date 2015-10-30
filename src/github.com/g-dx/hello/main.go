@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Parse
-	parser := NewParser(tokens)
+	parser := NewParser(tokens, stdlib())
 	errs, tree := parser.Parse()
 
     // Resolve function calls
@@ -64,4 +64,11 @@ func main() {
 
 	fmt.Printf("Binary Written!\n")
 
+}
+
+func stdlib() []*Node {
+	return []*Node{
+		// Built in print function
+		&Node{token:&Token{val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
+	}
 }

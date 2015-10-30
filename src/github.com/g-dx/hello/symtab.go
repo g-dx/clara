@@ -57,23 +57,13 @@ func (fn *Function) kind() int {
 	return symFnDecl
 }
 
-type BuiltinFunction struct {
-	Function
-}
-
 type SymTab struct {
 	symbols map[string]Symbol
 }
 
 func NewSymtab() SymTab {
 	s := SymTab{ make(map[string]Symbol) }
-	s.AddRuntime()
 	return s
-}
-
-func (s *SymTab) AddRuntime() {
-	// Only "print" built in
-	s.Define(&BuiltinFunction{Function{"print", 1, 0 }})
 }
 
 func (s *SymTab) Define(sym Symbol) {

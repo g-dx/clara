@@ -34,12 +34,18 @@ type Parser struct {
 	errs   []error
 	discard bool // Are we in "discard" mode?
 	symtab SymTab
+	extra []*Node
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
-func NewParser(tokens []*Token) *Parser {
-	return &Parser{tokens : tokens, symtab: NewSymtab()}
+func NewParser(tokens []*Token, extra []*Node) *Parser {
+	// Add any symbols from predefined nodes
+	symtab := NewSymtab()
+	for _, n := range extra {
+		symtab.Define(n.sym)
+	}
+	return &Parser{tokens : tokens, symtab: symtab, extra : extra}
 }
 
 func (p *Parser) Parse() (errs []error, root *Node) {
@@ -65,6 +71,11 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 		} else {
 			p.syntaxError(kindValues[keyword], kindValues[tokenEOF])
 		}
+	}
+
+	// Add extra nodes
+	for _, n := range p.extra {
+		root.Add(n)
 	}
 	return p.errs, root
 }
@@ -130,10 +141,12 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 			arg := p.consumeOrSkip(strLit)
 
 			// Define symbol
-			if _, found := p.symtab.Resolve(symStrLit, arg.val); !found {
-				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
+			sym, found := p.symtab.Resolve(symStrLit, arg.val)
+			if !found {
+				sym = &StringLiteralSymbol{ val : arg.val }
+				p.symtab.Define(sym)
 			}
-			args = append(args, &Node{token : arg, op : opStrLit})
+			args = append(args, &Node{token : arg, op : opStrLit, sym : sym})
 		} else if p.match(fnArgsEnd) {
 			break
 		} else {
@@ -153,10 +166,12 @@ func (p *Parser) fnArgs() (args []*Node) {
 			// Match first arg
 			arg := p.consume()
 			// Define symbol
-			if _, found := p.symtab.Resolve(symStrLit, arg.val); !found {
-				p.symtab.Define(&StringLiteralSymbol{ val : arg.val })
+			sym, found := p.symtab.Resolve(symStrLit, arg.val)
+			if !found {
+				sym = &StringLiteralSymbol{ val : arg.val }
+				p.symtab.Define(sym)
 			}
-			args = append(args, &Node{token : arg, op : opStrLit})
+			args = append(args, &Node{token : arg, op : opStrLit, sym : sym})
 
 			// Match rest of args
 			args = append(args, p.fnRestArgs()...)

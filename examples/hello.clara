@@ -1,7 +1,4 @@
 // Entry point
 fn main() {
-  print("Hello World!")
-  print("this is")
-  print("my first")
-  print("compiler!")
+  println("Hello World!")
 }

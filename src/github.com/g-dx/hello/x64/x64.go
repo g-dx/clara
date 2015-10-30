@@ -131,10 +131,18 @@ func (ol *OpcodeList) MOV(srcReg uint8, destReg uint8) {
 }
 
 // Move data from memory location to register
-func (ol *OpcodeList) MOVM(srcReg int, destReg uint) {
-    // What kind of mov?
-    // 0x41 is REX prefix required for referencing rd9, rd8 and other registers
-	panic("MOVM not implemented")
+func (ol *OpcodeList) MOVM(destReg int, srcReg int, dis uint8) {
+    if srcReg != Rbp {
+        panic("MOVM not implemented for source register other than RBP")
+    }
+    switch destReg {
+        case Rdx:
+            ol.Add(op(0x8B).Bytes(0x55).Write(dis).Build())
+        case R8:
+            ol.Add(op(0x44).Bytes(0x8B, 0x45).Write(dis).Build())
+        default:
+            panic(fmt.Sprintf("MOVM: %x, %x, displacement:%x - register not implemented yet.", destReg, srcReg, dis))
+    }
 }
 
 // Move immediate value to register
@@ -144,14 +152,14 @@ func (ol *OpcodeList) MOVM(srcReg int, destReg uint) {
 //    3. Double check the representation of negative number is what Microsoft ABI expects
 func (ol *OpcodeList) MOVI(destReg int, val int32) {
 
-    code := byte(0x00)
     switch destReg {
-        case Rcx: code = 0xB9
+        case Rcx:
+            ol.Add(op(0xB9).Write(val).Build())
+        case R9:
+            ol.Add(op(0x41).Bytes(0xB9).Write(val).Build())
         default:
             panic(fmt.Sprintf("MOVI: %x, %x - register not implemented yet.", destReg, val))
     }
-
-	ol.Add(op(code).Write(val).Build())
 }
 
 // Push from register to top of stack
@@ -161,13 +169,7 @@ func (ol *OpcodeList) PUSH(srcReg byte) {
 
 // Push immediate value to top of stack
 func (ol *OpcodeList) PUSHI(val uint32) {
-
-    code := uint8(0x68)
-    if val <= 255 {
-        code = 0x6A
-    }
-
-    ol.Add(op(code).Write(val).Build())
+    ol.Add(op(0x68).Write(val).Build())
 }
 
 // Pop from top of stack to register
