@@ -6,13 +6,15 @@ import (
     "strings"
     "io/ioutil"
     "flag"
-//	"bytes"
+	"path/filepath"
 )
 
 func main() {
 
     // Load program path. Default to "examples"
     path := flag.String("prog", "../examples/hello.clara", "File with Clara program to compile.")
+	showProg := flag.Bool("in", false, "Print the input program.")
+	showLex := flag.Bool("lex", false, "Print the lexical output.")
 	showAst := flag.Bool("ast", false, "Print the generated AST.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
     flag.Parse()
@@ -23,14 +25,22 @@ func main() {
         fmt.Println(err)
         os.Exit(1)
     }
+	prog := string(progBytes)
+
+	if *showProg {
+		printProgram(prog)
+	}
 
 	// Lex
-	prog := string(progBytes)
 	tokens, err := lex(prog)
 	if err != nil {
 		printProgram(prog)
 		fmt.Printf("\nLexing errors:\n\n %s\n", err)
 		os.Exit(1)
+	}
+
+	if *showLex {
+		printLex(tokens)
 	}
 
 	// Parse
@@ -54,8 +64,9 @@ func main() {
 		printTree(tree)
 	}
 
-	os.Remove("F:\\hello.exe")
-	f, err := os.Create("F:\\hello.exe")
+	// Create output file
+	basename := filepath.Base(*path)
+	f, err := os.Create(fmt.Sprintf("%v%c%v.exe", filepath.Dir(*path), filepath.Separator, strings.TrimSuffix(basename, filepath.Ext(basename))))
 	if err != nil {
 		fmt.Printf(" - %v\n", err)
 	}
@@ -79,5 +90,12 @@ func printProgram(prog string) {
 	fmt.Println("\nInput Program\n")
 	for i, line := range strings.Split(prog, "\n") {
 		fmt.Printf("%2d. %v\n", i+1, line)
+	}
+}
+
+func printLex(tokens []*Token) {
+	fmt.Println("\nLexical Tokens\n")
+	for _, token := range tokens {
+		fmt.Println(token)
 	}
 }
