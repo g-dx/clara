@@ -67,6 +67,8 @@ func (t Token) String() string {
 		disableConsoleColour, nodeTypeColour, val, disableConsoleColour)
 }
 
+// This is almost entirely inspired by the template lexer in Go. Src here:
+// https://github.com/golang/go/blob/master/src/text/template/parse/lex.go
 type lexer struct {
 	// Next state & input string
 	state stateFn
