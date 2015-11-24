@@ -32,11 +32,26 @@ func main() {
 	}
 
 	// Lex
-	tokens, err := lex(prog)
-	if err != nil {
-		printProgram(prog)
-		fmt.Printf("\nLexing errors:\n\n %s\n", err)
-		os.Exit(1)
+	tokens := make([]*Token, 0, 10)
+	lexer := lex(prog, *path)
+	// TODO: Lexing errors should really appear from parse stage
+	for {
+		token := lexer.nextToken()
+		// TODO: Parser could filter tokens it's not interested in
+		switch token.kind {
+		case kindEOL, kindSpace, kindComment:
+			continue
+		case kindError:
+			printProgram(prog)
+			fmt.Printf("\nLexing errors:\n\n %s\n", token)
+			os.Exit(1)
+		default:
+			tokens = append(tokens, token)
+		}
+		// Check for EOF
+		if token.kind == kindEOF {
+			break
+		}
 	}
 
 	if *showLex {
@@ -89,7 +104,7 @@ func stdlib() []*Node {
 func printProgram(prog string) {
 	fmt.Println("\nInput Program\n")
 	for i, line := range strings.Split(prog, "\n") {
-		fmt.Printf("%2d. %v\n", i+1, line)
+		fmt.Printf("%v%2d%v. %v%v%v\n", yellowColour, i+1, disableConsoleColour, nodeTypeColour, line, disableConsoleColour)
 	}
 }
 

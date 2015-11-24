@@ -26,6 +26,7 @@ const (
 const (
 disableConsoleColour = "\u001B[0m"
 yellowColour = "\u001B[33m"
+redColour = "\u001B[31m"
 )
 
 var nodeTypes = map[int]string {
@@ -59,13 +60,13 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
         return
     }
     // Has token?
-    val := "none"
+    val := "ROOT"
     if n.token != nil {
         val = n.token.val
     }
 
-	fmt.Printf("%v%v%v%v%v (%v%v%v)\n", yellowColour, prefix, row, disableConsoleColour,
-		val, nodeTypeColour, nodeTypes[n.op], disableConsoleColour)
+	fmt.Printf("%v%v%v%v%v%v%v (%v%v%v)\n", yellowColour, prefix, row, disableConsoleColour,
+		nodeTypeColour, val, disableConsoleColour, redColour, nodeTypes[n.op], disableConsoleColour)
 
 	// Handle 0..n-1 children
 	row = "|    "

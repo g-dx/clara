@@ -61,15 +61,15 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	}()
 
     // Create root & loop
-    root = &Node{token : &Token{"", "ROOT", 0, 0}, op : opRoot}
+    root = &Node{op : opRoot}
     for
 	{
-		if p.match(tokenEOF) {
+		if p.match(kindEOF) {
 			break;
-		} else if p.match(keyword) {
+		} else if p.match(kindFn) {
 			root.Add(p.fnDeclaration())
 		} else {
-			p.syntaxError(kindValues[keyword], kindValues[tokenEOF])
+			p.syntaxError(kindValues[kindFn], kindValues[kindEOF])
 		}
 	}
 
@@ -83,22 +83,22 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 func (p *Parser) fnDeclaration() *Node {
 
 	// Match declaration
-	_ = p.consumeOrSkip(keyword)
-	name := p.consumeOrSkip(fnName)
-	_ = p.consumeOrSkip(fnArgsStart)
-	_ = p.consumeOrSkip(fnArgsEnd)
-	_ = p.consumeOrSkip(fnBodyStart)
+	_ = p.consumeOrSkip(kindFn)
+	name := p.consumeOrSkip(kindIdentifier)
+	_ = p.consumeOrSkip(kindLeftParen)
+	_ = p.consumeOrSkip(kindRightParen)
+	_ = p.consumeOrSkip(kindLeftBrace)
 
 	// Match calls
 	var fnCalls []*Node
 	for {
-		if p.match(fnName) {
+		if p.match(kindIdentifier) {
 			fnCalls = append(fnCalls, p.fnCall())
-		} else if p.match(fnBodyEnd) {
+		} else if p.match(kindRightBrace) {
 			p.consume()
 			break
 		} else {
-			p.syntaxError(kindValues[fnName], kindValues[fnBodyEnd])
+			p.syntaxError(kindValues[kindIdentifier], kindValues[kindRightBrace])
 		}
 	}
 	return p.fnDclNode(name, fnCalls)
@@ -118,10 +118,10 @@ func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 }
 
 func (p *Parser) fnCall() *Node {
-	name := p.consumeOrSkip(fnName)
-	_ = p.consumeOrSkip(fnArgsStart)
+	name := p.consumeOrSkip(kindIdentifier)
+	_ = p.consumeOrSkip(kindLeftParen)
 	args := p.fnArgs()
-	_ = p.consumeOrSkip(fnArgsEnd)
+	_ = p.consumeOrSkip(kindRightParen)
 	return p.fnCallNode(name, args)
 }
 
@@ -134,11 +134,11 @@ func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
 func (p *Parser) fnRestArgs() (args []*Node) {
 	// Match rest args or end of args
 	for {
-		if p.match(argsSeparator) {
+		if p.match(kindComma) {
 			p.consume()
 
 			// Must be an argument next
-			arg := p.consumeOrSkip(strLit)
+			arg := p.consumeOrSkip(kindString)
 
 			// Define symbol
 			sym, found := p.symtab.Resolve(symStrLit, arg.val)
@@ -147,10 +147,10 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 				p.symtab.Define(sym)
 			}
 			args = append(args, &Node{token : arg, op : opStrLit, sym : sym})
-		} else if p.match(fnArgsEnd) {
+		} else if p.match(kindRightParen) {
 			break
 		} else {
-			p.syntaxError(kindValues[fnArgsEnd], kindValues[argsSeparator])
+			p.syntaxError(kindValues[kindRightParen], kindValues[kindComma])
 		}
 	}
 	return args
@@ -159,9 +159,9 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 func (p *Parser) fnArgs() (args []*Node) {
 	// Match none or some args
 	for {
-		if p.match(fnArgsEnd) {
+		if p.match(kindRightParen) {
 			break
-		} else if p.match(strLit) {
+		} else if p.match(kindString) {
 
 			// Match first arg
 			arg := p.consume()
@@ -177,13 +177,13 @@ func (p *Parser) fnArgs() (args []*Node) {
 			args = append(args, p.fnRestArgs()...)
 			break
 		} else {
-			p.syntaxError(kindValues[fnArgsEnd], kindValues[fnArgsEnd])
+			p.syntaxError(kindValues[kindRightParen], kindValues[kindString])
 		}
 	}
 	return args
 }
 
-func (p *Parser) consumeOrSkip(kind string) *Token {
+func (p *Parser) consumeOrSkip(kind lexKind) *Token {
 	// Attempt to match until we find
 	ok := p.match(kind)
 	for !ok {
@@ -204,7 +204,7 @@ func (p *Parser) consume() *Token {
 	return token
 }
 
-func (p *Parser) match(kind string) bool {
+func (p *Parser) match(kind lexKind) bool {
 	ok := p.tokens[p.pos].kind == kind
 	if ok {
 		p.discard = false // Clear discard mode
