@@ -1,4 +1,9 @@
 // Entry point
 fn main() {
+  sayHello()
+}
+
+// Prints hello on the commandline
+fn sayHello() {
   println("Hello World!")
 }
