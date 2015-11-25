@@ -1,3 +1,3 @@
-# helloworld
+# Clarac
 
-A simple compiler for a very simple language designed to allow printing "Hello World!" on standard out.
+A compiler for _Clara_; a simple language which aims to be an experiment in language design and implementation.
