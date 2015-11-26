@@ -50,19 +50,19 @@ func NewParser(tokens []*Token, extra []*Node) *Parser {
 
 func (p *Parser) Parse() (errs []error, root *Node) {
 
-    // We only recover from unexpected EOF
+	// We only recover from unexpected EOF
 	defer func() {
 		if r := recover(); r != nil {
 			errs = p.errs
 			if r != errUnexpectedEof {
-                panic(r)
-            }
+				panic(r)
+			}
 		}
 	}()
 
-    // Create root & loop
-    root = &Node{op : opRoot}
-    for
+	// Create root & loop
+	root = &Node{op : opRoot}
+	for
 	{
 		if p.match(kindEOF) {
 			break;
