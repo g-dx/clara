@@ -6,20 +6,6 @@ import (
 	"strings"
 )
 
-/**
-
-GRAMMAR
-=======
-
-<program>       ::= fnDeclaration*
-<fnDeclaration> ::= fn ident () { fnCall* }
-<fnCall>        ::= ident(fnArgs)
-<fnArgs>        ::= string_lit (, string_lit)*
-<string_lit>    ::= "[a-zA-Z0-9]"
-<ident>         ::= [a-zA-Z]
-
-*/
-
 const (
 	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
 	errRedeclaredMsg = "%d:%d: error, '%v' redeclared"
