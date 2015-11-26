@@ -1,0 +1,51 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Extended Backus-Naur Form (EBNF):
+
+Production  = production_name "=" [ Expression ] "." .
+Expression  = Alternative { "|" Alternative } .
+Alternative = Term { Term } .
+Term        = production_name | token [ "…" token ] | Group | Option | Repetition .
+Group       = "(" Expression ")" .
+Option      = "[" Expression "]" .
+Repetition  = "{" Expression "}" .
+
+Operators, in increasing precedence:
+
+|   alternation
+()  grouping
+[]  option (0 or 1 times)
+{}  repetition (0 to n times)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TopLevelDecl   = FunctionDecl .
+
+FunctionDecl   = "fn" FunctionName Parameters FunctionBody .
+FunctionName   = identifier .
+FunctionBody   = Block .
+
+Parameters     = "(" [ ParameterList ] ")" .
+ParameterList  = ParameterDecl { "," ParameterDecl } .
+ParameterDecl  = Identifier Type .
+
+Type           = TypeName | TypeLit
+TypeName       = identifier
+TypeList       = ...arrays, structs, funcs etc go here ...
+
+Block          = "{" StatementList "}" .
+StatementList  = { Statement ";" } .
+Statement      = EmptyStmt | ExpressionStmt .
+
+ExpressionList = Expression { "," Expression } .
+Expression     =  Operand | Expression Arguments .
+
+Arguments      = "(" [ ExpressionList ] ")" .
+
+Operand        = Literal | OperandName | "(" Expression ")" .
+Literal        = BasicLit
+BasicLit       = int_lit | string_lit .
+OperandName    = identifier
+
+identifier     = letter { letter | unicode_digit } .
+string_lit     = " { unicode_value } "
+int_lit        = ( "1" … "9" ) { int_digit } .
