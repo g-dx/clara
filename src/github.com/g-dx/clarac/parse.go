@@ -36,15 +36,8 @@ func NewParser(tokens []*Token, extra []*Node) *Parser {
 
 func (p *Parser) Parse() (errs []error, root *Node) {
 
-	// We only recover from unexpected EOF
-	defer func() {
-		if r := recover(); r != nil {
-			errs = p.errs
-			if r != errUnexpectedEof {
-				panic(r)
-			}
-		}
-	}()
+	// Setup handler to recover from unexpected EOF
+	defer p.recoverUnexpectedEof(&errs)
 
 	// Create root & loop
 	root = &Node{op : opRoot}
@@ -69,11 +62,11 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 func (p *Parser) fnDeclaration() *Node {
 
 	// Match declaration
-	_ = p.consumeOrSkip(kindFn)
+	p.consumeOrSkip(kindFn)
 	name := p.consumeOrSkip(kindIdentifier)
-	_ = p.consumeOrSkip(kindLeftParen)
-	_ = p.consumeOrSkip(kindRightParen)
-	_ = p.consumeOrSkip(kindLeftBrace)
+	p.consumeOrSkip(kindLeftParen)
+	p.consumeOrSkip(kindRightParen)
+	p.consumeOrSkip(kindLeftBrace)
 
 	// Match calls
 	var fnCalls []*Node
@@ -105,9 +98,9 @@ func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 
 func (p *Parser) fnCall() *Node {
 	name := p.consumeOrSkip(kindIdentifier)
-	_ = p.consumeOrSkip(kindLeftParen)
+	p.consumeOrSkip(kindLeftParen)
 	args := p.fnArgs()
-	_ = p.consumeOrSkip(kindRightParen)
+	p.consumeOrSkip(kindRightParen)
 	return p.fnCallNode(name, args)
 }
 
@@ -229,4 +222,13 @@ func (p *Parser) syntaxError(expected...lexKind) {
 				strings.Join(expectedValues, "' or '"))))
 	}
 	p.consume()
+}
+
+func (p *Parser) recoverUnexpectedEof(errs *[]error) {
+	if r := recover(); r != nil {
+		errs = &p.errs
+		if r != errUnexpectedEof {
+			panic(r)
+		}
+	}
 }
