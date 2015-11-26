@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	syntaxErrMsg = "%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
-	errRedeclaredMsg = "%d:%d: error, '%v' redeclared"
-	errUndefinedMsg = "%d:%d: error, '%v' undefined"
-	errNotFuncMsg = "%d:%d: error, '%v' is not a function"
-	errArgCountMsg = "%d:%d: error, wrong argument count to call '%v'"
+	syntaxErrMsg = "%v:%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
+	errRedeclaredMsg = "%v:%d:%d: error, '%v' redeclared"
+	errUndefinedMsg = "%v:%d:%d: error, '%v' undefined"
+	errNotFuncMsg = "%v:%d:%d: error, '%v' is not a function"
+	errArgCountMsg = "%v:%d:%d: error, wrong argument count to call '%v'"
 )
 
 type Parser struct {
@@ -55,7 +55,7 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 		} else if p.match(kindFn) {
 			root.Add(p.fnDeclaration())
 		} else {
-			p.syntaxError(kindValues[kindFn], kindValues[kindEOF])
+			p.syntaxError(kindFn, kindEOF)
 		}
 	}
 
@@ -84,7 +84,7 @@ func (p *Parser) fnDeclaration() *Node {
 			p.consume()
 			break
 		} else {
-			p.syntaxError(kindValues[kindIdentifier], kindValues[kindRightBrace])
+			p.syntaxError(kindIdentifier, kindRightBrace)
 		}
 	}
 	return p.fnDclNode(name, fnCalls)
@@ -136,7 +136,7 @@ func (p *Parser) fnRestArgs() (args []*Node) {
 		} else if p.match(kindRightParen) {
 			break
 		} else {
-			p.syntaxError(kindValues[kindRightParen], kindValues[kindComma])
+			p.syntaxError(kindRightParen, kindComma)
 		}
 	}
 	return args
@@ -163,7 +163,7 @@ func (p *Parser) fnArgs() (args []*Node) {
 			args = append(args, p.fnRestArgs()...)
 			break
 		} else {
-			p.syntaxError(kindValues[kindRightParen], kindValues[kindString])
+			p.syntaxError(kindRightParen, kindString)
 		}
 	}
 	return args
@@ -173,7 +173,7 @@ func (p *Parser) consumeOrSkip(kind lexKind) *Token {
 	// Attempt to match until we find
 	ok := p.match(kind)
 	for !ok {
-		p.syntaxError(kindValues[kind])
+		p.syntaxError(kind)
 		p.consume()
 		ok = p.match(kind)
 	}
@@ -201,24 +201,32 @@ func (p *Parser) match(kind lexKind) bool {
 func (p *Parser) symbolError(err string, token *Token) {
 	p.errs = append(p.errs,
 		errors.New(fmt.Sprintf(err,
+			token.file,
 			token.line,
 			token.pos,
 			token.val)))
 }
 
-func (p *Parser) syntaxError(expected...string) {
+func (p *Parser) syntaxError(expected...lexKind) {
 	if !p.discard {
 		// Enable discard mode
 		p.discard = true
+
+		// Gather values
+		expectedValues := make([]string, 0, 2)
+		for _, v := range expected {
+			expectedValues = append(expectedValues, kindValues[v])
+		}
 
 		// Store error
 		token := p.tokens[p.pos]
 		p.errs = append(p.errs,
 			errors.New(fmt.Sprintf(syntaxErrMsg,
+				token.file,
 				token.line,
 				token.pos,
 				p.tokens[p.pos].val,
-				strings.Join(expected, "' or '"))))
+				strings.Join(expectedValues, "' or '"))))
 	}
 	p.consume()
 }

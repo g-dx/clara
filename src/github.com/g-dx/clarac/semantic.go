@@ -16,6 +16,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 		if !found {
 			// Undefined
 			err = errors.New(fmt.Sprintf(errUndefinedMsg,
+				n.token.file,
 				n.token.line,
 				n.token.pos,
 				n.token.val))
@@ -26,6 +27,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 		fn, ok := s.(*Function)
 		if !ok {
 			err = errors.New(fmt.Sprintf(errNotFuncMsg,
+				n.token.file,
 				n.token.line,
 				n.token.pos,
 				n.token.val))
@@ -36,6 +38,7 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 		// TODO: Return the position of the wrong argument - not the function
 		if fn.argCount() != len(n.stats) {
 			err = errors.New(fmt.Sprintf(errArgCountMsg,
+				n.token.file,
 				n.token.line,
 				n.token.pos,
 				n.token.val))
