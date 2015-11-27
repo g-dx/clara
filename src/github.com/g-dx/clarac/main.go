@@ -62,6 +62,11 @@ func main() {
 	parser := NewParser(tokens, stdlib())
 	errs, tree := parser.Parse()
 
+	// Print AST if necessary
+	if *showAst {
+		printTree(tree)
+	}
+
     // Resolve function calls
     errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
 
@@ -72,11 +77,6 @@ func main() {
 			fmt.Printf(" - %v\n", err)
 		}
 		os.Exit(1)
-	}
-
-	// Print AST if necessary
-	if *showAst {
-		printTree(tree)
 	}
 
 	// Create output file
@@ -98,6 +98,8 @@ func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
 		&Node{token:&Token{val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
+		// Temporary built to print int
+		&Node{token:&Token{val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, 0 }},
 	}
 }
 

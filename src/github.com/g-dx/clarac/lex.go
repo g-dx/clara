@@ -18,6 +18,7 @@ const (
 	kindComment
 	kindIdentifier
 	kindString
+	kindInteger
 	kindSpace
 	kindComma
 	kindEOL
@@ -38,6 +39,7 @@ var kindValues = map[lexKind]string {
 	kindRightParen: ")",
 	kindIdentifier: "<identifier>",
 	kindString: "<string lit>",
+	kindInteger: "<integer lit>",
 	kindFn: "fn",
 	kindComma: ",",
 	kindEOF : "<EOF>",
@@ -58,6 +60,8 @@ func (t Token) String() string {
 		val = "EOF"
 	case t.kind > kindKeyword:
 		val = fmt.Sprintf("<%s>", t.val)
+	case t.kind == kindInteger:
+		val = fmt.Sprintf("%s", t.val)
 	case t.kind == kindError:
 		val = t.val
 	default:
@@ -124,7 +128,9 @@ func lexText(l *lexer) stateFn {
 			}
 			l.next()
 			return lexComment
-		case isAlphaNumeric(r):
+		case isNumeric(r):
+			return lexInteger
+		case isAlphabetic(r):
 			return lexIdentifier
 		case isEndOfLine(r):
 			l.emit(kindEOL)
@@ -157,6 +163,15 @@ func lexString(l *lexer) stateFn {
 		return l.errorf("Unclosed string literal")
 	}
 	l.emit(kindString)
+	return lexText
+}
+
+// Opening digit has already been consumed
+func lexInteger(l *lexer) stateFn {
+	for isNumeric(l.peek()) {
+		l.next()
+	}
+	l.emit(kindInteger)
 	return lexText
 }
 
@@ -239,7 +254,15 @@ func (l *lexer) nextToken() *Token {
 }
 
 func isAlphaNumeric(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return isAlphabetic(r) || isNumeric(r)
+}
+
+func isAlphabetic(r rune) bool {
+	return r == '_' || unicode.IsLetter(r)
+}
+
+func isNumeric(r rune) bool {
+	return unicode.IsDigit(r)
 }
 
 func isEndOfLine(r rune) bool {

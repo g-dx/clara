@@ -20,6 +20,7 @@ const (
 	opFuncDcl = iota
 	opFuncCall
 	opStrLit
+	opIntegerLit
 	opRoot
 )
 
@@ -33,6 +34,7 @@ var nodeTypes = map[int]string {
 	opFuncDcl : "Func Decl",
 	opFuncCall : "Func Call",
 	opStrLit : "String Lit",
+	opIntegerLit : "Integer Lit",
 	opRoot : "<none>",
 }
 

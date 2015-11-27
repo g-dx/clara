@@ -61,7 +61,9 @@ func walk(symtab SymTab, n *Node, visit func(SymTab, *Node) error) (errs []error
 	}
 	// Visit children
 	for _, stat := range n.stats {
-		errs = append(errs, walk(symtab, stat, visit)...)
+		if stat != nil {
+			errs = append(errs, walk(symtab, stat, visit)...)
+		}
 	}
 	return
 }

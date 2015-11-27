@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"strconv"
 )
 
 const (
@@ -98,9 +99,7 @@ func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 
 func (p *Parser) fnCall() *Node {
 	name := p.consumeOrSkip(kindIdentifier)
-	p.consumeOrSkip(kindLeftParen)
-	args := p.fnArgs()
-	p.consumeOrSkip(kindRightParen)
+	args := p.parseArgs()
 	return p.fnCallNode(name, args)
 }
 
@@ -110,56 +109,115 @@ func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
 	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
 }
 
-func (p *Parser) fnRestArgs() (args []*Node) {
-	// Match rest args or end of args
-	for {
-		if p.match(kindComma) {
-			p.consume()
+//func (p *Parser) fnArgs() (args []*Node) {
+//
+//	parsedArg := false
+//	for {
+//		if p.match(kindComma) {
+//			if !parsedArg {
+//				p.syntaxError(kindInteger, kindString)
+//				p.consume()
+//				fmt.Printf("Unexpected comma\n")
+//				continue
+//			}
+//			fmt.Printf("Parsed comma\n")
+//			p.consume()
+//			parsedArg = false
+//
+//		} else if p.match(kindRightParen) {
+//			return args
+//		} else {
+//			// Parse argument
+//			arg := p.fnArg()
+//			if arg != nil {
+//				args = append(args, arg)
+//				parsedArg = true
+//			}
+//		}
+//	}
+//}
 
-			// Must be an argument next
-			arg := p.consumeOrSkip(kindString)
+// next()            - pull in next token
+// is(t) bool        - t == current
+// match(t) bool     - t == current, next() if true, false otherwise
+// matches(...t) t   - t == current, next() if true, false otherwise
+// matchOrIs(m, ...s) - match(m) || is(s) return true, else false (syntax error)
+// need(t) void      - !match() scan to ??
 
-			// Define symbol
-			sym, found := p.symtab.Resolve(symStrLit, arg.val)
-			if !found {
-				sym = &StringLiteralSymbol{ val : arg.val }
-				p.symtab.Define(sym)
-			}
-			args = append(args, &Node{token : arg, op : opStrLit, sym : sym})
-		} else if p.match(kindRightParen) {
-			break
-		} else {
-			p.syntaxError(kindRightParen, kindComma)
-		}
-	}
-	return args
+func (p *Parser) need(k lexKind) {
+	p.consumeOrSkip(k)
 }
 
-func (p *Parser) fnArgs() (args []*Node) {
-	// Match none or some args
-	for {
-		if p.match(kindRightParen) {
-			break
-		} else if p.match(kindString) {
-
-			// Match first arg
-			arg := p.consume()
-			// Define symbol
-			sym, found := p.symtab.Resolve(symStrLit, arg.val)
-			if !found {
-				sym = &StringLiteralSymbol{ val : arg.val }
-				p.symtab.Define(sym)
-			}
-			args = append(args, &Node{token : arg, op : opStrLit, sym : sym})
-
-			// Match rest of args
-			args = append(args, p.fnRestArgs()...)
-			break
-		} else {
-			p.syntaxError(kindRightParen, kindString)
+func (p *Parser) isNot(kinds...lexKind) bool {
+	for _, k := range kinds {
+		if p.is(k) {
+			return false
 		}
 	}
-	return args
+	return true
+}
+
+func (p *Parser) is(kinds...lexKind) bool {
+	for _, kind := range kinds {
+		if p.tokens[p.pos].kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) match2(k lexKind) bool {
+	if p.is(k) {
+		p.consume()
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseArgs() (n []*Node) {
+	p.need(kindLeftParen)
+	for p.isNot(kindEOF, kindRightParen) {
+		n = append(n, p.parseArg())
+		for p.match2(kindComma) {
+			n = append(n, p.parseArg())
+		}
+	}
+	p.need(kindRightParen)
+	return n
+}
+
+func (p *Parser) parseArg() (*Node) {
+	switch p.tokens[p.pos].kind {
+	case kindInteger:
+		// Match first arg
+		arg := p.consume()
+		// Define symbol
+		sym, found := p.symtab.Resolve(symIntegerLit, arg.val)
+		if !found {
+			i, err := strconv.ParseInt(arg.val, 10, 64)
+			if err != nil {
+				panic(err) // Should never happen
+			}
+			sym = &IntegerLiteralSymbol{val : i }
+			p.symtab.Define(sym)
+		}
+		return &Node{token : arg, op : opIntegerLit, sym : sym}
+	case kindString:
+
+		// Match first arg
+		arg := p.consume()
+
+		// Define symbol
+		sym, found := p.symtab.Resolve(symStrLit, arg.val)
+		if !found {
+			sym = &StringLiteralSymbol{val : arg.val }
+			p.symtab.Define(sym)
+		}
+		return &Node{token : arg, op : opStrLit, sym : sym}
+	default:
+		p.syntaxError2(kindInteger, kindString)
+		return nil
+	}
 }
 
 func (p *Parser) consumeOrSkip(kind lexKind) *Token {
@@ -198,6 +256,25 @@ func (p *Parser) symbolError(err string, token *Token) {
 			token.line,
 			token.pos,
 			token.val)))
+}
+
+func (p *Parser) syntaxError2(expected...lexKind) {
+
+		// Gather values
+		expectedValues := make([]string, 0, 2)
+		for _, v := range expected {
+			expectedValues = append(expectedValues, kindValues[v])
+		}
+
+		// Store error
+		token := p.tokens[p.pos]
+		p.errs = append(p.errs,
+			errors.New(fmt.Sprintf(syntaxErrMsg,
+				token.file,
+				token.line,
+				token.pos,
+				p.tokens[p.pos].val,
+				strings.Join(expectedValues, "' or '"))))
 }
 
 func (p *Parser) syntaxError(expected...lexKind) {

@@ -1,16 +1,30 @@
 package main
 import (
 	"fmt"
+	"strconv"
 )
 
 const (
 	symStrLit = iota
+	symIntegerLit
 	symFnDecl
 )
 
 type Symbol interface {
 	name() string
 	kind() int
+}
+
+type IntegerLiteralSymbol struct {
+	val int64
+}
+
+func (i *IntegerLiteralSymbol) name() string {
+	return strconv.FormatInt(i.val, 10)
+}
+
+func (i *IntegerLiteralSymbol) kind() int {
+	return symIntegerLit
 }
 
 type StringLiteralSymbol struct {

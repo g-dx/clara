@@ -6,4 +6,5 @@ fn main() {
 // Prints hello on the commandline
 fn sayHello() {
   println("Hello World!")
+  printDate(2015,11,27)
 }
