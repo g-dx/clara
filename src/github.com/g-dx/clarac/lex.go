@@ -145,7 +145,7 @@ func lexText(l *lexer) stateFn {
 
 // '//' has already been consumed
 func lexComment(l *lexer) stateFn {
-	for !isEndOfLine(l.peek()) {
+	for l.peek() != eof && !isEndOfLine(l.peek()) {
 		l.next()
 	}
 	l.emit(kindComment)
@@ -154,7 +154,7 @@ func lexComment(l *lexer) stateFn {
 
 // Opening " has already been consumed
 func lexString(l *lexer) stateFn {
-	for l.peek() != '"' {
+	for l.peek() != eof && l.peek() != '"' {
 		l.next()
 	}
 
@@ -168,7 +168,7 @@ func lexString(l *lexer) stateFn {
 
 // Opening digit has already been consumed
 func lexInteger(l *lexer) stateFn {
-	for isNumeric(l.peek()) {
+	for l.peek() != eof && isNumeric(l.peek()) {
 		l.next()
 	}
 	l.emit(kindInteger)
@@ -177,7 +177,7 @@ func lexInteger(l *lexer) stateFn {
 
 // A single space character has been consumed already.
 func lexSpace(l *lexer) stateFn {
-	for l.peek() == ' ' {
+	for l.peek() != eof && l.peek() == ' ' {
 		l.next()
 	}
 	l.emit(kindSpace)
@@ -188,7 +188,7 @@ func lexSpace(l *lexer) stateFn {
 func lexIdentifier(l *lexer) stateFn {
 
 	// Consume until no more alphanumerics
-	for isAlphaNumeric(l.peek()) {
+	for l.peek() != eof && isAlphaNumeric(l.peek()) {
 		l.next()
 	}
 	if !l.atTerminator() {
