@@ -38,49 +38,47 @@ func NewParser(tokens []*Token, extra []*Node) *Parser {
 func (p *Parser) Parse() (errs []error, root *Node) {
 
 	// Setup handler to recover from unexpected EOF
-	defer p.recoverUnexpectedEof(&errs)
+	defer p.onUnexpectedEof(&errs)
 
-	// Create root & loop
+	// Create root & add extra nodes
 	root = &Node{op : opRoot}
-	for
-	{
-		if p.match(kindEOF) {
-			break;
-		} else if p.match(kindFn) {
-			root.Add(p.fnDeclaration())
-		} else {
-			p.syntaxError(kindFn, kindEOF)
-		}
-	}
-
-	// Add extra nodes
 	for _, n := range p.extra {
 		root.Add(n)
 	}
+
+	// Loop over stream
+	for p.isNot(kindEOF) {
+		if p.is(kindFn) {
+			root.Add(p.fnDeclaration())
+		} else {
+			p.syntaxError(kindFn, kindEOF)
+			p.next()
+		}
+	}
+	p.need(kindEOF)
 	return p.errs, root
 }
 
 func (p *Parser) fnDeclaration() *Node {
 
 	// Match declaration
-	p.consumeOrSkip(kindFn)
-	name := p.consumeOrSkip(kindIdentifier)
-	p.consumeOrSkip(kindLeftParen)
-	p.consumeOrSkip(kindRightParen)
-	p.consumeOrSkip(kindLeftBrace)
+	p.need(kindFn)
+	name := p.need(kindIdentifier)
+	p.need(kindLeftParen)
+	p.need(kindRightParen)
+	p.need(kindLeftBrace)
 
 	// Match calls
 	var fnCalls []*Node
-	for {
-		if p.match(kindIdentifier) {
+	for p.isNot(kindRightBrace) {
+		if p.is(kindIdentifier) {
 			fnCalls = append(fnCalls, p.fnCall())
-		} else if p.match(kindRightBrace) {
-			p.consume()
-			break
 		} else {
 			p.syntaxError(kindIdentifier, kindRightBrace)
+			p.next()
 		}
 	}
+	p.need(kindRightBrace)
 	return p.fnDclNode(name, fnCalls)
 }
 
@@ -98,9 +96,7 @@ func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
 }
 
 func (p *Parser) fnCall() *Node {
-	name := p.consumeOrSkip(kindIdentifier)
-	args := p.parseArgs()
-	return p.fnCallNode(name, args)
+	return p.fnCallNode(p.need(kindIdentifier), p.parseArgs())
 }
 
 func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
@@ -109,43 +105,20 @@ func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
 	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
 }
 
-//func (p *Parser) fnArgs() (args []*Node) {
-//
-//	parsedArg := false
-//	for {
-//		if p.match(kindComma) {
-//			if !parsedArg {
-//				p.syntaxError(kindInteger, kindString)
-//				p.consume()
-//				fmt.Printf("Unexpected comma\n")
-//				continue
-//			}
-//			fmt.Printf("Parsed comma\n")
-//			p.consume()
-//			parsedArg = false
-//
-//		} else if p.match(kindRightParen) {
-//			return args
-//		} else {
-//			// Parse argument
-//			arg := p.fnArg()
-//			if arg != nil {
-//				args = append(args, arg)
-//				parsedArg = true
-//			}
-//		}
-//	}
-//}
-
 // next()            - pull in next token
 // is(t) bool        - t == current
 // match(t) bool     - t == current, next() if true, false otherwise
 // matches(...t) t   - t == current, next() if true, false otherwise
-// matchOrIs(m, ...s) - match(m) || is(s) return true, else false (syntax error)
 // need(t) void      - !match() scan to ??
 
-func (p *Parser) need(k lexKind) {
-	p.consumeOrSkip(k)
+func (p *Parser) need(k lexKind) *Token {
+	for !p.is(k) {
+		fmt.Printf(kindValues[p.tokens[p.pos].kind])
+		p.syntaxError(k)
+		p.next()
+	}
+	p.discard = false
+	return p.next()
 }
 
 func (p *Parser) isNot(kinds...lexKind) bool {
@@ -166,9 +139,10 @@ func (p *Parser) is(kinds...lexKind) bool {
 	return false
 }
 
-func (p *Parser) match2(k lexKind) bool {
+func (p *Parser) match(k lexKind) bool {
 	if p.is(k) {
-		p.consume()
+		p.next()
+		p.discard = false
 		return true
 	}
 	return false
@@ -176,9 +150,9 @@ func (p *Parser) match2(k lexKind) bool {
 
 func (p *Parser) parseArgs() (n []*Node) {
 	p.need(kindLeftParen)
-	for p.isNot(kindEOF, kindRightParen) {
+	if p.isNot(kindEOF, kindRightParen) {
 		n = append(n, p.parseArg())
-		for p.match2(kindComma) {
+		for p.match(kindComma) {
 			n = append(n, p.parseArg())
 		}
 	}
@@ -190,7 +164,7 @@ func (p *Parser) parseArg() (*Node) {
 	switch p.tokens[p.pos].kind {
 	case kindInteger:
 		// Match first arg
-		arg := p.consume()
+		arg := p.next()
 		// Define symbol
 		sym, found := p.symtab.Resolve(symIntegerLit, arg.val)
 		if !found {
@@ -205,7 +179,7 @@ func (p *Parser) parseArg() (*Node) {
 	case kindString:
 
 		// Match first arg
-		arg := p.consume()
+		arg := p.next()
 
 		// Define symbol
 		sym, found := p.symtab.Resolve(symStrLit, arg.val)
@@ -215,38 +189,21 @@ func (p *Parser) parseArg() (*Node) {
 		}
 		return &Node{token : arg, op : opStrLit, sym : sym}
 	default:
-		p.syntaxError2(kindInteger, kindString)
+		p.syntaxError(kindInteger, kindString)
+		p.next()
 		return nil
 	}
 }
 
-func (p *Parser) consumeOrSkip(kind lexKind) *Token {
-	// Attempt to match until we find
-	ok := p.match(kind)
-	for !ok {
-		p.syntaxError(kind)
-		p.consume()
-		ok = p.match(kind)
-	}
-	return p.consume()
-}
-
-func (p *Parser) consume() *Token {
+func (p *Parser) next() *Token {
 	// Panic if unexpectedly no more input
 	if (p.pos+1 >= len(p.tokens)) {
+		fmt.Println("EoF!")
 		panic(errUnexpectedEof)
 	}
 	token := p.tokens[p.pos]
 	p.pos++
 	return token
-}
-
-func (p *Parser) match(kind lexKind) bool {
-	ok := p.tokens[p.pos].kind == kind
-	if ok {
-		p.discard = false // Clear discard mode
-	}
-	return ok
 }
 
 func (p *Parser) symbolError(err string, token *Token) {
@@ -256,25 +213,6 @@ func (p *Parser) symbolError(err string, token *Token) {
 			token.line,
 			token.pos,
 			token.val)))
-}
-
-func (p *Parser) syntaxError2(expected...lexKind) {
-
-		// Gather values
-		expectedValues := make([]string, 0, 2)
-		for _, v := range expected {
-			expectedValues = append(expectedValues, kindValues[v])
-		}
-
-		// Store error
-		token := p.tokens[p.pos]
-		p.errs = append(p.errs,
-			errors.New(fmt.Sprintf(syntaxErrMsg,
-				token.file,
-				token.line,
-				token.pos,
-				p.tokens[p.pos].val,
-				strings.Join(expectedValues, "' or '"))))
 }
 
 func (p *Parser) syntaxError(expected...lexKind) {
@@ -298,12 +236,11 @@ func (p *Parser) syntaxError(expected...lexKind) {
 				p.tokens[p.pos].val,
 				strings.Join(expectedValues, "' or '"))))
 	}
-	p.consume()
 }
 
-func (p *Parser) recoverUnexpectedEof(errs *[]error) {
+func (p *Parser) onUnexpectedEof(errs *[]error) {
 	if r := recover(); r != nil {
-		errs = &p.errs
+		*errs = p.errs
 		if r != errUnexpectedEof {
 			panic(r)
 		}
