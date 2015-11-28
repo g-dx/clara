@@ -42,6 +42,8 @@ var kindValues = map[lexKind]string {
 	kindInteger: "<integer lit>",
 	kindFn: "fn",
 	kindComma: ",",
+	kindSpace : "<space>",
+	kindEOL : "<EOL>",
 	kindEOF : "<EOF>",
 }
 
