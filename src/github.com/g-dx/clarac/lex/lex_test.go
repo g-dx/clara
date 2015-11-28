@@ -16,6 +16,8 @@ func TestLex(t *testing.T) {
 		{"\n", tokens(EOL, EOF)},
 		{"{}", tokens(LBrace, RBrace, EOF)},
 		{"()", tokens(LParen, RParen, EOF)},
+		{"  ", tokens(Space, EOF)},
+		{",", tokens(Comma, EOF)},
 
 		// Identifiers & terminators
 		{"abc ", tokens(Identifier, Space, EOF)},
@@ -41,11 +43,11 @@ func TestLex(t *testing.T) {
 		{"/", tokens(Err)}, // Unexpected character
 
 		// Programs
-		{"// Comment\nfn x() {\n y()\n }\n",
+		{"// Comment\nfn x() {\n y(1,\"\")\n }\n",
 			tokens(Comment, EOL, Fn, Space, Identifier, LParen,
 				RParen, Space, LBrace, EOL, Space, Identifier,
-				LParen, RParen, EOL, Space, RBrace, EOL,
-				EOF)},
+				LParen, Integer, Comma, String, RParen,
+				EOL, Space, RBrace, EOL, EOF)},
 	}
 
 	// Run all tests
