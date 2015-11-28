@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
+	"github.com/g-dx/clarac/lex"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 
 type Parser struct {
 	pos    int
-	tokens []*Token
+	tokens []*lex.Token
 	errs   []error
 	discard bool // Are we in "discard" mode?
 	symtab SymTab
@@ -26,7 +27,7 @@ type Parser struct {
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
-func NewParser(tokens []*Token, extra []*Node) *Parser {
+func NewParser(tokens []*lex.Token, extra []*Node) *Parser {
 	// Add any symbols from predefined nodes
 	symtab := NewSymtab()
 	for _, n := range extra {
@@ -47,61 +48,61 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	}
 
 	// Loop over stream
-	for p.isNot(kindEOF) {
-		if p.is(kindFn) {
+	for p.isNot(lex.EOF) {
+		if p.is(lex.Fn) {
 			root.Add(p.fnDeclaration())
 		} else {
-			p.syntaxError(kindFn, kindEOF)
+			p.syntaxError(lex.Fn, lex.EOF)
 			p.next()
 		}
 	}
-	p.need(kindEOF)
+	p.need(lex.EOF)
 	return p.errs, root
 }
 
 func (p *Parser) fnDeclaration() *Node {
 
 	// Match declaration
-	p.need(kindFn)
-	name := p.need(kindIdentifier)
-	p.need(kindLeftParen)
-	p.need(kindRightParen)
-	p.need(kindLeftBrace)
+	p.need(lex.Fn)
+	name := p.need(lex.Identifier)
+	p.need(lex.LParen)
+	p.need(lex.RParen)
+	p.need(lex.LBrace)
 
 	// Match calls
 	var fnCalls []*Node
-	for p.isNot(kindRightBrace) {
-		if p.is(kindIdentifier) {
+	for p.isNot(lex.RBrace) {
+		if p.is(lex.Identifier) {
 			fnCalls = append(fnCalls, p.fnCall())
 		} else {
-			p.syntaxError(kindIdentifier, kindRightBrace)
+			p.syntaxError(lex.Identifier, lex.RBrace)
 			p.next()
 		}
 	}
-	p.need(kindRightBrace)
+	p.need(lex.RBrace)
 	return p.fnDclNode(name, fnCalls)
 }
 
-func (p *Parser) fnDclNode(token *Token, fnCalls []*Node) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, fnCalls []*Node) *Node {
 
 	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(symFnDecl, token.val)
+	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.val, 0, 0}
+		sym = &Function{token.Val, 0, 0}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
 }
 
 func (p *Parser) fnCall() *Node {
-	return p.fnCallNode(p.need(kindIdentifier), p.parseArgs())
+	return p.fnCallNode(p.need(lex.Identifier), p.parseArgs())
 }
 
-func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
+func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	// TODO: TEMPORARY WORKAROUND!
-	sym, _ := p.symtab.Resolve(symFnDecl, token.val)
+	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
 	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
 }
 
@@ -111,9 +112,9 @@ func (p *Parser) fnCallNode(token *Token, args []*Node) *Node {
 // matches(...t) t   - t == current, next() if true, false otherwise
 // need(t) void      - !match() scan to ??
 
-func (p *Parser) need(k lexKind) *Token {
+func (p *Parser) need(k lex.Kind) *lex.Token {
 	for !p.is(k) {
-		fmt.Printf(kindValues[p.tokens[p.pos].kind])
+		fmt.Printf(lex.KindValues[p.tokens[p.pos].Kind])
 		p.syntaxError(k)
 		p.next()
 	}
@@ -121,7 +122,7 @@ func (p *Parser) need(k lexKind) *Token {
 	return p.next()
 }
 
-func (p *Parser) isNot(kinds...lexKind) bool {
+func (p *Parser) isNot(kinds...lex.Kind) bool {
 	for _, k := range kinds {
 		if p.is(k) {
 			return false
@@ -130,16 +131,16 @@ func (p *Parser) isNot(kinds...lexKind) bool {
 	return true
 }
 
-func (p *Parser) is(kinds...lexKind) bool {
+func (p *Parser) is(kinds...lex.Kind) bool {
 	for _, kind := range kinds {
-		if p.tokens[p.pos].kind == kind {
+		if p.tokens[p.pos].Kind == kind {
 			return true
 		}
 	}
 	return false
 }
 
-func (p *Parser) match(k lexKind) bool {
+func (p *Parser) match(k lex.Kind) bool {
 	if p.is(k) {
 		p.next()
 		p.discard = false
@@ -149,26 +150,26 @@ func (p *Parser) match(k lexKind) bool {
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
-	p.need(kindLeftParen)
-	if p.isNot(kindEOF, kindRightParen) {
+	p.need(lex.LParen)
+	if p.isNot(lex.EOF, lex.RParen) {
 		n = append(n, p.parseArg())
-		for p.match(kindComma) {
+		for p.match(lex.Comma) {
 			n = append(n, p.parseArg())
 		}
 	}
-	p.need(kindRightParen)
+	p.need(lex.RParen)
 	return n
 }
 
 func (p *Parser) parseArg() (*Node) {
-	switch p.tokens[p.pos].kind {
-	case kindInteger:
+	switch p.tokens[p.pos].Kind {
+	case lex.Integer:
 		// Match first arg
 		arg := p.next()
 		// Define symbol
-		sym, found := p.symtab.Resolve(symIntegerLit, arg.val)
+		sym, found := p.symtab.Resolve(symIntegerLit, arg.Val)
 		if !found {
-			i, err := strconv.ParseInt(arg.val, 10, 64)
+			i, err := strconv.ParseInt(arg.Val, 10, 64)
 			if err != nil {
 				panic(err) // Should never happen
 			}
@@ -176,26 +177,26 @@ func (p *Parser) parseArg() (*Node) {
 			p.symtab.Define(sym)
 		}
 		return &Node{token : arg, op : opIntegerLit, sym : sym}
-	case kindString:
+	case lex.String:
 
 		// Match first arg
 		arg := p.next()
 
 		// Define symbol
-		sym, found := p.symtab.Resolve(symStrLit, arg.val)
+		sym, found := p.symtab.Resolve(symStrLit, arg.Val)
 		if !found {
-			sym = &StringLiteralSymbol{val : arg.val }
+			sym = &StringLiteralSymbol{val : arg.Val }
 			p.symtab.Define(sym)
 		}
 		return &Node{token : arg, op : opStrLit, sym : sym}
 	default:
-		p.syntaxError(kindInteger, kindString)
+		p.syntaxError(lex.Integer, lex.String)
 		p.next()
 		return nil
 	}
 }
 
-func (p *Parser) next() *Token {
+func (p *Parser) next() *lex.Token {
 	// Panic if unexpectedly no more input
 	if (p.pos+1 >= len(p.tokens)) {
 		fmt.Println("EoF!")
@@ -206,16 +207,16 @@ func (p *Parser) next() *Token {
 	return token
 }
 
-func (p *Parser) symbolError(err string, token *Token) {
+func (p *Parser) symbolError(err string, token *lex.Token) {
 	p.errs = append(p.errs,
 		errors.New(fmt.Sprintf(err,
-			token.file,
-			token.line,
-			token.pos,
-			token.val)))
+			token.File,
+			token.Line,
+			token.Pos,
+			token.Val)))
 }
 
-func (p *Parser) syntaxError(expected...lexKind) {
+func (p *Parser) syntaxError(expected...lex.Kind) {
 	if !p.discard {
 		// Enable discard mode
 		p.discard = true
@@ -223,17 +224,17 @@ func (p *Parser) syntaxError(expected...lexKind) {
 		// Gather values
 		expectedValues := make([]string, 0, 2)
 		for _, v := range expected {
-			expectedValues = append(expectedValues, kindValues[v])
+			expectedValues = append(expectedValues, lex.KindValues[v])
 		}
 
 		// Store error
 		token := p.tokens[p.pos]
 		p.errs = append(p.errs,
 			errors.New(fmt.Sprintf(syntaxErrMsg,
-				token.file,
-				token.line,
-				token.pos,
-				p.tokens[p.pos].val,
+				token.File,
+				token.Line,
+				token.Pos,
+				p.tokens[p.pos].Val,
 				strings.Join(expectedValues, "' or '"))))
 	}
 }

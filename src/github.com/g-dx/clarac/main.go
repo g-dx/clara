@@ -7,6 +7,8 @@ import (
     "io/ioutil"
     "flag"
 	"path/filepath"
+	"github.com/g-dx/clarac/lex"
+	"github.com/g-dx/clarac/console"
 )
 
 func main() {
@@ -32,16 +34,16 @@ func main() {
 	}
 
 	// Lex
-	tokens := make([]*Token, 0, 10)
-	lexer := lex(prog, *path)
+	tokens := make([]*lex.Token, 0, 10)
+	lexer := lex.Lex(prog, *path)
 	// TODO: Lexing errors should really appear from parse stage
 	for {
-		token := lexer.nextToken()
+		token := lexer.NextToken()
 		// TODO: Parser could filter tokens it's not interested in
-		switch token.kind {
-		case kindEOL, kindSpace, kindComment:
+		switch token.Kind {
+		case lex.EOL, lex.Space, lex.Comment:
 			continue
-		case kindError:
+		case lex.Err:
 			printProgram(prog)
 			fmt.Printf("\nLexing errors:\n\n %s\n", token)
 			os.Exit(1)
@@ -49,7 +51,7 @@ func main() {
 			tokens = append(tokens, token)
 		}
 		// Check for EOF
-		if token.kind == kindEOF {
+		if token.Kind == lex.EOF {
 			break
 		}
 	}
@@ -97,20 +99,20 @@ func main() {
 func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
-		&Node{token:&Token{val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
+		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
 		// Temporary built to print int
-		&Node{token:&Token{val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, 0 }},
+		&Node{token:&lex.Token{Val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, 0 }},
 	}
 }
 
 func printProgram(prog string) {
 	fmt.Println("\nInput Program\n")
 	for i, line := range strings.Split(prog, "\n") {
-		fmt.Printf("%v%2d%v. %v%v%v\n", yellowColour, i+1, disableConsoleColour, nodeTypeColour, line, disableConsoleColour)
+		fmt.Printf("%v%2d%v. %v%v%v\n", console.Yellow, i+1, console.Disable, console.NodeTypeColour, line, console.Disable)
 	}
 }
 
-func printLex(tokens []*Token) {
+func printLex(tokens []*lex.Token) {
 	fmt.Println("\nLexical Tokens\n")
 	for _, token := range tokens {
 		fmt.Println(token)

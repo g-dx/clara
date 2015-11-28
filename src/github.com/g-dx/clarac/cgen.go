@@ -57,7 +57,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	}
 
 	// Check if we are main - we need to exit!
-	if node.token.val == "main" {
+	if node.token.Val == "main" {
 		ops.MOVI(x64.Rcx, 0)
 		ops.CALLPTR(imports.funcRva("ExitProcess"))
 	} else {
@@ -237,13 +237,13 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			if (n.token.val == printlnFuncName) {
+			if (n.token.Val == printlnFuncName) {
 				cgenPrintlnDecl(n, im, ops)
 			} else {
 				cgenFnDecl(n, im, ops)
 			}
 		case opFuncCall:
-			if (n.token.val == printlnFuncName) {
+			if (n.token.Val == printlnFuncName) {
 				cgenPrintCall(n, ops)
 			}
 		default:

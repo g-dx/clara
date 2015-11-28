@@ -1,81 +1,85 @@
-package main
+package lex
 
 import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
 	"unicode"
+	"github.com/g-dx/clarac/console"
 )
 
 // Kind of lex tokens we emit
-type lexKind uint8
+type Kind int32
 const (
-	kindError lexKind = iota
-	kindRightBrace
-	kindLeftBrace
-	kindRightParen
-	kindLeftParen
-	kindComment
-	kindIdentifier
-	kindString
-	kindInteger
-	kindSpace
-	kindComma
-	kindEOL
-	kindEOF
+	Err = -1
+
+	RBrace = '}'
+	LBrace = '{'
+	RParen = ')'
+	LParen = '('
+	Comma = ','
+
+	Comment = 256 + iota // Start outside ascii range
+	Identifier
+	String
+	Integer
+	Space
+	EOL
+	EOF
+
 	// Order is v.important here!
-	kindKeyword
-	kindFn
+	Keyword
+	Fn
 )
 
-var key = map[string]lexKind{
-	"fn": kindFn,
+var key = map[string]Kind{
+	"fn": Fn,
 }
 
-var kindValues = map[lexKind]string {
-	kindLeftBrace: "{",
-	kindRightBrace: "}",
-	kindLeftParen: "(",
-	kindRightParen: ")",
-	kindIdentifier: "<identifier>",
-	kindString: "<string lit>",
-	kindInteger: "<integer lit>",
-	kindFn: "fn",
-	kindComma: ",",
-	kindSpace : "<space>",
-	kindEOL : "<EOL>",
-	kindEOF : "<EOF>",
+var KindValues = map[Kind]string {
+	LBrace: "{",
+	RBrace: "}",
+	LParen: "(",
+	RParen: ")",
+	Identifier: "<identifier>",
+	String: "<string lit>",
+	Integer: "<integer lit>",
+	Fn: "fn",
+	Comma: ",",
+	Space : "<space>",
+	EOL : "<EOL>",
+	EOF : "<EOF>",
 }
 
 type Token struct {
-	kind lexKind
-	val  string
-	pos  int
-	line int
-	file string
+	Kind Kind
+	Val  string
+	Pos  int
+	Line int
+	File string
 }
 
 func (t Token) String() string {
 	val := ""
 	switch {
-	case t.kind == kindEOF:
+	case t.Kind == EOF:
 		val = "EOF"
-	case t.kind > kindKeyword:
-		val = fmt.Sprintf("<%s>", t.val)
-	case t.kind == kindInteger:
-		val = fmt.Sprintf("%s", t.val)
-	case t.kind == kindError:
-		val = t.val
+	case t.Kind > Keyword:
+		val = fmt.Sprintf("<%s>", t.Val)
+	case t.Kind == Integer:
+		val = fmt.Sprintf("%s", t.Val)
+	case t.Kind == Err:
+		val = t.Val
 	default:
-		val = fmt.Sprintf("%q", t.val)
+		val = fmt.Sprintf("%q", t.Val)
 	}
-	return fmt.Sprintf("%s:%v%v:%v%v, %v%v%v", t.file, yellowColour, t.line, t.pos,
-		disableConsoleColour, nodeTypeColour, val, disableConsoleColour)
+	return fmt.Sprintf("%s:%v%v:%v%v, %v%v%v", t.File, console.Yellow, t.Line, t.Pos,
+		console.Disable, console.NodeTypeColour, val, console.Disable)
 }
 
 // This is almost entirely inspired by the template lexer in Go. Src here:
-// https://github.com/golang/go/blob/master/src/text/template/parse/lex.go
-type lexer struct {
+// https://github.com/golang/go/blob/master/src/text/template/parse/go
+type Lexer struct {
 	// Next state & input string
 	state stateFn
 	input string
@@ -92,36 +96,36 @@ type lexer struct {
 
 const eof = -1
 
-type stateFn func(*lexer) stateFn
+type stateFn func(*Lexer) stateFn
 
-func lex(input string, file string) *lexer {
-	l := &lexer{input : input, file : file, tokens : make(chan *Token)}
+func Lex(input string, file string) *Lexer {
+	l := &Lexer{input : input, file : file, tokens : make(chan *Token)}
 	go l.run()
 	return l
 }
 
-func (l *lexer) run() {
+func (l *Lexer) run() {
 	for l.state = lexText; l.state != nil; {
 		l.state = l.state(l)
 	}
 	close(l.tokens)
 }
 
-func lexText(l *lexer) stateFn {
+func lexText(l *Lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == ' ':
 			return lexSpace
 		case r == '(':
-			l.emit(kindLeftParen)
+			l.emit(LParen)
 		case r == ')':
-			l.emit(kindRightParen)
+			l.emit(RParen)
 		case r == '{':
-			l.emit(kindLeftBrace)
+			l.emit(LBrace)
 		case r == '}':
-			l.emit(kindRightBrace)
+			l.emit(RBrace)
 		case r == ',':
-			l.emit(kindComma)
+			l.emit(Comma)
 		case r == '"':
 			return lexString
 		case r == '/':
@@ -135,9 +139,9 @@ func lexText(l *lexer) stateFn {
 		case isAlphabetic(r):
 			return lexIdentifier
 		case isEndOfLine(r):
-			l.emit(kindEOL)
+			l.emit(EOL)
 		case r == eof:
-			l.emit(kindEOF)
+			l.emit(EOF)
 			return nil
 		default:
 			return l.errorf("Unexpected character %#U", r)
@@ -146,16 +150,16 @@ func lexText(l *lexer) stateFn {
 }
 
 // '//' has already been consumed
-func lexComment(l *lexer) stateFn {
+func lexComment(l *Lexer) stateFn {
 	for l.peek() != eof && !isEndOfLine(l.peek()) {
 		l.next()
 	}
-	l.emit(kindComment)
+	l.emit(Comment)
 	return lexText
 }
 
 // Opening " has already been consumed
-func lexString(l *lexer) stateFn {
+func lexString(l *Lexer) stateFn {
 	for l.peek() != eof && l.peek() != '"' {
 		l.next()
 	}
@@ -164,30 +168,30 @@ func lexString(l *lexer) stateFn {
 	if l.next() != '"' {
 		return l.errorf("Unclosed string literal")
 	}
-	l.emit(kindString)
+	l.emit(String)
 	return lexText
 }
 
 // Opening digit has already been consumed
-func lexInteger(l *lexer) stateFn {
+func lexInteger(l *Lexer) stateFn {
 	for l.peek() != eof && isNumeric(l.peek()) {
 		l.next()
 	}
-	l.emit(kindInteger)
+	l.emit(Integer)
 	return lexText
 }
 
 // A single space character has been consumed already.
-func lexSpace(l *lexer) stateFn {
+func lexSpace(l *Lexer) stateFn {
 	for l.peek() != eof && l.peek() == ' ' {
 		l.next()
 	}
-	l.emit(kindSpace)
+	l.emit(Space)
 	return lexText
 }
 
 // First character has already been consumed
-func lexIdentifier(l *lexer) stateFn {
+func lexIdentifier(l *Lexer) stateFn {
 
 	// Consume until no more alphanumerics
 	for l.peek() != eof && isAlphaNumeric(l.peek()) {
@@ -200,15 +204,15 @@ func lexIdentifier(l *lexer) stateFn {
 	// Differentiate between known keywords and identifiers
 	word := l.input[l.start:l.pos]
 	switch {
-	case key[word] > kindKeyword:
+	case key[word] > Keyword:
 		l.emit(key[word])
 	default:
-		l.emit(kindIdentifier)
+		l.emit(Identifier)
 	}
 	return lexText
 }
 
-func (l *lexer) atTerminator() bool {
+func (l *Lexer) atTerminator() bool {
 	// NOTE: the only valid identifier is currently a function name or keyword and as
 	// such the only valid terminators are a space or a left paren. When variables
 	// and types are added this will need to change.
@@ -216,13 +220,13 @@ func (l *lexer) atTerminator() bool {
 	return r == '(' || r == ' '
 }
 
-func (l *lexer) peek() rune {
+func (l *Lexer) peek() rune {
 	r := l.next()
 	l.pos -= l.width
 	return r
 }
 
-func (l *lexer) next() rune {
+func (l *Lexer) next() rune {
 	if l.pos >= len(l.input) {
 		l.width = 0
 		return eof
@@ -233,25 +237,25 @@ func (l *lexer) next() rune {
 	return r
 }
 
-func (l *lexer) emit(kind lexKind) {
+func (l *Lexer) emit(kind Kind) {
 	l.tokens <- &Token{kind, l.input[l.start:l.pos], l.linePos(l.start), l.lineNumber(), l.file}
 	l.start = l.pos
 }
 
-func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.tokens <- &Token{kindError, fmt.Sprintf(format, args...), l.linePos(l.pos), l.lineNumber(), l.file}
+func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
+	l.tokens <- &Token{Err, fmt.Sprintf(format, args...), l.linePos(l.pos), l.lineNumber(), l.file}
 	return nil
 }
 
-func (l *lexer) linePos(n int) int {
+func (l *Lexer) linePos(n int) int {
 	return l.start - strings.LastIndex(l.input[:n], "\n")
 }
 
-func (l *lexer) lineNumber() int {
+func (l *Lexer) lineNumber() int {
 	return 1 + strings.Count(l.input[:l.start], "\n")
 }
 
-func (l *lexer) nextToken() *Token {
+func (l *Lexer) NextToken() *Token {
 	return <-l.tokens
 }
 

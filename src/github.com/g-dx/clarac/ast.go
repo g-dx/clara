@@ -1,10 +1,14 @@
 package main
-import "fmt"
+import (
+	"fmt"
+	"github.com/g-dx/clarac/console"
+	"github.com/g-dx/clarac/lex"
+)
 
 // AST
 
 type Node struct {
-	token *Token
+	token *lex.Token
 	left  *Node
 	right *Node
 	stats []*Node
@@ -22,12 +26,6 @@ const (
 	opStrLit
 	opIntegerLit
 	opRoot
-)
-
-const (
-disableConsoleColour = "\u001B[0m"
-yellowColour = "\u001B[33m"
-redColour = "\u001B[31m"
 )
 
 var nodeTypes = map[int]string {
@@ -64,11 +62,11 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
     // Has token?
     val := "ROOT"
     if n.token != nil {
-        val = n.token.val
+        val = n.token.Val
     }
 
-	fmt.Printf("%v%v%v%v%v%v%v (%v%v%v)\n", yellowColour, prefix, row, disableConsoleColour,
-		nodeTypeColour, val, disableConsoleColour, redColour, nodeTypes[n.op], disableConsoleColour)
+	fmt.Printf("%v%v%v%v%v%v%v (%v%v%v)\n", console.Yellow, prefix, row, console.Disable,
+		console.NodeTypeColour, val, console.Disable, console.Red, nodeTypes[n.op], console.Disable)
 
 	// Handle 0..n-1 children
 	row = "|    "
