@@ -41,13 +41,8 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	// Setup handler to recover from unexpected EOF
 	defer p.onUnexpectedEof(&errs)
 
-	// Create root & add extra nodes
+	// Create root & loop over stream
 	root = &Node{op : opRoot}
-	for _, n := range p.extra {
-		root.Add(n)
-	}
-
-	// Loop over stream
 	for p.isNot(lex.EOF) {
 		if p.is(lex.Fn) {
 			root.Add(p.fnDeclaration())
@@ -56,108 +51,51 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 			p.next()
 		}
 	}
-	p.need(lex.EOF)
+
+	// Add extra nodes
+	// TODO: This really should come before we parse but the code generator requires them to be last
+	for _, n := range p.extra {
+		root.Add(n)
+	}
+
 	return p.errs, root
 }
+
+// ==========================================================================================================
+// Grammar-implementing functions
 
 func (p *Parser) fnDeclaration() *Node {
 
 	// Match declaration
 	p.need(lex.Fn)
 	name := p.need(lex.Identifier)
-	p.need(lex.LParen)
-	p.need(lex.RParen)
-	p.need(lex.LBrace)
+	p.need('(')
+	p.need(')')
+	p.need('{')
 
 	// Match calls
 	var fnCalls []*Node
-	for p.isNot(lex.RBrace) {
+	for p.isNot('}') {
 		if p.is(lex.Identifier) {
 			fnCalls = append(fnCalls, p.fnCall())
 		} else {
-			p.syntaxError(lex.Identifier, lex.RBrace)
+			p.syntaxError(lex.Identifier, '}')
 			p.next()
 		}
 	}
-	p.need(lex.RBrace)
+	p.need('}')
 	return p.fnDclNode(name, fnCalls)
 }
 
-func (p *Parser) fnDclNode(token *lex.Token, fnCalls []*Node) *Node {
-
-	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
-	if found {
-		p.symbolError(errRedeclaredMsg, token)
-	} else {
-		sym = &Function{token.Val, 0, 0}
-		p.symtab.Define(sym) // Functions don't take params yet
-	}
-	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
-}
-
-func (p *Parser) fnCall() *Node {
-	return p.fnCallNode(p.need(lex.Identifier), p.parseArgs())
-}
-
-func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
-	// TODO: TEMPORARY WORKAROUND!
-	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
-	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
-}
-
-// next()            - pull in next token
-// is(t) bool        - t == current
-// match(t) bool     - t == current, next() if true, false otherwise
-// matches(...t) t   - t == current, next() if true, false otherwise
-// need(t) void      - !match() scan to ??
-
-func (p *Parser) need(k lex.Kind) *lex.Token {
-	for !p.is(k) {
-		fmt.Printf(lex.KindValues[p.tokens[p.pos].Kind])
-		p.syntaxError(k)
-		p.next()
-	}
-	p.discard = false
-	return p.next()
-}
-
-func (p *Parser) isNot(kinds...lex.Kind) bool {
-	for _, k := range kinds {
-		if p.is(k) {
-			return false
-		}
-	}
-	return true
-}
-
-func (p *Parser) is(kinds...lex.Kind) bool {
-	for _, kind := range kinds {
-		if p.tokens[p.pos].Kind == kind {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *Parser) match(k lex.Kind) bool {
-	if p.is(k) {
-		p.next()
-		p.discard = false
-		return true
-	}
-	return false
-}
-
 func (p *Parser) parseArgs() (n []*Node) {
-	p.need(lex.LParen)
-	if p.isNot(lex.EOF, lex.RParen) {
+	p.need('(')
+	if p.isNot(lex.EOF, ')') {
 		n = append(n, p.parseArg())
-		for p.match(lex.Comma) {
+		for p.match(',') {
 			n = append(n, p.parseArg())
 		}
 	}
-	p.need(lex.RParen)
+	p.need(')')
 	return n
 }
 
@@ -196,10 +134,75 @@ func (p *Parser) parseArg() (*Node) {
 	}
 }
 
+// ==========================================================================================================
+// AST Node functions
+
+func (p *Parser) fnDclNode(token *lex.Token, fnCalls []*Node) *Node {
+
+	// Check symtab for redeclare
+	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
+	if found {
+		p.symbolError(errRedeclaredMsg, token)
+	} else {
+		sym = &Function{token.Val, 0, 0}
+		p.symtab.Define(sym) // Functions don't take params yet
+	}
+	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
+}
+
+func (p *Parser) fnCall() *Node {
+	return p.fnCallNode(p.need(lex.Identifier), p.parseArgs())
+}
+
+func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
+	// TODO: TEMPORARY WORKAROUND!
+	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
+	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
+}
+
+// ==========================================================================================================
+// Matching & movement functions
+
+func (p *Parser) need(k lex.Kind) *lex.Token {
+	for !p.is(k) {
+		fmt.Printf(lex.KindValues[p.tokens[p.pos].Kind])
+		p.syntaxError(k)
+		p.next()
+	}
+	p.discard = false
+	return p.next()
+}
+
+func (p *Parser) isNot(kinds...lex.Kind) bool {
+	for _, k := range kinds {
+		if p.is(k) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *Parser) is(kinds...lex.Kind) bool {
+	for _, kind := range kinds {
+		if p.tokens[p.pos].Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) match(k lex.Kind) bool {
+	if p.is(k) {
+		p.next()
+		p.discard = false
+		return true
+	}
+	return false
+}
+
 func (p *Parser) next() *lex.Token {
 	// Panic if unexpectedly no more input
 	if (p.pos+1 >= len(p.tokens)) {
-		fmt.Println("EoF!")
 		panic(errUnexpectedEof)
 	}
 	token := p.tokens[p.pos]
