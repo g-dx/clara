@@ -6,43 +6,43 @@ const errorString = "\nInput   : %q\nPosition: %d\nExpected: %v\nActual  : %v"
 
 func TestLex(t *testing.T) {
 
-	toks := func(t...lexKind) []lexKind { return t }
+	tokens := func(t...lexKind) []lexKind { return t }
 	tests := []struct {
 		in       string
 		expected []lexKind
 	}{
 		// Simple tests
-		{"", toks(kindEOF)},
-		{"\n", toks(kindEOL, kindEOF)},
-		{"{}", toks(kindLeftBrace, kindRightBrace, kindEOF)},
-		{"()", toks(kindLeftParen, kindRightParen, kindEOF)},
+		{"", tokens(kindEOF)},
+		{"\n", tokens(kindEOL, kindEOF)},
+		{"{}", tokens(kindLeftBrace, kindRightBrace, kindEOF)},
+		{"()", tokens(kindLeftParen, kindRightParen, kindEOF)},
 
 		// Identifiers & terminators
-		{"abc ", toks(kindIdentifier, kindSpace, kindEOF)},
-		{"abc(", toks(kindIdentifier, kindLeftParen, kindEOF)},
+		{"abc ", tokens(kindIdentifier, kindSpace, kindEOF)},
+		{"abc(", tokens(kindIdentifier, kindLeftParen, kindEOF)},
 
 		// Integer literals
-		{"123 456", toks(kindInteger, kindSpace, kindInteger, kindEOF)},
+		{"123 456", tokens(kindInteger, kindSpace, kindInteger, kindEOF)},
 
 		// String literals
-		{"\"string\" \"literal\"", toks(kindString, kindSpace, kindString, kindEOF)},
-		{"\"£$%_ä€ß\"", toks(kindString, kindEOF)},
+		{"\"string\" \"literal\"", tokens(kindString, kindSpace, kindString, kindEOF)},
+		{"\"£$%_ä€ß\"", tokens(kindString, kindEOF)},
 
 		// Comments
-		{"// {}()123//abc\"def\"fn/\n", toks(kindComment, kindEOL, kindEOF)},
+		{"// {}()123//abc\"def\"fn/\n", tokens(kindComment, kindEOL, kindEOF)},
 
 		// Keywords
-		{"fn ", toks(kindFn, kindSpace, kindEOF)},
+		{"fn ", tokens(kindFn, kindSpace, kindEOF)},
 
 		// Errors
-		{"&", toks(kindError)}, // Unexpected character
-		{"abc", toks(kindError)}, // Identifier not terminated
-		{"\"abc", toks(kindError)}, // Unclosed string literal
-		{"/", toks(kindError)}, // Unexpected character
+		{"&", tokens(kindError)}, // Unexpected character
+		{"abc", tokens(kindError)}, // Identifier not terminated
+		{"\"abc", tokens(kindError)}, // Unclosed string literal
+		{"/", tokens(kindError)}, // Unexpected character
 
 		// Programs
 		{"// Comment\nfn x() {\n y()\n }\n",
-			toks(kindComment, kindEOL, kindFn, kindSpace, kindIdentifier, kindLeftParen,
+			tokens(kindComment, kindEOL, kindFn, kindSpace, kindIdentifier, kindLeftParen,
 				kindRightParen, kindSpace, kindLeftBrace, kindEOL, kindSpace, kindIdentifier,
 				kindLeftParen, kindRightParen, kindEOL, kindSpace, kindRightBrace, kindEOL,
 				kindEOF)},
