@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"github.com/g-dx/clarac/lex"
 	"github.com/g-dx/clarac/console"
+	"os/exec"
 )
 
 func main() {
@@ -81,18 +82,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create output file
+	// Create assembly file
 	basename := filepath.Base(*path)
-	f, err := os.Create(fmt.Sprintf("%v%c%v.exe", filepath.Dir(*path), filepath.Separator, strings.TrimSuffix(basename, filepath.Ext(basename))))
+	progName := strings.TrimSuffix(basename, filepath.Ext(basename))
+	asmPath := fmt.Sprintf("/tmp/%v.S", progName)
+	os.Remove(asmPath) // Ignore error
+	f, err := os.Create(asmPath)
 	if err != nil {
 		fmt.Printf(" - %v\n", err)
 	}
 
-	// Generate code
+	// Generate assembly
 	err = codegen(parser.symtab, tree, f, *showAsm)
 	if err != nil {
 		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
 		os.Exit(1)
+	}
+	f.Close()
+
+	// Write out harness
+	harnessPath := "/tmp/harness.c"
+	os.Remove(harnessPath) // Ignore error
+	f, err = os.Create(harnessPath)
+	if err != nil {
+		fmt.Printf(" - %v\n", err)
+	}
+	fmt.Fprintf(f, "#include <stdio.h>\nint clara_main();\nint main(int argc, char** argv) { clara_main(); return 0; }")
+	f.Close()
+
+	// Invoke gcc to link files
+	out, err := exec.Command("gcc", "-o", progName, asmPath, harnessPath).Output()
+	if err != nil {
+		fmt.Printf("Link failure: %v\n%v", err, out)
 	}
 }
 
