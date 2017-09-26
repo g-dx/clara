@@ -120,9 +120,9 @@ func main() {
 func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
-		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, 0 }},
+		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, true, 0 }},
 		// Temporary built to print int
-		&Node{token:&lex.Token{Val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, 0 }},
+		&Node{token:&lex.Token{Val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, false, 0 }},
 	}
 }
 

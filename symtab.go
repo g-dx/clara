@@ -52,6 +52,7 @@ func (str *StringLiteralSymbol) Rva() uint32 {
 type Function struct {
 	fnName string
 	fnArgCount int
+	isVariadic bool
 	rva uint32
 }
 

@@ -8,41 +8,37 @@ import (
 // Functions for various semantic passes
 //
 
-func resolveFnCall(symtab SymTab, n *Node) (err error) {
+const (
+	errUndefinedMsg = "%v:%d:%d: error, '%v' undefined"
+	errNotFuncMsg = "%v:%d:%d: error, '%v' is not a function"
+	errTooManyArgsMsg = "%v:%d:%d: error, too many arguments to call '%v'"
+	errTooFewArgsMsg = "%v:%d:%d: error, not enough arguments to call '%v'"
+)
+
+func resolveFnCall(symtab SymTab, n *Node) (error) {
 
 	if n.op == opFuncCall {
 		// Check exists
 		s, found := symtab.Resolve(symFnDecl, n.token.Val)
 		if !found {
 			// Undefined
-			err = errors.New(fmt.Sprintf(errUndefinedMsg,
-				n.token.File,
-				n.token.Line,
-				n.token.Pos,
-				n.token.Val))
-			return err
+			return semanticError(errUndefinedMsg, n)
 		}
 
 		// Check is a function
 		fn, ok := s.(*Function)
 		if !ok {
-			err = errors.New(fmt.Sprintf(errNotFuncMsg,
-				n.token.File,
-				n.token.Line,
-				n.token.Pos,
-				n.token.Val))
-			return err
+			return semanticError(errNotFuncMsg, n)
 		}
 
-		// Check arg count
-		// TODO: Return the position of the wrong argument - not the function
-		if fn.argCount() != len(n.stats) {
-			err = errors.New(fmt.Sprintf(errArgCountMsg,
-				n.token.File,
-				n.token.Line,
-				n.token.Pos,
-				n.token.Val))
-			return err
+		// Check for too few args
+		if len(n.stats) < fn.argCount() {
+			return semanticError(errTooFewArgsMsg, n)
+		}
+
+		// Check for too many
+		if len(n.stats) > fn.argCount() && !fn.isVariadic {
+			return semanticError(errTooManyArgsMsg, n)
 		}
 
 		// Finally set symbol on node
@@ -50,7 +46,14 @@ func resolveFnCall(symtab SymTab, n *Node) (err error) {
 	}
 
 	// Check args
-	return err
+	return nil
+}
+func semanticError(msg string, n *Node) error {
+	return errors.New(fmt.Sprintf(msg,
+		n.token.File,
+		n.token.Line,
+		n.token.Pos,
+		n.token.Val))
 }
 
 func walk(symtab SymTab, n *Node, visit func(SymTab, *Node) error) (errs []error) {
