@@ -11,9 +11,6 @@ import (
 const (
 	syntaxErrMsg = "%v:%d:%d: syntax error, Unexpected '%v', Expecting: '%v'"
 	errRedeclaredMsg = "%v:%d:%d: error, '%v' redeclared"
-	errUndefinedMsg = "%v:%d:%d: error, '%v' undefined"
-	errNotFuncMsg = "%v:%d:%d: error, '%v' is not a function"
-	errArgCountMsg = "%v:%d:%d: error, wrong argument count to call '%v'"
 )
 
 type Parser struct {
@@ -100,38 +97,69 @@ func (p *Parser) parseArgs() (n []*Node) {
 }
 
 func (p *Parser) parseArg() (*Node) {
-	switch p.tokens[p.pos].Kind {
+	return p.parseExpr()
+}
+
+func (p *Parser) parseExpr() (*Node) {
+
+	lhs := p.parseOperand()
+	for p.isNot(lex.Comma, lex.RParen) {
+		op, tok := p.parseOperator()
+		rhs := p.parseOperand()
+		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok }
+	}
+	return lhs
+}
+
+func (p *Parser) parseOperand() *Node {
+	switch p.Kind() {
 	case lex.Integer:
-		// Match first arg
-		arg := p.next()
-		// Define symbol
-		sym, found := p.symtab.Resolve(symIntegerLit, arg.Val)
-		if !found {
-			i, err := strconv.ParseInt(arg.Val, 10, 64)
-			if err != nil {
-				panic(err) // Should never happen
-			}
-			sym = &IntegerLiteralSymbol{val : i }
-			p.symtab.Define(sym)
-		}
-		return &Node{token : arg, op : opIntegerLit, sym : sym}
+		return p.parseIntegerLit()
 	case lex.String:
-
-		// Match first arg
-		arg := p.next()
-
-		// Define symbol
-		sym, found := p.symtab.Resolve(symStrLit, arg.Val)
-		if !found {
-			sym = &StringLiteralSymbol{val : arg.Val }
-			p.symtab.Define(sym)
-		}
-		return &Node{token : arg, op : opStrLit, sym : sym}
+		return p.parseStringLit()
 	default:
 		p.syntaxError(lex.Integer, lex.String)
-		p.next()
-		return nil
+		return &Node{op: opError} // TODO: Maybe "opMissingOperand" would be better
 	}
+}
+
+func (p *Parser) parseOperator() (int, *lex.Token) {
+	if p.isNot(lex.Plus) {
+		p.syntaxError(lex.Plus)
+		p.next()
+		return opError, nil
+	}
+
+	return opIntAdd, p.next()
+}
+
+func (p *Parser) parseIntegerLit() (*Node) {
+	// Match first arg
+	arg := p.next()
+	// Define symbol
+	sym, found := p.symtab.Resolve(symIntegerLit, arg.Val)
+	if !found {
+		i, err := strconv.ParseInt(arg.Val, 10, 64)
+		if err != nil {
+			panic(err) // Should never happen
+		}
+		sym = &IntegerLiteralSymbol{val : i }
+		p.symtab.Define(sym)
+	}
+	return &Node{token : arg, op : opIntLit, sym : sym}
+}
+
+func (p *Parser) parseStringLit() (*Node) {
+	// Match first arg
+	arg := p.next()
+
+	// Define symbol
+	sym, found := p.symtab.Resolve(symStrLit, arg.Val)
+	if !found {
+		sym = &StringLiteralSymbol{val : arg.Val }
+		p.symtab.Define(sym)
+	}
+	return &Node{token : arg, op : opStrLit, sym : sym}
 }
 
 // ==========================================================================================================
@@ -144,7 +172,7 @@ func (p *Parser) fnDclNode(token *lex.Token, fnCalls []*Node) *Node {
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.Val, 0, 0}
+		sym = &Function{token.Val, 0, false, 0}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
@@ -184,11 +212,15 @@ func (p *Parser) isNot(kinds...lex.Kind) bool {
 
 func (p *Parser) is(kinds...lex.Kind) bool {
 	for _, kind := range kinds {
-		if p.tokens[p.pos].Kind == kind {
+		if p.Kind() == kind {
 			return true
 		}
 	}
 	return false
+}
+
+func (p *Parser) Kind() lex.Kind {
+	return p.tokens[p.pos].Kind
 }
 
 func (p *Parser) match(k lex.Kind) bool {

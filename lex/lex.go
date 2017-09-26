@@ -23,6 +23,14 @@ const (
 	Identifier
 	String
 	Integer
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// Binary Operators
+
+	Plus
+
+	// -----------------------------------------------------------------------------------------------------------------
+
 	Space
 	EOL
 	EOF
@@ -126,6 +134,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(RBrace)
 		case r == ',':
 			l.emit(Comma)
+		case r == '+':
+			l.emit(Plus)
 		case r == '"':
 			return lexString
 		case r == '/':

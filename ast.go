@@ -24,16 +24,20 @@ const (
 	opFuncDcl = iota
 	opFuncCall
 	opStrLit
-	opIntegerLit
+	opIntLit
+	opIntAdd
+	opError
 	opRoot
 )
 
 var nodeTypes = map[int]string {
-	opFuncDcl : "Func Decl",
+	opFuncDcl :  "Func Decl",
 	opFuncCall : "Func Call",
-	opStrLit : "String Lit",
-	opIntegerLit : "Integer Lit",
-	opRoot : "<none>",
+	opStrLit :   "String Lit",
+	opIntLit:    "Integer Lit",
+	opIntAdd:    "Binary Op [Add]",
+	opError:     "(error)",
+	opRoot :     "<none>",
 }
 
 func (n * Node) Walk(fn func(*Node)) {
@@ -73,12 +77,22 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 	if isTail {
 		row = "     "
 	}
-	for i := 0; i < len(n.stats)-1; i++ {
-		printTreeImpl(n.stats[i], prefix + row, false)
-	}
 
-	// Handle n child
-	if len(n.stats) > 0 {
-		printTreeImpl(n.stats[len(n.stats)-1], prefix + row, true)
+	// Expression or list of statements
+	if len(n.stats) == 0 {
+
+		printTreeImpl(n.left, prefix + row, false)
+		printTreeImpl(n.right, prefix + row, true)
+
+	} else {
+
+		for i := 0; i < len(n.stats)-1; i++ {
+			printTreeImpl(n.stats[i], prefix+row, false)
+		}
+
+		// Handle n child
+		if len(n.stats) > 0 {
+			printTreeImpl(n.stats[len(n.stats)-1], prefix+row, true)
+		}
 	}
 }
