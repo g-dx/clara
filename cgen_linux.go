@@ -91,7 +91,8 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function) 
 
 	// If function is variadic - must set EAX to number of parameters as part if SysV x64 calling convention
 	if fn.isVariadic {
-		write("\tmovq\t$%v, %%rax", len(args) - fn.fnArgCount)
+		// TODO: If this is not set to zero we get a core dump for some reason?
+		write("\tmovq\t$%v, %%rax", 0 /*len(args) - fn.fnArgCount*/)
 	}
 
 	// TODO: Remove this special case!!
