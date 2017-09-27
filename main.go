@@ -62,16 +62,19 @@ func main() {
 	}
 
 	// Parse
-	parser := NewParser(tokens, stdlib())
+	parser := NewParser(tokens, stdlib(), stdSyms())
 	errs, tree := parser.Parse()
+
+    // Resolve function calls
+    errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
+
+	// Resolve variables/identifiers
+	errs = append(errs, walk(parser.symtab, tree, resolveVariables)...)
 
 	// Print AST if necessary
 	if *showAst {
 		printTree(tree)
 	}
-
-    // Resolve function calls
-    errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
 
 	if len(errs) > 0 {
 		printProgram(prog)
@@ -117,12 +120,19 @@ func main() {
 	}
 }
 
+func stdSyms() []Symbol {
+	return []Symbol{
+		// string type
+		&TypeSymbol{val: "string" },
+		// int type
+		&TypeSymbol{val: "int" },
+	}
+}
+
 func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
-		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, true, 0 }},
-		// Temporary built to print int
-		&Node{token:&lex.Token{Val : "printDate"}, op:opFuncDcl, sym:&Function{"printDate", 3, false, 0 }},
+		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, true, 0 , nil}},
 	}
 }
 

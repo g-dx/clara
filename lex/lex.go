@@ -18,6 +18,7 @@ const (
 	RParen = ')'
 	LParen = '('
 	Comma = ','
+	Colon = ':'
 
 	Comment = 256 + iota // Start outside ascii range
 	Identifier
@@ -54,6 +55,7 @@ var KindValues = map[Kind]string {
 	Integer: "<integer lit>",
 	Fn: "fn",
 	Comma: ",",
+	Colon: ":",
 	Space : "<space>",
 	EOL : "<EOL>",
 	EOF : "<EOF>",
@@ -134,6 +136,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(RBrace)
 		case r == ',':
 			l.emit(Comma)
+		case r == ':':
+			l.emit(Colon)
 		case r == '+':
 			l.emit(Plus)
 		case r == '"':
@@ -227,7 +231,7 @@ func (l *Lexer) atTerminator() bool {
 	// such the only valid terminators are a space or a left paren. When variables
 	// and types are added this will need to change.
 	r := l.peek()
-	return r == '(' || r == ' '
+	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')'
 }
 
 func (l *Lexer) peek() rune {

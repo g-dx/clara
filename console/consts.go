@@ -4,4 +4,5 @@ const (
 	Disable = "\u001B[0m"
 	Yellow = "\u001B[33m"
 	Red = "\u001B[31m"
+	Green = "\u001B[32m"
 )

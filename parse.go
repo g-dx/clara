@@ -18,19 +18,23 @@ type Parser struct {
 	tokens []*lex.Token
 	errs   []error
 	discard bool // Are we in "discard" mode?
-	symtab SymTab
+	symtab *SymTab
 	extra []*Node
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
-func NewParser(tokens []*lex.Token, extra []*Node) *Parser {
+func NewParser(tokens []*lex.Token, nodes []*Node, syms []Symbol) *Parser {
 	// Add any symbols from predefined nodes
 	symtab := NewSymtab()
-	for _, n := range extra {
+	for _, n := range nodes {
 		symtab.Define(n.sym)
 	}
-	return &Parser{tokens : tokens, symtab: symtab, extra : extra}
+	// Add any global symbols
+	for _, s := range syms {
+		symtab.Define(s)
+	}
+	return &Parser{tokens : tokens, symtab: symtab, extra : nodes}
 }
 
 func (p *Parser) Parse() (errs []error, root *Node) {
@@ -39,7 +43,7 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	defer p.onUnexpectedEof(&errs)
 
 	// Create root & loop over stream
-	root = &Node{op : opRoot}
+	root = &Node{op : opRoot, symtab: p.symtab}
 	for p.isNot(lex.EOF) {
 		if p.is(lex.Fn) {
 			root.Add(p.fnDeclaration())
@@ -63,10 +67,14 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 
 func (p *Parser) fnDeclaration() *Node {
 
+	// Open new symtab
+	p.symtab = p.symtab.Child()
+
 	// Match declaration
 	p.need(lex.Fn)
 	name := p.need(lex.Identifier)
 	p.need('(')
+	params := p.parseParameters()
 	p.need(')')
 	p.need('{')
 
@@ -81,7 +89,36 @@ func (p *Parser) fnDeclaration() *Node {
 		}
 	}
 	p.need('}')
-	return p.fnDclNode(name, fnCalls)
+
+	// Close symtab
+	syms := p.symtab
+	p.symtab = p.symtab.Parent()
+	return p.fnDclNode(name, params, fnCalls, syms)
+}
+
+func (p *Parser) parseParameters() []*Node {
+	var params []*Node = nil
+	for p.isNot(lex.EOF, ')') {
+		params = append(params, p.parseParameter())
+		for p.match(',') {
+			params = append(params, p.parseParameter())
+		}
+	}
+	return params
+}
+
+func (p *Parser) parseParameter() *Node {
+	ident := p.need(lex.Identifier)
+	var typ *lex.Token
+	if p.is(lex.Colon) {
+		// Type is also declared
+		p.next()
+		typ = p.need(lex.Identifier)
+	}
+	// TODO: Is where a better AST would help. We could record both position of the identifier and the optional type.
+	v := &VarSymbol{ val: ident.Val }
+	p.symtab.Define(v)
+	return &Node{token: ident, op: opIdentifier, typ: typ, sym: v, symtab: p.symtab}
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
@@ -106,7 +143,7 @@ func (p *Parser) parseExpr() (*Node) {
 	for p.isNot(lex.Comma, lex.RParen) {
 		op, tok := p.parseOperator()
 		rhs := p.parseOperand()
-		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok }
+		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok, symtab: p.symtab}
 	}
 	return lhs
 }
@@ -117,10 +154,18 @@ func (p *Parser) parseOperand() *Node {
 		return p.parseIntegerLit()
 	case lex.String:
 		return p.parseStringLit()
+	case lex.Identifier:
+		return p.parseIdentifier()
 	default:
 		p.syntaxError(lex.Integer, lex.String)
 		return &Node{op: opError} // TODO: Maybe "opMissingOperand" would be better
 	}
+}
+func (p *Parser) parseIdentifier() *Node {
+	tok := p.need(lex.Identifier)
+	// Define symbol
+	// TODO: Define symbol???
+	return &Node { op: opIdentifier, token: tok, sym: nil, symtab: p.symtab} // ???
 }
 
 func (p *Parser) parseOperator() (int, *lex.Token) {
@@ -146,7 +191,7 @@ func (p *Parser) parseIntegerLit() (*Node) {
 		sym = &IntegerLiteralSymbol{val : i }
 		p.symtab.Define(sym)
 	}
-	return &Node{token : arg, op : opIntLit, sym : sym}
+	return &Node{token : arg, op : opIntLit, sym : sym, symtab: p.symtab}
 }
 
 func (p *Parser) parseStringLit() (*Node) {
@@ -159,23 +204,23 @@ func (p *Parser) parseStringLit() (*Node) {
 		sym = &StringLiteralSymbol{val : arg.Val }
 		p.symtab.Define(sym)
 	}
-	return &Node{token : arg, op : opStrLit, sym : sym}
+	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}
 }
 
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, fnCalls []*Node) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, args []*Node, fnCalls []*Node, syms *SymTab) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.Val, 0, false, 0}
+		sym = &Function{token.Val, len(args), false, 0, syms}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
-	return &Node{token : token, stats : fnCalls, op : opFuncDcl, sym : sym}
+	return &Node{token : token, args: args, stats : fnCalls, op : opFuncDcl, sym : sym, symtab: p.symtab}
 }
 
 func (p *Parser) fnCall() *Node {
@@ -185,7 +230,7 @@ func (p *Parser) fnCall() *Node {
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	// TODO: TEMPORARY WORKAROUND!
 	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
-	return &Node{token : token, stats : args, op : opFuncCall, sym : sym}
+	return &Node{token : token, stats : args, op : opFuncCall, sym : sym, symtab: p.symtab}
 }
 
 // ==========================================================================================================

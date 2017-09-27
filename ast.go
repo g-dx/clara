@@ -9,11 +9,14 @@ import (
 
 type Node struct {
 	token *lex.Token
+	typ *lex.Token // OpIdentifier
 	left  *Node
 	right *Node
 	stats []*Node
+	args  []*Node // OpFuncDecl
 	op    int
 	sym Symbol
+	symtab *SymTab // Enclosing scope
 }
 
 func (n *Node) Add(stat *Node) {
@@ -26,18 +29,20 @@ const (
 	opStrLit
 	opIntLit
 	opIntAdd
+	opIdentifier
 	opError
 	opRoot
 )
 
-var nodeTypes = map[int]string {
-	opFuncDcl :  "Func Decl",
-	opFuncCall : "Func Call",
-	opStrLit :   "String Lit",
-	opIntLit:    "Integer Lit",
-	opIntAdd:    "Binary Op [Add]",
-	opError:     "(error)",
-	opRoot :     "<none>",
+var nodeTypes = map[int]string{
+	opFuncDcl:    "Func Decl",
+	opFuncCall:   "Func Call",
+	opStrLit:     "String Lit",
+	opIntLit:     "Integer Lit",
+	opIntAdd:     "Binary Op [Add]",
+	opIdentifier: "Identifier",
+	opError:      "(error)",
+	opRoot:       "<none>",
 }
 
 func (n * Node) Walk(fn func(*Node)) {
@@ -69,14 +74,23 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
         val = n.token.Val
     }
 
-	fmt.Printf("%v%v%v%v%v%v%v (%v%v%v)\n", console.Yellow, prefix, row, console.Disable,
-		console.NodeTypeColour, val, console.Disable, console.Red, nodeTypes[n.op], console.Disable)
+    // Print node
+	fmt.Printf("%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
+	if n.sym != nil {
+		fmt.Printf(": %v%v%v(%v%v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.name(), console.Disable)
+	} else {
+		fmt.Printf(": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
+	}
+	fmt.Println("")
 
 	// Handle 0..n-1 children
 	row = "|    "
 	if isTail {
 		row = "     "
 	}
+
+	// Print args
+	printNodeListImpl(n.args, prefix+row)
 
 	// Expression or list of statements
 	if len(n.stats) == 0 {
@@ -85,14 +99,20 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 		printTreeImpl(n.right, prefix + row, true)
 
 	} else {
-
-		for i := 0; i < len(n.stats)-1; i++ {
-			printTreeImpl(n.stats[i], prefix+row, false)
-		}
-
-		// Handle n child
-		if len(n.stats) > 0 {
-			printTreeImpl(n.stats[len(n.stats)-1], prefix+row, true)
-		}
+		printNodeListImpl(n.stats, prefix+row)
 	}
+}
+
+func printNodeListImpl(nodes []*Node, prefix string) {
+
+	if len(nodes) == 0 {
+		return
+	}
+
+	for i := 0; i < len(nodes)-1; i++ {
+		printTreeImpl(nodes[i], prefix, false)
+	}
+
+	// Handle n child
+	printTreeImpl(nodes[len(nodes)-1], prefix, true)
 }

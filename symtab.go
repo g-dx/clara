@@ -8,12 +8,24 @@ const (
 	symStrLit = iota
 	symIntegerLit
 	symFnDecl
+	symType
+	symVar
 )
+
+var symTypes = map[int]string{
+	symFnDecl:     "Func Decl",
+	symStrLit:     "String Lit",
+	symIntegerLit: "Integer Lit",
+	symType:       "Type",
+	symVar:        "Variable",
+}
 
 type Symbol interface {
 	name() string
 	kind() int
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 type IntegerLiteralSymbol struct {
 	val int64
@@ -26,6 +38,38 @@ func (i *IntegerLiteralSymbol) name() string {
 func (i *IntegerLiteralSymbol) kind() int {
 	return symIntegerLit
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type TypeSymbol struct {
+	val string
+}
+
+func (t *TypeSymbol) name() string {
+	return t.val
+}
+
+func (t *TypeSymbol) kind() int {
+	return symType
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type VarSymbol struct {
+	val  string
+	addr int // Stack = rbp offset, Mem = <not implement>
+	typ  *TypeSymbol
+}
+
+func (v *VarSymbol) name() string {
+	return v.val
+}
+
+func (v *VarSymbol) kind() int {
+	return symVar
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 
 type StringLiteralSymbol struct {
 	val string
@@ -49,11 +93,14 @@ func (str *StringLiteralSymbol) Rva() uint32 {
 	return str.rva
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 type Function struct {
 	fnName string
 	fnArgCount int
 	isVariadic bool
 	rva uint32
+	args *SymTab
 }
 
 func (fn *Function) name() string {

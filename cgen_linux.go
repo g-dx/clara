@@ -11,7 +11,7 @@ var strIndex = 0
 var strLabels = make(map[string]string)
 var regs = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"} // SysV calling convention
 
-func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
+func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	// Simplify writing...
 	bufW := bufio.NewWriter(writer)
@@ -59,14 +59,24 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 				write("\t.globl\t%v", n.token.Val)
 				write("\t.type\t%v, @function", n.token.Val)
 				write("%v:", n.token.Val)
-				write("\tenter\t$0, $0")
+
+				// Allocate space for parameters
+				write("\tenter\t$(8 * %v), $0", len(n.args))
+
+				// Copy register values into stack slots
+				for i := 0; i < len(n.args); i++ {
+					addr := 8 * (i + 1) // Assign a stack slot for var
+					n.args[i].sym.(*VarSymbol).addr = addr
+					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
+				}
+
 
 				// Walk statement and generate calls
 				for _, stmt := range n.stats {
 
 					switch x := stmt.sym.(type) {
-					case *Function:
-						genFuncCall(write, stmt.stats, x)
+					case *Function: // TODO: Should this be FuncExpression?
+						genFuncCall(write, stmt.stats, x, n.sym.(*Function).args)
 					default:
 						panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
 					}
@@ -84,10 +94,10 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 	return nil
 }
 
-func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function) {
+func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, symtab *SymTab) {
 
 	// Generate arg code
-	genCallArgs(write, args)
+	genCallArgs(write, args, symtab)
 
 	// If function is variadic - must set EAX to number of parameters as part if SysV x64 calling convention
 	if fn.isVariadic {
@@ -103,7 +113,7 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function) 
 	write("\tcall\t%v", name)
 }
 
-func genCallArgs(write func(string,...interface{}), args []*Node) {
+func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab) {
 	i := 0
 	for _, arg := range args {
 		switch arg.op {
@@ -123,6 +133,12 @@ func genCallArgs(write func(string,...interface{}), args []*Node) {
 			// Move into correct reg
 			write("\tmovq\t$%v, %%%v", arg.sym.(*IntegerLiteralSymbol).val, regs[i])
 
+		case opIdentifier:
+
+			// Look up var symbol which should have a stack slot assigned and move into correct reg
+			v := asVar(symtab, arg.sym.name())
+			write("\tmovq\t-%v(%%rbp), %%%v", v.addr, regs[i])
+
 		default:
 
 			// Can't generate code for this yet
@@ -130,6 +146,19 @@ func genCallArgs(write func(string,...interface{}), args []*Node) {
 		}
 		i += 1 // TODO: this will wrap round for methods with more than 6 args
 	}
+}
+
+func asVar(symtab *SymTab, name string) *VarSymbol {
+	s, ok := symtab.Resolve(symVar, name)
+	if !ok {
+		panic(fmt.Sprintf("Failed to find variable: [%v]", name))
+	}
+	if vr, ok := s.(*VarSymbol); ok {
+		return vr
+	} else {
+		panic(fmt.Sprintf("Symbol is not variable: [%v] - %v", symTypes[s.kind()], s.name()))
+	}
+
 }
 
 func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node) {
