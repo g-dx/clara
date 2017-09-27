@@ -6,9 +6,10 @@ import (
 	"bufio"
 )
 
+var spacer = "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
 var strIndex = 0
 var strLabels = make(map[string]string)
-var regs = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+var regs = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"} // SysV calling convention
 
 func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 
@@ -38,6 +39,8 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 			strLabels[str.Val()] = genStringLit(write, str.Val())
 		}
 	})
+
+	write(spacer)
 
 	// Output func calls
 	write("\t.text")
@@ -71,6 +74,7 @@ func codegen(symtab SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 				write("\tleave")
 				write("\tret")
+				write(spacer)
 			}
 		default:
 			//			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
@@ -121,7 +125,7 @@ func genCallArgs(write func(string,...interface{}), args []*Node) {
 		default:
 
 			// Can't generate code for this yet
-			panic(fmt.Sprintf("Can't generate code for call argument: %v", arg.op))
+			panic(fmt.Sprintf("Can't generate code for call argument: %v", nodeTypes[arg.op]))
 		}
 		i += 1 // TODO: this will wrap round for methods with more than 6 args
 	}
@@ -155,7 +159,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node) {
 		write("\tpushq\t%%rax")      // Push eax onto stack
 
 	default:
-		panic(fmt.Sprintf("Can't generate expr code for op: %v", expr.op))
+		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
 	}
 }
 
