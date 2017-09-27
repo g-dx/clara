@@ -73,12 +73,15 @@ func (fn *Function) kind() int {
 }
 
 type SymTab struct {
+	parent *SymTab
+	children []*SymTab
 	symbols map[string]Symbol
 }
 
-func NewSymtab() SymTab {
-	s := SymTab{ make(map[string]Symbol) }
-	return s
+//----------------------------------------------------------------------------------------------------------------------
+
+func NewSymtab() *SymTab {
+	return &SymTab{nil, nil, make(map[string]Symbol)}
 }
 
 func (s *SymTab) Define(sym Symbol) {
@@ -87,10 +90,28 @@ func (s *SymTab) Define(sym Symbol) {
 
 func (s *SymTab) Resolve(symType int, name string) (Symbol, bool) {
 	sym, ok := s.symbols[fmt.Sprintf("%v.%v", symType, name)]
+	if !ok && s.parent != nil {
+		sym, ok = s.parent.Resolve(symType, name)
+	}
 	return sym, ok
 }
 
+func (s *SymTab) Parent() *SymTab {
+	return s.parent
+}
+
+func (s *SymTab) Child() *SymTab {
+	child := NewSymtab()
+	child.parent = s
+	s.children = append(s.children, child)
+	return child
+}
+
 func (s *SymTab) Walk(f func(Symbol)) {
+	// Walk children first then this node
+	for _, child := range s.children {
+		child.Walk(f)
+	}
 	for _, s := range s.symbols {
 		f(s)
 	}
