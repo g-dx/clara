@@ -116,6 +116,12 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, 
 func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab) {
 	i := 0
 	for _, arg := range args {
+
+		// TODO: Update to support pushing > 6 arguments on the stack
+		if i >= 6 {
+			panic("Calling functions with more than 6 parameters not yet implemented")
+		}
+
 		switch arg.op {
 		case opStrLit:
 
@@ -144,7 +150,7 @@ func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab
 			// Can't generate code for this yet
 			panic(fmt.Sprintf("Can't generate code for call argument: %v", nodeTypes[arg.op]))
 		}
-		i += 1 // TODO: this will wrap round for methods with more than 6 args
+		i += 1
 	}
 }
 
