@@ -258,8 +258,8 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 	return nil
 }
 
-func (l *Lexer) linePos(n int) int {
-	return l.start - strings.LastIndex(l.input[:n], "\n")
+func (l *Lexer) linePos(start int) int {
+	return start - strings.LastIndex(l.input[:start], "\n")
 }
 
 func (l *Lexer) lineNumber() int {
