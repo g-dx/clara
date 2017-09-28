@@ -1,15 +1,16 @@
 // Entry point
 fn main() {
-  sayHello()
+  println("inc(2) + double(3) + triple(4) = %d\n", inc(2) + double(3) + triple(4))
 }
 
-// Prints hello on the commandline
-fn sayHello() {
-  println("Hello World!\n")
-  println("Addition Test: 2 + 5 + 6 + 7 = %d\n", 2 + 5 + 6 + 7)
-  printDate(2015,11,27)
+fn double(x : int) int {
+    return x + x
 }
 
-fn printDate(year: int , month : int, day : int) {
-  println("%d/%d/%d\n", day, month, year)
+fn triple(x: int) int {
+    return x + double(x)
+}
+
+fn inc(x:int) int {
+    return x + 1
 }

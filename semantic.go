@@ -21,7 +21,7 @@ const (
 // TODO: When code like `type Person record [firstName: string, lastName: string]` is added symbol resolution _could_ be done during parse
 func resolveVariables(symtab *SymTab, n *Node) error {
 	var stab *SymTab
-	if n.op == opFuncDcl || n.op == opFuncCall {
+	if n.op == opFuncDcl || n.op == opFuncCall || n.op == opIdentifier {
 
 		// Record current symtab
 		var nodes []*Node
@@ -41,6 +41,29 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 			for _, v := range stab.symbols {
 				fmt.Printf(" @ %v : %v\n", symTypes[v.kind()], v)
 			}
+		}
+
+		// Resolve function return type (if it declares one)
+		if n.op == opFuncDcl && n.typ != nil {
+
+			// Lookup
+			ts, err := resolveTypeSym(stab, n.typ, errUnknownTypeMsg)
+			if err != nil {
+				return err
+			}
+
+			// Set symbol
+			n.sym.(*Function).ret = ts
+			fmt.Printf(" -- type: %v\n", n.typ.Val)
+		}
+
+		// Resolve variables for identifiers
+		if n.op == opIdentifier {
+			v, found := stab.Resolve(symVar, n.token.Val)
+			if !found {
+				return semanticError(errUnknownVarMsg, n.token)
+			}
+			n.sym = v
 		}
 
 		for _, arg := range nodes {
@@ -65,22 +88,16 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 
 				if vr, ok := arg.sym.(*VarSymbol); ok {
 					if vr.typ == nil {
-						t, found := stab.Resolve(symType, arg.typ.Val)
-						if !found {
-							return semanticError(errUnknownTypeMsg, arg.typ)
+
+						// Lookup
+						ts, err := resolveTypeSym(stab, arg.typ, errUnknownTypeMsg)
+						if err != nil {
+							return err
 						}
 
 						// Finally set symbol on node
-						//if v, ok := arg.sym.(*VarSymbol); ok {
-						if t, ok := t.(*TypeSymbol); ok {
-							vr.typ = t
-							fmt.Printf(" --- Set type: %v\n", t.val)
-						} else {
-							panic(fmt.Sprintf("Symtab should have returned type: %v", symTypes[t.kind()]))
-						}
-						//} else {
-						//	panic(fmt.Sprintf("Argument without var symbol: %v, %v", n.token.Val, symTypes[v.kind()]))
-						//}
+						vr.typ = ts
+						fmt.Printf(" --- Set type: %v\n", vr.typ.val)
 					}
 				}
 			}
@@ -90,7 +107,6 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 	}
 	return nil
 }
-
 func resolveFnCall(symtab *SymTab, n *Node) (error) {
 
 	if n.op == opFuncCall {
@@ -124,6 +140,19 @@ func resolveFnCall(symtab *SymTab, n *Node) (error) {
 	// Check args
 	return nil
 }
+
+func resolveTypeSym(tab *SymTab, t *lex.Token, errMsg string) (*TypeSymbol, error) {
+	s, found := tab.Resolve(symType, t.Val)
+	if !found {
+		return nil, semanticError(errMsg, t)
+	}
+	ts, ok := s.(*TypeSymbol)
+	if !ok {
+		panic(fmt.Sprintf("Expected *TypeSymbol: %v", symTypes[s.kind()]))
+	}
+	return ts, nil
+}
+
 func semanticError(msg string, t *lex.Token) error {
 	return errors.New(fmt.Sprintf(msg,
 		t.File,
@@ -138,7 +167,16 @@ func walk(symtab *SymTab, n *Node, visit func(*SymTab, *Node) error) (errs []err
 	if err := visit(symtab, n); err != nil {
 		errs = append(errs, err)
 	}
-	// TODO: What about expressions? Arg lists?
+	// Visit left and right
+	if n.left != nil {
+		errs = append(errs, walk(symtab, n.left, visit)...)
+	}
+	if n.left != nil {
+		errs = append(errs, walk(symtab, n.right, visit)...)
+	}
+
+	// TODO: What about function args?
+
 	// Visit children
 	for _, stat := range n.stats {
 		if stat != nil {

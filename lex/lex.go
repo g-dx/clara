@@ -39,10 +39,12 @@ const (
 	// Order is v.important here!
 	Keyword
 	Fn
+	Return
 )
 
 var key = map[string]Kind{
 	"fn": Fn,
+	"return": Return,
 }
 
 var KindValues = map[Kind]string {
@@ -54,6 +56,7 @@ var KindValues = map[Kind]string {
 	String: "<string lit>",
 	Integer: "<integer lit>",
 	Fn: "fn",
+	Return: "return",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",

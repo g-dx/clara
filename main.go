@@ -132,7 +132,7 @@ func stdSyms() []Symbol {
 func stdlib() []*Node {
 	return []*Node{
 		// Built in print function
-		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, true, 0 , nil}},
+		&Node{token:&lex.Token{Val : "println"}, op:opFuncDcl, sym:&Function{"println", 1, true, 0 , nil, nil}},
 	}
 }
 

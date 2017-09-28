@@ -101,6 +101,7 @@ type Function struct {
 	isVariadic bool
 	rva uint32
 	args *SymTab
+	ret *TypeSymbol
 }
 
 func (fn *Function) name() string {

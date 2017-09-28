@@ -22,6 +22,11 @@ func TestLex(t *testing.T) {
 		// Identifiers & terminators
 		{"abc ", tokens(Identifier, Space, EOF)},
 		{"abc(", tokens(Identifier, LParen, EOF)},
+		{"abc,", tokens(Identifier, Comma, EOF)},
+		{"abc:", tokens(Identifier, Colon, EOF)},
+		{"abc)", tokens(Identifier, RParen, EOF)},
+		{"abc\n", tokens(Identifier, EOL, EOF)},
+		{"abc\r", tokens(Identifier, EOL, EOF)},
 
 		// Integer literals
 		{"123 456", tokens(Integer, Space, Integer, EOF)},
@@ -35,6 +40,7 @@ func TestLex(t *testing.T) {
 
 		// Keywords
 		{"fn ", tokens(Fn, Space, EOF)},
+		{"return ", tokens(Return, Space, EOF)},
 
 		// Errors
 		{"&", tokens(Err)}, // Unexpected character

@@ -74,14 +74,22 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				// Walk statement and generate calls
 				for _, stmt := range n.stats {
 
-					switch x := stmt.sym.(type) {
-					case *Function: // TODO: Should this be FuncExpression?
-						genFuncCall(write, stmt.stats, x, n.sym.(*Function).args)
+					switch stmt.op {
+					case opFuncCall:
+						genFuncCall(write, stmt.stats, stmt.sym.(*Function), stmt.symtab)
+					case opReturn:
+						if len(stmt.stats) == 1 {
+							genReturnExpression(write, stmt.stats[0], stmt.symtab)
+						} else {
+							// TODO: This is a "naked" return
+						}
+
 					default:
 						panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
 					}
 				}
 
+				// TODO: If last statement was a ReturnExpression - no need for this epilogue...
 				write("\tleave")
 				write("\tret")
 				write(spacer)
@@ -92,6 +100,18 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	})
 
 	return nil
+}
+func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {
+
+	// Result is on top of stack
+	genExprWithoutAssignment(write, expr, tab)
+
+	// Pop from stack to eax
+	write("\tpopq\t%%rax")
+
+	// Clean stack & return
+	write("\tleave")
+	write("\tret")
 }
 
 func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, symtab *SymTab) {
@@ -130,9 +150,10 @@ func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab
 
 		case opIntAdd:
 
-			// Pop result off stack into correct reg
-			genExprWithoutAssignment(write, arg)
-			write("\tpopq\t%%%v", regs[i])
+			spill(write, i-1)                            // Spill in-use registers to stack
+			genExprWithoutAssignment(write, arg, symtab) // Generate expression
+			write("\tpopq\t%%%v", regs[i])               // Move result from top of stack into correct reg
+			restore(write, i-1)                          // Restore in-use registers from stack
 
 		case opIntLit:
 
@@ -142,8 +163,15 @@ func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab
 		case opIdentifier:
 
 			// Look up var symbol which should have a stack slot assigned and move into correct reg
-			v := asVar(symtab, arg.sym.name())
+			v := arg.sym.(*VarSymbol)
 			write("\tmovq\t-%v(%%rbp), %%%v", v.addr, regs[i])
+
+		case opFuncCall:
+
+			spill(write, i-1)                                           // Spill in-use registers to stack
+			genFuncCall(write, arg.stats, arg.sym.(*Function), symtab)  // Generate code for call and then
+			write("\tmovq\t%%rax, %%%v", regs[i])                       // Move result from rax into correct reg
+			restore(write, i-1)                                         // Restore in-use registers from stack
 
 		default:
 
@@ -154,45 +182,53 @@ func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab
 	}
 }
 
-func asVar(symtab *SymTab, name string) *VarSymbol {
-	s, ok := symtab.Resolve(symVar, name)
-	if !ok {
-		panic(fmt.Sprintf("Failed to find variable: [%v]", name))
+func restore(write func(string, ...interface{}), regPos int) {
+	for i := regPos; i >= 0; i-- {
+		write("\tpopq\t%%%v", regs[i]) // Pop stack into reg
 	}
-	if vr, ok := s.(*VarSymbol); ok {
-		return vr
-	} else {
-		panic(fmt.Sprintf("Symbol is not variable: [%v] - %v", symTypes[s.kind()], s.name()))
-	}
-
 }
 
-func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node) {
+func spill(write func(string, ...interface{}), regPos int) {
+	for i := regPos; i >= 0; i-- {
+		write("\tpushq\t%%%v", regs[i]) // Push reg onto stack
+	}
+}
+
+func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, syms *SymTab) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExprWithoutAssignment(write, expr.right)
+		genExprWithoutAssignment(write, expr.right, syms)
 	}
 	if expr.left != nil {
-		genExprWithoutAssignment(write, expr.left)
+		genExprWithoutAssignment(write, expr.left, syms)
 	}
 
-	// Implement stack machine
+	// Implements stack machine
 
-	//print(fmt.Sprintf("Expr: Visiting Node(%v) - ", nodeTypes[expr.op]))
 	switch expr.op {
 	case opIntLit:
-		v := expr.sym.(*IntegerLiteralSymbol).val
-		//println(fmt.Sprintf("%v", v))
-		write("\tpushq\t$%v", v) // Push onto top of stack
+
+		write("\tpushq\t$%v", expr.sym.(*IntegerLiteralSymbol).val) // Push onto top of stack
 
 	case opIntAdd:
-		//println("")
 
 		write("\tpopq\t%%rbx")       // Pop from stack to ebx
 		write("\tpopq\t%%rax")       // Pop from stack to eax
 		write("\taddq\t%%rbx, %%rax") // eax = (ebx + eax)
 		write("\tpushq\t%%rax")      // Push eax onto stack
+
+	case opIdentifier:
+
+		write("\tpushq\t-%v(%%rbp)", expr.sym.(*VarSymbol).addr) // Push onto top of stack
+
+	case opFuncCall:
+
+		// TODO: No need for spilling here because we do not use rax and an accumlator for expression evaluation. If/when
+		// we do we will need to spill rax out to stack before executing the function call as the return value is stored in rax
+		fn := expr.sym.(*Function)
+		genFuncCall(write, expr.stats, fn, syms)
+		write("\tpushq\t%%rax")  // Push result (rax) onto stack
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))

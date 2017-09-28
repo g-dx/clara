@@ -9,7 +9,7 @@ import (
 
 type Node struct {
 	token *lex.Token
-	typ *lex.Token // OpIdentifier
+	typ *lex.Token // OpIdentifier (typed parameter), opFuncDecl (function return type)
 	left  *Node
 	right *Node
 	stats []*Node
@@ -30,6 +30,7 @@ const (
 	opIntLit
 	opIntAdd
 	opIdentifier
+	opReturn
 	opError
 	opRoot
 )
@@ -41,6 +42,7 @@ var nodeTypes = map[int]string{
 	opIntLit:     "Integer Lit",
 	opIntAdd:     "Binary Op [Add]",
 	opIdentifier: "Identifier",
+	opReturn:     "Return Expr",
 	opError:      "(error)",
 	opRoot:       "<none>",
 }

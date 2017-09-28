@@ -76,24 +76,48 @@ func (p *Parser) fnDeclaration() *Node {
 	p.need('(')
 	params := p.parseParameters()
 	p.need(')')
-	p.need('{')
-
-	// Match calls
-	var fnCalls []*Node
-	for p.isNot('}') {
-		if p.is(lex.Identifier) {
-			fnCalls = append(fnCalls, p.fnCall())
-		} else {
-			p.syntaxError(lex.Identifier, '}')
-			p.next()
-		}
+	// TODO: Decide if return types are optional
+	var retType *lex.Token
+	if p.isNot(lex.LBrace) {
+		retType = p.need(lex.Identifier)
 	}
-	p.need('}')
+	p.need('{')
+	stmts := p.parseStatements()
 
 	// Close symtab
 	syms := p.symtab
 	p.symtab = p.symtab.Parent()
-	return p.fnDclNode(name, params, fnCalls, syms)
+	return p.fnDclNode(name, params, stmts, syms, retType)
+}
+
+func (p *Parser) parseStatements() []*Node {
+
+	var stmts []*Node
+	for p.isNot('}') {
+		stmts = append(stmts, p.parseStatement())
+	}
+	p.need('}')
+	return stmts
+}
+
+func (p *Parser) parseStatement() *Node {
+
+	switch p.Kind() {
+	case lex.Return: return p.parseReturnExpr()
+	case lex.Identifier:
+		// TODO: Assumes all identifiers beginning statements are function calls!
+		return p.parseFnCall()
+	default:
+		p.syntaxError(lex.Identifier, lex.Return)
+		p.next()
+		return &Node{op: opError} // TODO: Bad statement node?
+	}
+}
+
+func (p *Parser) parseReturnExpr() *Node {
+
+	tok := p.need(lex.Return)
+	return &Node{op:opReturn, stats: []*Node{ p.parseExpr() }, token: tok }
 }
 
 func (p *Parser) parseParameters() []*Node {
@@ -134,13 +158,16 @@ func (p *Parser) parseArgs() (n []*Node) {
 }
 
 func (p *Parser) parseArg() (*Node) {
+	z := 2 + 1
+	print(z)
 	return p.parseExpr()
 }
 
 func (p *Parser) parseExpr() (*Node) {
 
 	lhs := p.parseOperand()
-	for p.isNot(lex.Comma, lex.RParen) {
+	// TODO: Is this correct? What are all the terminators for an expression?
+	for p.isNot(lex.Comma, lex.RParen, lex.RBrace, lex.Return) {
 		op, tok := p.parseOperator()
 		rhs := p.parseOperand()
 		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok, symtab: p.symtab}
@@ -155,12 +182,24 @@ func (p *Parser) parseOperand() *Node {
 	case lex.String:
 		return p.parseStringLit()
 	case lex.Identifier:
-		return p.parseIdentifier()
+		return p.parseIdentifierOrFnCall()
 	default:
 		p.syntaxError(lex.Integer, lex.String)
 		return &Node{op: opError} // TODO: Maybe "opMissingOperand" would be better
 	}
 }
+
+func (p *Parser) parseIdentifierOrFnCall() *Node {
+	// TODO: All logic from parseIdentifier() & parseFnCall() has been duplicated here!
+	tok := p.need(lex.Identifier)
+	switch p.Kind() {
+	case lex.LParen:
+		return p.fnCallNode(tok, p.parseArgs())
+	default:
+		return &Node { op: opIdentifier, token: tok, symtab: p.symtab }
+	}
+}
+
 func (p *Parser) parseIdentifier() *Node {
 	tok := p.need(lex.Identifier)
 	// Define symbol
@@ -210,20 +249,20 @@ func (p *Parser) parseStringLit() (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, args []*Node, fnCalls []*Node, syms *SymTab) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, args []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.Val, len(args), false, 0, syms}
+		sym = &Function{token.Val, len(args), false, 0, syms, nil}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
-	return &Node{token : token, args: args, stats : fnCalls, op : opFuncDcl, sym : sym, symtab: p.symtab}
+	return &Node{token : token, args: args, stats : stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
 }
 
-func (p *Parser) fnCall() *Node {
+func (p *Parser) parseFnCall() *Node {
 	return p.fnCallNode(p.need(lex.Identifier), p.parseArgs())
 }
 
