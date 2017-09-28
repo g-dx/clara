@@ -1,16 +1,4 @@
 // Entry point
 fn main() {
-  printf("inc(2) + double(3) + triple(4) = %d\n", inc(2) + double(3) + triple(4))
-}
-
-fn double(x : int) int {
-    return x + x
-}
-
-fn triple(x: int) int {
-    return x + double(x)
-}
-
-fn inc(x:int) int {
-    return x + 1
+  printf("Hello %s%s\n", "world", "!")
 }

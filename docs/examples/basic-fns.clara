@@ -1,0 +1,14 @@
+// Entry point
+fn main() {
+  fn1()
+}
+
+fn fn2() {
+    printf("Executing function 2\n")
+}
+
+fn fn1() {
+    printf("Executing function 1\n")
+    fn2()
+}
+
