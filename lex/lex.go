@@ -227,11 +227,8 @@ func lexIdentifier(l *Lexer) stateFn {
 }
 
 func (l *Lexer) atTerminator() bool {
-	// NOTE: the only valid identifier is currently a function name or keyword and as
-	// such the only valid terminators are a space or a left paren. When variables
-	// and types are added this will need to change.
 	r := l.peek()
-	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')'
+	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n'
 }
 
 func (l *Lexer) peek() rune {
