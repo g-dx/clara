@@ -83,7 +83,7 @@ func (t Token) String() string {
 	default:
 		val = fmt.Sprintf("%q", t.Val)
 	}
-	return fmt.Sprintf("%s:%v%v:%v%v, %v%v%v", t.File, console.Yellow, t.Line, t.Pos,
+	return fmt.Sprintf("%s:%v%v:%v:%v, %v%v%v", t.File, console.Yellow, t.Line, t.Pos,
 		console.Disable, console.NodeTypeColour, val, console.Disable)
 }
 
