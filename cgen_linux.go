@@ -48,7 +48,7 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			if n.token.Val == "println" {
+			if n.token.Val == "printf" {
 				// Skip as this in done in glibc
 			} else {
 				// FN declaration
@@ -125,12 +125,7 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, 
 		write("\tmovq\t$%v, %%rax", 0 /*len(args) - fn.fnArgCount*/)
 	}
 
-	// TODO: Remove this special case!!
-	name := fn.fnName
-	if name == "println" {
-		name = "printf"
-	}
-	write("\tcall\t%v", name)
+	write("\tcall\t%v", fn.fnName)
 }
 
 func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab) {

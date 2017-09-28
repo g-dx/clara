@@ -1,6 +1,6 @@
 // Entry point
 fn main() {
-  println("inc(2) + double(3) + triple(4) = %d\n", inc(2) + double(3) + triple(4))
+  printf("inc(2) + double(3) + triple(4) = %d\n", inc(2) + double(3) + triple(4))
 }
 
 fn double(x : int) int {
