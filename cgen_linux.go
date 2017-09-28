@@ -61,12 +61,12 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				write("%v:", n.token.Val)
 
 				// Allocate space for parameters
-				write("\tenter\t$(8 * %v), $0", len(n.args))
+				write("\tenter\t$(8 * %v), $0", len(n.params))
 
 				// Copy register values into stack slots
-				for i := 0; i < len(n.args); i++ {
+				for i := 0; i < len(n.params); i++ {
 					addr := 8 * (i + 1) // Assign a stack slot for var
-					n.args[i].sym.(*VarSymbol).addr = addr
+					n.params[i].sym.(*VarSymbol).addr = addr
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 

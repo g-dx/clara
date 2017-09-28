@@ -28,7 +28,7 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 		// TODO: Double check that this will ensure the current symtab is available when resolve fn calls!
 		if n.op == opFuncDcl {
 			stab = n.sym.(*Function).args
-			nodes = n.args
+			nodes = n.params
 			fmt.Printf("Resolving function Declaration: %v\n", n.token.Val)
 		} else {
 			nodes = n.stats

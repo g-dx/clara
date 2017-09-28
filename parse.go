@@ -249,17 +249,17 @@ func (p *Parser) parseStringLit() (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, args []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.Val, len(args), false, 0, syms, nil}
+		sym = &Function{token.Val, len(params), false, 0, syms, nil}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
-	return &Node{token : token, args: args, stats : stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
+	return &Node{token : token, params: params, stats : stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
 }
 
 func (p *Parser) parseFnCall() *Node {

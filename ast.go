@@ -8,14 +8,14 @@ import (
 // AST
 
 type Node struct {
-	token *lex.Token
-	typ *lex.Token // OpIdentifier (typed parameter), opFuncDecl (function return type)
-	left  *Node
-	right *Node
-	stats []*Node
-	args  []*Node // OpFuncDecl
-	op    int
-	sym Symbol
+	token  *lex.Token
+	typ    *lex.Token // OpIdentifier (typed parameter), opFuncDecl (function return type)
+	left   *Node
+	right  *Node
+	stats  []*Node
+	params []*Node // OpFuncDecl
+	op     int
+	sym    Symbol
 	symtab *SymTab // Enclosing scope
 }
 
@@ -91,8 +91,8 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 		row = "     "
 	}
 
-	// Print args
-	printNodeListImpl(n.args, prefix+row)
+	// Print parameters
+	printNodeListImpl(n.params, prefix+row)
 
 	// Expression or list of statements
 	if len(n.stats) == 0 {
