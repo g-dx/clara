@@ -12,15 +12,15 @@ type Node struct {
 	typ    *lex.Token // OpIdentifier (typed parameter), opFuncDecl (function return type)
 	left   *Node
 	right  *Node
-	stats  []*Node
+	stmts  []*Node
 	params []*Node // OpFuncDecl
 	op     int
 	sym    Symbol
 	symtab *SymTab // Enclosing scope
 }
 
-func (n *Node) Add(stat *Node) {
-	n.stats = append(n.stats, stat)
+func (n *Node) Add(stmt *Node) {
+	n.stmts = append(n.stmts, stmt)
 }
 
 const (
@@ -49,7 +49,7 @@ var nodeTypes = map[int]string{
 
 func (n * Node) Walk(fn func(*Node)) {
 	fn(n)
-	for _, node := range n.stats {
+	for _, node := range n.stmts {
 		node.Walk(fn)
 	}
 }
@@ -95,13 +95,13 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 	printNodeListImpl(n.params, prefix+row)
 
 	// Expression or list of statements
-	if len(n.stats) == 0 {
+	if len(n.stmts) == 0 {
 
 		printTreeImpl(n.left, prefix + row, false)
 		printTreeImpl(n.right, prefix + row, true)
 
 	} else {
-		printNodeListImpl(n.stats, prefix+row)
+		printNodeListImpl(n.stmts, prefix+row)
 	}
 }
 

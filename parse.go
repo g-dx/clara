@@ -117,7 +117,7 @@ func (p *Parser) parseStatement() *Node {
 func (p *Parser) parseReturnExpr() *Node {
 
 	tok := p.need(lex.Return)
-	return &Node{op:opReturn, stats: []*Node{ p.parseExpr() }, token: tok }
+	return &Node{op:opReturn, stmts: []*Node{ p.parseExpr() }, token: tok }
 }
 
 func (p *Parser) parseParameters() []*Node {
@@ -259,7 +259,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		sym = &Function{token.Val, len(params), false, 0, syms, nil}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
-	return &Node{token : token, params: params, stats : stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
+	return &Node{token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
 }
 
 func (p *Parser) parseFnCall() *Node {
@@ -269,7 +269,7 @@ func (p *Parser) parseFnCall() *Node {
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	// TODO: TEMPORARY WORKAROUND!
 	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
-	return &Node{token : token, stats : args, op : opFuncCall, sym : sym, symtab: p.symtab}
+	return &Node{token : token, stmts: args, op : opFuncCall, sym : sym, symtab: p.symtab}
 }
 
 // ==========================================================================================================

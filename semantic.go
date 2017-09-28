@@ -31,7 +31,7 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 			nodes = n.params
 			fmt.Printf("Resolving function Declaration: %v\n", n.token.Val)
 		} else {
-			nodes = n.stats
+			nodes = n.stmts
 			stab = n.symtab
 			fmt.Printf("Resolving function Call: %v\n", n.token.Val)
 		}
@@ -124,12 +124,12 @@ func resolveFnCall(symtab *SymTab, n *Node) (error) {
 		}
 
 		// Check for too few args
-		if len(n.stats) < fn.argCount() {
+		if len(n.stmts) < fn.argCount() {
 			return semanticError(errTooFewArgsMsg, n.token)
 		}
 
 		// Check for too many
-		if len(n.stats) > fn.argCount() && !fn.isVariadic {
+		if len(n.stmts) > fn.argCount() && !fn.isVariadic {
 			return semanticError(errTooManyArgsMsg, n.token)
 		}
 
@@ -178,7 +178,7 @@ func walk(symtab *SymTab, n *Node, visit func(*SymTab, *Node) error) (errs []err
 	// TODO: What about function args?
 
 	// Visit children
-	for _, stat := range n.stats {
+	for _, stat := range n.stmts {
 		if stat != nil {
 			errs = append(errs, walk(symtab, stat, visit)...)
 		}

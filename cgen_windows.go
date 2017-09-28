@@ -52,7 +52,7 @@ func cgenFnDecl(node *Node, imports ImportList, ops *x64.OpcodeList) {
 	ops.MOV(x64.Rbp, x64.Rsp)
 
 	// Generate calls for all functions
-	for _, n := range node.stats {
+	for _, n := range node.stmts {
 		cgenFnCall(n, ops)
 	}
 
@@ -86,7 +86,7 @@ func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 
 	// Push values onto stack (string RVA & length)
 
-	str, ok := node.stats[0].sym.(*StringLiteralSymbol)
+	str, ok := node.stmts[0].sym.(*StringLiteralSymbol)
 	if !ok {
 		panic(fmt.Sprintf("print function parameter not string literal! - %v", str))
 	}

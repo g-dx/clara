@@ -71,15 +71,15 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				}
 
 
-				// Walk statement and generate calls
-				for _, stmt := range n.stats {
+				// Walk statements and generate calls
+				for _, stmt := range n.stmts {
 
 					switch stmt.op {
 					case opFuncCall:
-						genFuncCall(write, stmt.stats, stmt.sym.(*Function), stmt.symtab)
+						genFuncCall(write, stmt.stmts, stmt.sym.(*Function), stmt.symtab)
 					case opReturn:
-						if len(stmt.stats) == 1 {
-							genReturnExpression(write, stmt.stats[0], stmt.symtab)
+						if len(stmt.stmts) == 1 {
+							genReturnExpression(write, stmt.stmts[0], stmt.symtab)
 						} else {
 							// TODO: This is a "naked" return
 						}
@@ -163,10 +163,10 @@ func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab
 
 		case opFuncCall:
 
-			spill(write, i-1)                                           // Spill in-use registers to stack
-			genFuncCall(write, arg.stats, arg.sym.(*Function), symtab)  // Generate code for call and then
-			write("\tmovq\t%%rax, %%%v", regs[i])                       // Move result from rax into correct reg
-			restore(write, i-1)                                         // Restore in-use registers from stack
+			spill(write, i-1)                                          // Spill in-use registers to stack
+			genFuncCall(write, arg.stmts, arg.sym.(*Function), symtab) // Generate code for call and then
+			write("\tmovq\t%%rax, %%%v", regs[i])                      // Move result from rax into correct reg
+			restore(write, i-1)                                        // Restore in-use registers from stack
 
 		default:
 
@@ -222,7 +222,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		// TODO: No need for spilling here because we do not use rax and an accumlator for expression evaluation. If/when
 		// we do we will need to spill rax out to stack before executing the function call as the return value is stored in rax
 		fn := expr.sym.(*Function)
-		genFuncCall(write, expr.stats, fn, syms)
+		genFuncCall(write, expr.stmts, fn, syms)
 		write("\tpushq\t%%rax")  // Push result (rax) onto stack
 
 	default:
