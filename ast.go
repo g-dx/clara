@@ -31,6 +31,8 @@ const (
 	opIntAdd
 	opIdentifier
 	opReturn
+	opIf
+	opGt
 	opError
 	opRoot
 )
@@ -43,6 +45,8 @@ var nodeTypes = map[int]string{
 	opIntAdd:     "Binary Op [Add]",
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
+	opIf:     	  "If Stmt",
+	opGt:     	  "Comparison Op [>]",
 	opError:      "(error)",
 	opRoot:       "<none>",
 }
@@ -91,18 +95,14 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 		row = "     "
 	}
 
+	// TODO: Print parameters better. Currently it looks like they are block statments
 	// Print parameters
 	printNodeListImpl(n.params, prefix+row)
 
-	// Expression or list of statements
-	if len(n.stmts) == 0 {
-
-		printTreeImpl(n.left, prefix + row, false)
-		printTreeImpl(n.right, prefix + row, true)
-
-	} else {
-		printNodeListImpl(n.stmts, prefix+row)
-	}
+	// Print statements & left/right
+	printTreeImpl(n.left, prefix + row, false)
+	printTreeImpl(n.right, prefix + row, true)
+	printNodeListImpl(n.stmts, prefix+row)
 }
 
 func printNodeListImpl(nodes []*Node, prefix string) {

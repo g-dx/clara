@@ -31,6 +31,10 @@ const (
 	Plus
 
 	// -----------------------------------------------------------------------------------------------------------------
+	// Comparison Operators
+	Gt
+
+	// -----------------------------------------------------------------------------------------------------------------
 
 	Space
 	EOL
@@ -40,11 +44,13 @@ const (
 	Keyword
 	Fn
 	Return
+	If
 )
 
 var key = map[string]Kind{
 	"fn": Fn,
 	"return": Return,
+	"if": If,
 }
 
 var KindValues = map[Kind]string {
@@ -57,6 +63,7 @@ var KindValues = map[Kind]string {
 	Integer: "<integer lit>",
 	Fn: "fn",
 	Return: "return",
+	If: "if",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",
@@ -86,8 +93,8 @@ func (t Token) String() string {
 	default:
 		val = fmt.Sprintf("%q", t.Val)
 	}
-	return fmt.Sprintf("%s:%v%v:%v:%v, %v%v%v", t.File, console.Yellow, t.Line, t.Pos,
-		console.Disable, console.NodeTypeColour, val, console.Disable)
+	return fmt.Sprintf("%s:%v%v:%v:%v, %v%v%v %v", t.File, console.Yellow, t.Line, t.Pos,
+		console.Disable, console.NodeTypeColour, val, console.Disable, KindValues[t.Kind])
 }
 
 // This is almost entirely inspired by the template lexer in Go. Src here:
@@ -143,6 +150,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Colon)
 		case r == '+':
 			l.emit(Plus)
+		case r == '>':
+			l.emit(Gt)
 		case r == '"':
 			return lexString
 		case r == '/':

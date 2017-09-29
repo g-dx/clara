@@ -1,0 +1,23 @@
+// Entry point
+fn main() {
+    if 2 > 4 {
+        printf("2 > 4\n")
+    }
+    if 5 > 1 {
+        printf("5 > 1\n")
+    }
+    if 0 > 0 {
+        printf("0 > 0\n")
+    }
+    if double(2) > triple(1) {
+        printf("double(2) > triple(1)\n")
+    }
+}
+
+fn double(x: int) int {
+    return x + x
+}
+
+fn triple(x: int) int {
+    return x + double(x)
+}

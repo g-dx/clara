@@ -81,7 +81,6 @@ func (p *Parser) fnDeclaration() *Node {
 	if p.isNot(lex.LBrace) {
 		retType = p.need(lex.Identifier)
 	}
-	p.need('{')
 	stmts := p.parseStatements()
 
 	// Close symtab
@@ -91,7 +90,7 @@ func (p *Parser) fnDeclaration() *Node {
 }
 
 func (p *Parser) parseStatements() []*Node {
-
+	p.need('{')
 	var stmts []*Node
 	for p.isNot('}') {
 		stmts = append(stmts, p.parseStatement())
@@ -103,7 +102,10 @@ func (p *Parser) parseStatements() []*Node {
 func (p *Parser) parseStatement() *Node {
 
 	switch p.Kind() {
-	case lex.Return: return p.parseReturnExpr()
+	case lex.Return:
+		return p.parseReturnExpr()
+	case lex.If:
+		return p.parseIfStmt()
 	case lex.Identifier:
 		// TODO: Assumes all identifiers beginning statements are function calls!
 		return p.parseFnCall()
@@ -112,6 +114,10 @@ func (p *Parser) parseStatement() *Node {
 		p.next()
 		return &Node{op: opError} // TODO: Bad statement node?
 	}
+}
+func (p *Parser) parseIfStmt() *Node {
+	// TODO: Need to handle elseif, else statements here too. When added they can be right node
+	return &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(), stmts: p.parseStatements() }
 }
 
 func (p *Parser) parseReturnExpr() *Node {
@@ -167,7 +173,7 @@ func (p *Parser) parseExpr() (*Node) {
 
 	lhs := p.parseOperand()
 	// TODO: Is this correct? What are all the terminators for an expression?
-	for p.isNot(lex.Comma, lex.RParen, lex.RBrace, lex.Return) {
+	for p.isNot(lex.Comma, lex.RParen, lex.LBrace, lex.RBrace, lex.Return) {
 		op, tok := p.parseOperator()
 		rhs := p.parseOperand()
 		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok, symtab: p.symtab}
@@ -208,13 +214,16 @@ func (p *Parser) parseIdentifier() *Node {
 }
 
 func (p *Parser) parseOperator() (int, *lex.Token) {
-	if p.isNot(lex.Plus) {
+	switch p.Kind() {
+	case lex.Plus:
+		return opIntAdd, p.next()
+	case lex.Gt:
+		return opGt, p.next()
+	default:
 		p.syntaxError(lex.Plus)
 		p.next()
 		return opError, nil
 	}
-
-	return opIntAdd, p.next()
 }
 
 func (p *Parser) parseIntegerLit() (*Node) {

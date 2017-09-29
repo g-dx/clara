@@ -8,6 +8,7 @@ import (
 
 var spacer = "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
 var strIndex = 0
+var labelIndex = 0
 var strLabels = make(map[string]string)
 var regs = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"} // SysV calling convention
 
@@ -70,24 +71,8 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 
-
-				// Walk statements and generate calls
-				for _, stmt := range n.stmts {
-
-					switch stmt.op {
-					case opFuncCall:
-						genFuncCall(write, stmt.stmts, stmt.sym.(*Function), stmt.symtab)
-					case opReturn:
-						if len(stmt.stmts) == 1 {
-							genReturnExpression(write, stmt.stmts[0], stmt.symtab)
-						} else {
-							// TODO: This is a "naked" return
-						}
-
-					default:
-						panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
-					}
-				}
+				// Generate code for all statments
+				genStmtList(write, n.stmts, n.symtab)
 
 				// TODO: If last statement was a ReturnExpression - no need for this epilogue...
 				write("\tleave")
@@ -101,6 +86,51 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	return nil
 }
+func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *SymTab) {
+	for _, stmt := range stmts {
+
+		switch stmt.op {
+		case opFuncCall:
+			genFuncCall(write, stmt.stmts, stmt.sym.(*Function), stmt.symtab)
+
+		case opReturn:
+			if len(stmt.stmts) == 1 {
+				genReturnExpression(write, stmt.stmts[0], stmt.symtab)
+			} else {
+				// TODO: This is a "naked" return
+			}
+
+		case opIf:
+			genIfStmt(write, stmt, stmt.symtab)
+
+		default:
+			panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
+		}
+	}
+}
+
+func genIfStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
+
+	// Generate condition
+	genExprWithoutAssignment(write, n.left, tab) // Left stores condition
+
+	// Create new label
+	label := fmt.Sprintf("if%v", labelIndex)
+	labelIndex++
+
+	// Output type of jump based on condition expression
+	// **NOTE:** The instructions are the inversion of the comparison operator so we can jump over the "true" stmt block
+	switch n.left.op {
+	case opGt:
+		write("\tjle\t%v", label) // x > y ----> x <= y
+	default:
+		panic(fmt.Sprintf("Unimplemented comparision operator in if stmt: %v", nodeTypes[n.left.op]))
+	}
+
+	genStmtList(write, n.stmts, n.symtab) // Generate if (true) stmt block
+	write("%v:", label)                // Label to jump if false
+}
+
 func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {
 
 	// Result is on top of stack
@@ -212,6 +242,14 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tpopq\t%%rax")       // Pop from stack to eax
 		write("\taddq\t%%rbx, %%rax") // eax = (ebx + eax)
 		write("\tpushq\t%%rax")      // Push eax onto stack
+
+	case opGt: // TODO: Other comparisons can get added here as they all share the same code!
+
+		// NOTE: The order we pop from the stack here important
+		// TODO: Consider changing opIntAdd to have the same order as addition is associative
+		write("\tpopq\t%%rax")                            // Pop from stack to eax
+		write("\tpopq\t%%rbx")                            // Pop from stack to ebx
+		write("\tcmpq\t%%rbx, %%rax")                     // Compare rax <-> rbx
 
 	case opIdentifier:
 
