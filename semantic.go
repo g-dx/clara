@@ -171,7 +171,7 @@ func walk(symtab *SymTab, n *Node, visit func(*SymTab, *Node) error) (errs []err
 	if n.left != nil {
 		errs = append(errs, walk(symtab, n.left, visit)...)
 	}
-	if n.left != nil {
+	if n.right != nil {
 		errs = append(errs, walk(symtab, n.right, visit)...)
 	}
 
