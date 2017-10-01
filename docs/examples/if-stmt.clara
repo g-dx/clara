@@ -12,6 +12,12 @@ fn main() {
     if double(2) > triple(1) {
         printf("double(2) > triple(1)\n")
     }
+    if 7 > 1 + 2 + 3 {
+        printf("(7) > (1) + 2 + 3\n")
+    }
+    if (5) > (1 + 2) {
+        printf("(5) > (1 + 2)\n")
+    }
 }
 
 fn double(x: int) int {

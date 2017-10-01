@@ -47,6 +47,56 @@ const (
 	If
 )
 
+func (k Kind) IsBinaryOperator() bool {
+	switch k {
+	case Plus, Gt:
+		return true
+	default:
+		return false
+	}
+}
+
+func (k Kind) IsUnaryOperator() bool {
+	switch k {
+	// TODO: Unary operators go here!
+	default:
+		return false
+	}
+}
+
+func (k Kind) Precedence() int {
+
+	// TODO: other operators should get added here
+	switch k {
+	case Plus:
+		return 2
+	case Gt:
+		return 1
+	default:
+		return 0 // Any other token
+	}
+}
+
+type Associative byte
+const (
+	Left = Associative(iota)
+	Right
+	None
+)
+
+func (k Kind) Associativity() Associative {
+	switch k {
+	case LParen:
+		return Left
+	case Gt:
+		return None
+	case Plus:
+		return Left
+	default:
+		return None
+	}
+}
+
 var key = map[string]Kind{
 	"fn": Fn,
 	"return": Return,
@@ -64,6 +114,7 @@ var KindValues = map[Kind]string {
 	Fn: "fn",
 	Return: "return",
 	If: "if",
+	Gt: ">",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",

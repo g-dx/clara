@@ -117,13 +117,13 @@ func (p *Parser) parseStatement() *Node {
 }
 func (p *Parser) parseIfStmt() *Node {
 	// TODO: Need to handle elseif, else statements here too. When added they can be right node
-	return &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(), stmts: p.parseStatements() }
+	return &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(0), stmts: p.parseStatements() }
 }
 
 func (p *Parser) parseReturnExpr() *Node {
 
 	tok := p.need(lex.Return)
-	return &Node{op:opReturn, stmts: []*Node{ p.parseExpr() }, token: tok }
+	return &Node{op:opReturn, stmts: []*Node{ p.parseExpr(0) }, token: tok }
 }
 
 func (p *Parser) parseParameters() []*Node {
@@ -164,34 +164,59 @@ func (p *Parser) parseArgs() (n []*Node) {
 }
 
 func (p *Parser) parseArg() (*Node) {
-	z := 2 + 1
-	print(z)
-	return p.parseExpr()
+	return p.parseExpr(0)
 }
 
-func (p *Parser) parseExpr() (*Node) {
+//
+// NOTE: The following two functions implement the "Precedence Climbing" algorithm as described here:
+// https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm#climbing
+//
+func (p *Parser) parseExpr(prec int) (*Node) {
 
-	lhs := p.parseOperand()
-	// TODO: Is this correct? What are all the terminators for an expression?
-	for p.isNot(lex.Comma, lex.RParen, lex.LBrace, lex.RBrace, lex.Return) {
+	t := p.parseOperand()
+	for next := p.Kind(); next.IsBinaryOperator() && next.Precedence() >= prec; next = p.Kind() {
 		op, tok := p.parseOperator()
-		rhs := p.parseOperand()
-		lhs = &Node{ op: op, left: lhs, right: rhs, token: tok, symtab: p.symtab}
+		q := next.Precedence()
+		if next.Associativity() == lex.Left {
+			q += 1
+		}
+		t1 := p.parseExpr(q)
+		t = &Node{ op: op, token: tok, left: t, right: t1 }
 	}
-	return lhs
+	return t
 }
 
 func (p *Parser) parseOperand() *Node {
-	switch p.Kind() {
-	case lex.Integer:
+
+	next := p.Kind()
+	switch {
+	case next.IsUnaryOperator():
+		op, tok := p.parseOperator()
+		t := p.parseExpr(next.Precedence())
+		return &Node{ op: op, token: tok, left: t } // Unary operators store expr in left
+
+	case next == lex.LParen:
+		p.next()
+		t := p.parseExpr(0)
+		p.need(lex.RParen)
+		// TODO: Do we want to record parenthesis information? If so we can do it here here with a new type of node
+		return t
+
+	case next == lex.Integer:
 		return p.parseIntegerLit()
-	case lex.String:
+
+	case next == lex.String:
 		return p.parseStringLit()
-	case lex.Identifier:
+
+	case next == lex.Identifier:
 		return p.parseIdentifierOrFnCall()
+
 	default:
-		p.syntaxError(lex.Integer, lex.String)
-		return &Node{op: opError} // TODO: Maybe "opMissingOperand" would be better
+		// Error
+		p.syntaxError(lex.LParen, lex.Integer, lex.String, lex.Identifier) // TODO: All unary operators should get add
+		// TODO: What should we synchronise on?
+		// Next statement?
+		return &Node {op: opError, token: p.next()}
 	}
 }
 
@@ -204,13 +229,6 @@ func (p *Parser) parseIdentifierOrFnCall() *Node {
 	default:
 		return &Node { op: opIdentifier, token: tok, symtab: p.symtab }
 	}
-}
-
-func (p *Parser) parseIdentifier() *Node {
-	tok := p.need(lex.Identifier)
-	// Define symbol
-	// TODO: Define symbol???
-	return &Node { op: opIdentifier, token: tok, sym: nil, symtab: p.symtab} // ???
 }
 
 func (p *Parser) parseOperator() (int, *lex.Token) {
