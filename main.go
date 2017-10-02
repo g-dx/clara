@@ -126,6 +126,8 @@ func stdSyms() []Symbol {
 		&TypeSymbol{val: "string" },
 		// int type
 		&TypeSymbol{val: "int" },
+		// bool type
+		&TypeSymbol{val: "bool"},
 	}
 }
 

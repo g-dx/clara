@@ -18,6 +18,9 @@ fn main() {
     if (5) > (1 + 2) {
         printf("(5) > (1 + 2)\n")
     }
+    if isGt(5, 2) {
+        printf("isGt(5, 2)\n")
+    }
 }
 
 fn double(x: int) int {
@@ -26,4 +29,8 @@ fn double(x: int) int {
 
 fn triple(x: int) int {
     return x + double(x)
+}
+
+fn isGt(x: int, y: int) bool {
+    return x > y
 }

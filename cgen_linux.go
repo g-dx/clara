@@ -197,6 +197,15 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 		write("\tpushq\t$%v", expr.sym.(*IntegerLiteralSymbol).val) // Push onto top of stack
 
+	case opBoolLit:
+
+		// TODO: Seems a bit hacky. Maybe a bool symbol with Val (1|0)?
+		x := 0
+		if expr.token.Val == "true" {
+			x = 1
+		}
+		write("\tpushq\t$%v", x) // Push onto top of stack
+
 	case opIntAdd:
 
 		write("\tpopq\t%%rbx")       // Pop from stack to ebx

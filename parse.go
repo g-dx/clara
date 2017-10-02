@@ -208,6 +208,9 @@ func (p *Parser) parseOperand() *Node {
 	case next == lex.String:
 		return p.parseStringLit()
 
+	case next == lex.True || next == lex.False:
+		return p.parseBoolLit()
+
 	case next == lex.Identifier:
 		return p.parseIdentifierOrFnCall()
 
@@ -271,6 +274,10 @@ func (p *Parser) parseStringLit() (*Node) {
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}
+}
+
+func (p *Parser) parseBoolLit() (*Node) {
+	return &Node{token : p.next(), op : opBoolLit, symtab: p.symtab}
 }
 
 // ==========================================================================================================

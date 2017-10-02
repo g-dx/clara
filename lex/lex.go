@@ -40,11 +40,15 @@ const (
 	EOL
 	EOF
 
+	// -----------------------------------------------------------------------------------------------------------------
+
 	// Order is v.important here!
-	Keyword
+	keyword
 	Fn
 	Return
 	If
+	True
+	False
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -101,6 +105,8 @@ var key = map[string]Kind{
 	"fn": Fn,
 	"return": Return,
 	"if": If,
+	"true": True,
+	"false": False,
 }
 
 var KindValues = map[Kind]string {
@@ -115,6 +121,8 @@ var KindValues = map[Kind]string {
 	Return: "return",
 	If: "if",
 	Gt: ">",
+	True: "true",
+	False: "false",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",
@@ -135,7 +143,7 @@ func (t Token) String() string {
 	switch {
 	case t.Kind == EOF:
 		val = "EOF"
-	case t.Kind > Keyword:
+	case t.Kind > keyword:
 		val = fmt.Sprintf("<%s>", t.Val)
 	case t.Kind == Integer:
 		val = fmt.Sprintf("%s", t.Val)
@@ -281,7 +289,7 @@ func lexIdentifier(l *Lexer) stateFn {
 	// Differentiate between known keywords and identifiers
 	word := l.input[l.start:l.pos]
 	switch {
-	case key[word] > Keyword:
+	case key[word] > keyword:
 		l.emit(key[word])
 	default:
 		l.emit(Identifier)

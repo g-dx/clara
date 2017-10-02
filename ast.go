@@ -28,6 +28,7 @@ const (
 	opFuncCall
 	opStrLit
 	opIntLit
+	opBoolLit
 	opIntAdd
 	opIdentifier
 	opReturn
@@ -42,6 +43,7 @@ var nodeTypes = map[int]string{
 	opFuncCall:   "Func Call",
 	opStrLit:     "String Lit",
 	opIntLit:     "Integer Lit",
+	opBoolLit:    "Boolean Lit",
 	opIntAdd:     "Binary Op [Add]",
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
