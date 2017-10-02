@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"bufio"
+	"strings"
 )
 
 var spacer = "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
@@ -112,7 +113,7 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 func genIfStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 
 	// Generate condition
-	genExprWithoutAssignment(write, n.left, tab) // Left stores condition
+	genExprWithoutAssignment(write, n.left, tab, 0) // Left stores condition
 
 	// Create new label
 	label := fmt.Sprintf("if%v", labelIndex)
@@ -129,7 +130,7 @@ func genIfStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {
 
 	// Result is on top of stack
-	genExprWithoutAssignment(write, expr, tab)
+	genExprWithoutAssignment(write, expr, tab, 0)
 
 	// Pop from stack to eax
 	write("\tpopq\t%%rax")
@@ -142,7 +143,13 @@ func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab
 func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, symtab *SymTab) {
 
 	// Generate arg code
-	genCallArgs(write, args, symtab)
+	for i, arg := range args {
+		if i >= 6 {
+			panic("Calling functions with more than 6 parameters not yet implemented")
+		}
+		genExprWithoutAssignment(write, arg, symtab, i) // Evaluate expression
+		write("\tpopq\t%%%v", regs[i])                  // Pop result from stack into correct reg
+	}
 
 	// If function is variadic - must set EAX to number of parameters as part if SysV x64 calling convention
 	if fn.isVariadic {
@@ -153,80 +160,39 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, 
 	write("\tcall\t%v", fn.fnName)
 }
 
-func genCallArgs(write func(string,...interface{}), args []*Node, symtab *SymTab) {
-	i := 0
-	for _, arg := range args {
-
-		// TODO: Update to support pushing > 6 arguments on the stack
-		if i >= 6 {
-			panic("Calling functions with more than 6 parameters not yet implemented")
-		}
-
-		switch arg.op {
-		case opStrLit:
-
-			// Move into correct reg
-			write("\tmovq\t$%v, %%%v", strLabels[arg.sym.(*StringLiteralSymbol).Val()], regs[i])
-
-		case opIntAdd:
-
-			spill(write, i-1)                            // Spill in-use registers to stack
-			genExprWithoutAssignment(write, arg, symtab) // Generate expression
-			write("\tpopq\t%%%v", regs[i])               // Move result from top of stack into correct reg
-			restore(write, i-1)                          // Restore in-use registers from stack
-
-		case opIntLit:
-
-			// Move into correct reg
-			write("\tmovq\t$%v, %%%v", arg.sym.(*IntegerLiteralSymbol).val, regs[i])
-
-		case opIdentifier:
-
-			// Look up var symbol which should have a stack slot assigned and move into correct reg
-			v := arg.sym.(*VarSymbol)
-			write("\tmovq\t-%v(%%rbp), %%%v", v.addr, regs[i])
-
-		case opFuncCall:
-
-			spill(write, i-1)                                          // Spill in-use registers to stack
-			genFuncCall(write, arg.stmts, arg.sym.(*Function), symtab) // Generate code for call and then
-			write("\tmovq\t%%rax, %%%v", regs[i])                      // Move result from rax into correct reg
-			restore(write, i-1)                                        // Restore in-use registers from stack
-
-		default:
-
-			// Can't generate code for this yet
-			panic(fmt.Sprintf("Can't generate code for call argument: %v", nodeTypes[arg.op]))
-		}
-		i += 1
-	}
-}
-
 func restore(write func(string, ...interface{}), regPos int) {
-	for i := regPos; i >= 0; i-- {
-		write("\tpopq\t%%%v", regs[i]) // Pop stack into reg
+
+	debug := fmt.Sprintf("DEBUG: Restore [%v]", strings.Join(regs[:regPos], ", "))
+	for i := regPos; i > 0; i-- {
+		write("\tpopq\t%%%v   # %v", regs[i-1], debug) // Pop stack into reg
 	}
 }
 
 func spill(write func(string, ...interface{}), regPos int) {
-	for i := regPos; i >= 0; i-- {
-		write("\tpushq\t%%%v", regs[i]) // Push reg onto stack
+	debug := fmt.Sprintf("DEBUG: Spill [%v]", strings.Join(regs[:regPos], ", "))
+	for i := 0; i < regPos; i++ {
+		write("\tpushq\t%%%v   # %v", regs[i], debug) // Push reg onto stack
 	}
 }
 
-func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, syms *SymTab) {
+func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, syms *SymTab, regsInUse int) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExprWithoutAssignment(write, expr.right, syms)
+		genExprWithoutAssignment(write, expr.right, syms, regsInUse)
 	}
 	if expr.left != nil {
-		genExprWithoutAssignment(write, expr.left, syms)
+		genExprWithoutAssignment(write, expr.left, syms, regsInUse)
 	}
 
 	// Implements stack machine
 
 	switch expr.op {
+
+	case opStrLit:
+
+		write("\tpushq\t$%v", strLabels[expr.sym.(*StringLiteralSymbol).Val()])
+
 	case opIntLit:
 
 		write("\tpushq\t$%v", expr.sym.(*IntegerLiteralSymbol).val) // Push onto top of stack
@@ -256,11 +222,10 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opFuncCall:
 
-		// TODO: No need for spilling here because we do not use rax and an accumlator for expression evaluation. If/when
-		// we do we will need to spill rax out to stack before executing the function call as the return value is stored in rax
-		fn := expr.sym.(*Function)
-		genFuncCall(write, expr.stmts, fn, syms)
-		write("\tpushq\t%%rax")  // Push result (rax) onto stack
+		spill(write, regsInUse) // Spill any in use registers to the stack
+		genFuncCall(write, expr.stmts, expr.sym.(*Function), syms)
+		restore(write, regsInUse) // Restore registers previously in use
+		write("\tpushq\t%%rax")   // Push result (rax) onto stack
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
