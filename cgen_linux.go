@@ -118,14 +118,9 @@ func genIfStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 	label := fmt.Sprintf("if%v", labelIndex)
 	labelIndex++
 
-	// Output type of jump based on condition expression
-	// **NOTE:** The instructions are the inversion of the comparison operator so we can jump over the "true" stmt block
-	switch n.left.op {
-	case opGt:
-		write("\tjle\t%v", label) // x > y ----> x <= y
-	default:
-		panic(fmt.Sprintf("Unimplemented comparision operator in if stmt: %v", nodeTypes[n.left.op]))
-	}
+	write("\tpopq\t%%rax")       // Pop result from stack to rax
+	write("\tcmpq\t$1, %%rax")   // Compare (true) to rax
+	write("\tjne\t%v", label)    // Jump over block if not equal
 
 	genStmtList(write, n.stmts, n.symtab) // Generate if (true) stmt block
 	write("%v:", label)                // Label to jump if false
@@ -247,9 +242,13 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 		// NOTE: The order we pop from the stack here important
 		// TODO: Consider changing opIntAdd to have the same order as addition is associative
-		write("\tpopq\t%%rax")                            // Pop from stack to eax
-		write("\tpopq\t%%rbx")                            // Pop from stack to ebx
-		write("\tcmpq\t%%rbx, %%rax")                     // Compare rax <-> rbx
+		write("\tpopq\t%%rax")          // Pop from stack to eax
+		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\tcmpq\t%%rbx, %%rax")   // Compare rax <-> rbx
+		write("\tmovq\t$1, %%rbx")      // Load true into rbx
+		write("\tmovq\t$0, %%rax")      // Load false into rax
+		write("\tcmovg\t%%rbx, %%rax")  // Conditionally move rbx (true) into rax (false) if previous comparison was greater than
+		write("\tpushq\t%%rax")         // Push result onto stack
 
 	case opIdentifier:
 
