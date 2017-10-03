@@ -114,7 +114,9 @@ func main() {
 	f.Close()
 
 	// Invoke gcc to link files
-	out, err := exec.Command("gcc", "-o", progName, asmPath, harnessPath).Output()
+	cmd := exec.Command("gcc", "-o", progName, asmPath, harnessPath)
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("Link failure: %v\n%v", err, out)
 	}
