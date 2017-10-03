@@ -29,6 +29,9 @@ const (
 	// Binary Operators
 
 	Plus
+	Mul
+	Div
+	Min
 
 	// -----------------------------------------------------------------------------------------------------------------
 	// Comparison Operators
@@ -56,7 +59,7 @@ const (
 
 func (k Kind) IsBinaryOperator() bool {
 	switch k {
-	case Plus, Gt, And, Or:
+	case Plus, Gt, And, Or, Mul, Div, Min:
 		return true
 	default:
 		return false
@@ -77,8 +80,10 @@ func (k Kind) Precedence() int {
 	// TODO: other operators should get added here
 	switch k {
 	case Not:
+		return 6
+	case Mul, Div:
 		return 5
-	case Plus:
+	case Plus, Min:
 		return 4
 	case Gt:
 		return 3
@@ -100,7 +105,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus, And, Or:
+	case LParen, Plus, And, Or, Mul, Div, Min:
 		return Left
 	case Not:
 		return Right
@@ -134,6 +139,10 @@ var KindValues = map[Kind]string {
 	Return: "return",
 	If: "if",
 	Gt: ">",
+	Mul: "*",
+	Plus: "+",
+	Div: "/",
+	Min: "-",
 	True: "true",
 	False: "false",
 	Not: "not",
@@ -224,16 +233,20 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Colon)
 		case r == '+':
 			l.emit(Plus)
+		case r == '-':
+			l.emit(Min)
+		case r == '*':
+			l.emit(Mul)
 		case r == '>':
 			l.emit(Gt)
 		case r == '"':
 			return lexString
 		case r == '/':
-			if l.peek() != '/' {
-				return l.errorf("Unexpected character %#U", r)
+			if l.peek() == '/' {
+				l.next()
+				return lexComment
 			}
-			l.next()
-			return lexComment
+			l.emit(Div)
 		case isNumeric(r):
 			return lexInteger
 		case isAlphabetic(r):

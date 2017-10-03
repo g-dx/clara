@@ -1,4 +1,10 @@
 // Entry point
 fn main() {
   printf("2 + 3 + 4 = %d\n", 2 + 3 + 4)
+  printf("4 * 3 * 12 = %d\n", 4 * 3 * 12)
+  printf("100 / 10 / 2 = %d\n", 100 / 10 / 2)
+  printf("3 / 2 = %d\n", 3 / 2)
+  printf("10 - 5 = %d\n", 10 - 5)
+  printf("0 - 10 = %d\n", 0 - 10)
+  printf("0 - 10 + 20 = %d\n", 0 - 10 + 20)
 }

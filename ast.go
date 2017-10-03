@@ -30,6 +30,9 @@ const (
 	opIntLit
 	opBoolLit
 	opIntAdd
+	opIntMin
+	opIntMul
+	opIntDiv
 	opNot
 	opAnd
 	opIdentifier
@@ -48,6 +51,9 @@ var nodeTypes = map[int]string{
 	opIntLit:     "Integer Lit",
 	opBoolLit:    "Boolean Lit",
 	opIntAdd:     "Binary Op [Add]",
+	opIntMin:     "Binary Op [Min]",
+	opIntMul:     "Binary Op [Mul]",
+	opIntDiv:     "Binary Op [Div]",
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
 	opIf:     	  "If Stmt",

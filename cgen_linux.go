@@ -213,6 +213,29 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\taddq\t%%rbx, %%rax") // eax = (ebx + eax)
 		write("\tpushq\t%%rax")      // Push eax onto stack
 
+	case opIntMin:
+
+		write("\tpopq\t%%rax")       // Pop from stack to ebx
+		write("\tpopq\t%%rbx")       // Pop from stack to eax
+		write("\tsubq\t%%rbx, %%rax") // rax = (rbx - rax)
+		write("\tpushq\t%%rax")      // Push eax onto stack
+
+	case opIntMul:
+
+		write("\tpopq\t%%rbx")         // Pop from stack to ebx
+		write("\tpopq\t%%rax")         // Pop from stack to eax
+		write("\timulq\t%%rbx, %%rax") // rdx(high-64 bits):rax(low 64-bits) = (rbx * rax) TODO: We ignore high bits!
+		write("\tpushq\t%%rax")        // Push eax onto stack
+
+	case opIntDiv:
+
+		write("\tpopq\t%%rax")         // Pop from stack to ebx
+		write("\tpopq\t%%rbx")         // Pop from stack to eax
+		write("\tmovq\t$0, %%rdx")     // rdx = 0 (remainder)
+		write("\tidivq\t%%rbx, %%rax") // rdx(remainder):rax(quotient) = (ebx / eax) TODO: We ignore remainder!
+		write("\tpushq\t%%rax")        // Push eax onto stack
+
+
 	case opNot:
 		write("\tpopq\t%%rax")          // Pop from stack to eax
 		write("\tnotq\t%%rax")          // rax = ~rax
