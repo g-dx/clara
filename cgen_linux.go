@@ -233,6 +233,13 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tcmovg\t%%rbx, %%rax")  // Conditionally move rbx (true) into rax (false) if previous comparison was greater than
 		write("\tpushq\t%%rax")         // Push result onto stack
 
+	case opAnd:
+
+		write("\tpopq\t%%rax")          // Pop from stack to eax
+		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\tandq\t%%rbx, %%rax")   // rax = rbx & rax
+		write("\tpushq\t%%rax")         // Push result onto stack
+
 	case opIdentifier:
 
 		write("\tpushq\t-%v(%%rbp)", expr.sym.(*VarSymbol).addr) // Push onto top of stack

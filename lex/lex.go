@@ -50,11 +50,12 @@ const (
 	True
 	False
 	Not
+	And
 )
 
 func (k Kind) IsBinaryOperator() bool {
 	switch k {
-	case Plus, Gt:
+	case Plus, Gt, And:
 		return true
 	default:
 		return false
@@ -75,10 +76,12 @@ func (k Kind) Precedence() int {
 	// TODO: other operators should get added here
 	switch k {
 	case Not:
-		return 3
+		return 4
 	case Plus:
-		return 2
+		return 3
 	case Gt:
+		return 2
+	case And:
 		return 1
 	default:
 		return 0 // Any other token
@@ -94,7 +97,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus:
+	case LParen, Plus, And:
 		return Left
 	case Not:
 		return Right
@@ -112,6 +115,7 @@ var key = map[string]Kind{
 	"true": True,
 	"false": False,
 	"not": Not,
+	"and": And,
 }
 
 var KindValues = map[Kind]string {
@@ -129,6 +133,7 @@ var KindValues = map[Kind]string {
 	True: "true",
 	False: "false",
 	Not: "not",
+	And: "and",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",

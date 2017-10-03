@@ -31,6 +31,7 @@ const (
 	opBoolLit
 	opIntAdd
 	opNot
+	opAnd
 	opIdentifier
 	opReturn
 	opIf
@@ -51,6 +52,7 @@ var nodeTypes = map[int]string{
 	opIf:     	  "If Stmt",
 	opGt:     	  "Comparison Op [>]",
 	opNot:     	  "Negation [not]",
+	opAnd:     	  "Logical [and]",
 	opError:      "(error)",
 	opRoot:       "<none>",
 }

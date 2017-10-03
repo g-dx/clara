@@ -240,6 +240,8 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 		return opNot, p.next()
 	case lex.Plus:
 		return opIntAdd, p.next()
+	case lex.And:
+		return opAnd, p.next()
 	case lex.Gt:
 		return opGt, p.next()
 	default:
