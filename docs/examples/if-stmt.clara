@@ -21,6 +21,9 @@ fn main() {
     if isGt(5, 2) {
         printf("isGt(5, 2)\n")
     }
+    if not (2 > 5) {
+        printf("not (2 > 5)\n")
+    }
 }
 
 fn double(x: int) int {

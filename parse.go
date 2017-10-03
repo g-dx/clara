@@ -236,6 +236,8 @@ func (p *Parser) parseIdentifierOrFnCall() *Node {
 
 func (p *Parser) parseOperator() (int, *lex.Token) {
 	switch p.Kind() {
+	case lex.Not:
+		return opNot, p.next()
 	case lex.Plus:
 		return opIntAdd, p.next()
 	case lex.Gt:

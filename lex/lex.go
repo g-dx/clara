@@ -49,6 +49,7 @@ const (
 	If
 	True
 	False
+	Not
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -62,7 +63,8 @@ func (k Kind) IsBinaryOperator() bool {
 
 func (k Kind) IsUnaryOperator() bool {
 	switch k {
-	// TODO: Unary operators go here!
+	case Not:
+		return true
 	default:
 		return false
 	}
@@ -72,6 +74,8 @@ func (k Kind) Precedence() int {
 
 	// TODO: other operators should get added here
 	switch k {
+	case Not:
+		return 3
 	case Plus:
 		return 2
 	case Gt:
@@ -90,12 +94,12 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen:
+	case LParen, Plus:
 		return Left
+	case Not:
+		return Right
 	case Gt:
 		return None
-	case Plus:
-		return Left
 	default:
 		return None
 	}
@@ -107,6 +111,7 @@ var key = map[string]Kind{
 	"if": If,
 	"true": True,
 	"false": False,
+	"not": Not,
 }
 
 var KindValues = map[Kind]string {
@@ -123,6 +128,7 @@ var KindValues = map[Kind]string {
 	Gt: ">",
 	True: "true",
 	False: "false",
+	Not: "not",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",

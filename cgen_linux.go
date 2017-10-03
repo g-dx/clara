@@ -213,6 +213,14 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\taddq\t%%rbx, %%rax") // eax = (ebx + eax)
 		write("\tpushq\t%%rax")      // Push eax onto stack
 
+	case opNot:
+		write("\tpopq\t%%rax")          // Pop from stack to eax
+		write("\tmovq\t$0, %%rbx")      // Move zero (false) into rbx
+		write("\tcmpq\t%%rbx, %%rax")   // Compare rax to rbx (false)
+		write("\tmovq\t$1, %%rax")      // Load true into rax
+		write("\tcmovg\t%%rbx, %%rax")  // Conditionally move rbx (false) into rax if was greater than 0 (true)
+		write("\tpushq\t%%rax")         // Push result onto stack
+
 	case opGt: // TODO: Other comparisons can get added here as they all share the same code!
 
 		// NOTE: The order we pop from the stack here important
