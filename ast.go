@@ -36,6 +36,7 @@ const (
 	opReturn
 	opIf
 	opGt
+	opOr
 	opError
 	opRoot
 )
@@ -53,6 +54,7 @@ var nodeTypes = map[int]string{
 	opGt:     	  "Comparison Op [>]",
 	opNot:     	  "Negation [not]",
 	opAnd:     	  "Logical [and]",
+	opOr:     	  "Logical [or]",
 	opError:      "(error)",
 	opRoot:       "<none>",
 }

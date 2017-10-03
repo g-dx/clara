@@ -238,6 +238,13 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tandq\t%%rbx, %%rax")   // rax = rbx & rax
 		write("\tpushq\t%%rax")         // Push result onto stack
 
+	case opOr:
+
+		write("\tpopq\t%%rax")          // Pop from stack to eax
+		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\torq\t%%rbx, %%rax")    // rax = rbx | rax
+		write("\tpushq\t%%rax")         // Push result onto stack
+
 	case opIdentifier:
 
 		write("\tpushq\t-%v(%%rbp)", expr.sym.(*VarSymbol).addr) // Push onto top of stack
