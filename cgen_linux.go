@@ -132,7 +132,7 @@ func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab
 	// Result is on top of stack
 	genExprWithoutAssignment(write, expr, tab, 0)
 
-	// Pop from stack to eax
+	// Pop from stack to rax
 	write("\tpopq\t%%rax")
 
 	// Clean stack & return
@@ -151,7 +151,7 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, 
 		write("\tpopq\t%%%v", regs[i])                  // Pop result from stack into correct reg
 	}
 
-	// If function is variadic - must set EAX to number of parameters as part if SysV x64 calling convention
+	// If function is variadic - must set rax to number of parameters as part if SysV x64 calling convention
 	if fn.isVariadic {
 		// TODO: If this is not set to zero we get a core dump for some reason?
 		write("\tmovq\t$%v, %%rax", 0 /*len(args) - fn.fnArgCount*/)
@@ -208,36 +208,36 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opIntAdd:
 
-		write("\tpopq\t%%rbx")       // Pop from stack to ebx
-		write("\tpopq\t%%rax")       // Pop from stack to eax
-		write("\taddq\t%%rbx, %%rax") // eax = (ebx + eax)
-		write("\tpushq\t%%rax")      // Push eax onto stack
+		write("\tpopq\t%%rbx")       // Pop from stack to rbx
+		write("\tpopq\t%%rax")       // Pop from stack to rax
+		write("\taddq\t%%rbx, %%rax") // rax = (rbx + rax)
+		write("\tpushq\t%%rax")      // Push rax onto stack
 
 	case opIntMin:
 
-		write("\tpopq\t%%rax")       // Pop from stack to ebx
-		write("\tpopq\t%%rbx")       // Pop from stack to eax
+		write("\tpopq\t%%rax")       // Pop from stack to rbx
+		write("\tpopq\t%%rbx")       // Pop from stack to rax
 		write("\tsubq\t%%rbx, %%rax") // rax = (rbx - rax)
-		write("\tpushq\t%%rax")      // Push eax onto stack
+		write("\tpushq\t%%rax")      // Push rax onto stack
 
 	case opIntMul:
 
-		write("\tpopq\t%%rbx")         // Pop from stack to ebx
-		write("\tpopq\t%%rax")         // Pop from stack to eax
+		write("\tpopq\t%%rbx")         // Pop from stack to rbx
+		write("\tpopq\t%%rax")         // Pop from stack to rax
 		write("\timulq\t%%rbx, %%rax") // rdx(high-64 bits):rax(low 64-bits) = (rbx * rax) TODO: We ignore high bits!
-		write("\tpushq\t%%rax")        // Push eax onto stack
+		write("\tpushq\t%%rax")        // Push rax onto stack
 
 	case opIntDiv:
 
-		write("\tpopq\t%%rax")         // Pop from stack to ebx
-		write("\tpopq\t%%rbx")         // Pop from stack to eax
-		write("\tmovq\t$0, %%rdx")     // rdx = 0 (remainder)
-		write("\tidivq\t%%rbx, %%rax") // rdx(remainder):rax(quotient) = (ebx / eax) TODO: We ignore remainder!
-		write("\tpushq\t%%rax")        // Push eax onto stack
+		write("\tpopq\t%%rax")         // Pop from stack to rbx
+		write("\tpopq\t%%rbx")         // Pop from stack to rax
+		write("\tmovq\t$0, %%rdx")     // rdx = 0 (remainder). Prevents overflow from concatenation of rdx:rax
+		write("\tidivq\t%%rbx, %%rax") // rdx(remainder):rax(quotient) = (rbx / rax) TODO: We ignore remainder!
+		write("\tpushq\t%%rax")        // Push rax onto stack
 
 
 	case opNot:
-		write("\tpopq\t%%rax")          // Pop from stack to eax
+		write("\tpopq\t%%rax")          // Pop from stack to rax
 		write("\tnotq\t%%rax")          // rax = ~rax
 		write("\tandq\t$1, %%rax")      // rax = rax & 0x01
 		write("\tpushq\t%%rax")         // Push result onto stack
@@ -246,8 +246,8 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 		// NOTE: The order we pop from the stack here important
 		// TODO: Consider changing opIntAdd to have the same order as addition is associative
-		write("\tpopq\t%%rax")          // Pop from stack to eax
-		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\tpopq\t%%rax")          // Pop from stack to rax
+		write("\tpopq\t%%rbx")          // Pop from stack to rbx
 		write("\tcmpq\t%%rbx, %%rax")   // Compare rax <-> rbx
 		write("\tmovq\t$1, %%rbx")      // Load true into rbx
 		write("\tmovq\t$0, %%rax")      // Load false into rax
@@ -256,15 +256,15 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opAnd:
 
-		write("\tpopq\t%%rax")          // Pop from stack to eax
-		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\tpopq\t%%rax")          // Pop from stack to rax
+		write("\tpopq\t%%rbx")          // Pop from stack to rbx
 		write("\tandq\t%%rbx, %%rax")   // rax = rbx & rax
 		write("\tpushq\t%%rax")         // Push result onto stack
 
 	case opOr:
 
-		write("\tpopq\t%%rax")          // Pop from stack to eax
-		write("\tpopq\t%%rbx")          // Pop from stack to ebx
+		write("\tpopq\t%%rax")          // Pop from stack to rax
+		write("\tpopq\t%%rbx")          // Pop from stack to rbx
 		write("\torq\t%%rbx, %%rax")    // rax = rbx | rax
 		write("\tpushq\t%%rax")         // Push result onto stack
 
