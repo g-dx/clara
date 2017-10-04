@@ -244,6 +244,8 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 		return opIntMul, p.next()
 	case lex.Div:
 		return opIntDiv, p.next()
+	case lex.Eq:
+		return opEq, p.next()
 	case lex.Min:
 		return opIntMin, p.next()
 	case lex.And:

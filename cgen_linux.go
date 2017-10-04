@@ -235,7 +235,6 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tidivq\t%%rbx, %%rax") // rdx(remainder):rax(quotient) = (rbx / rax) TODO: We ignore remainder!
 		write("\tpushq\t%%rax")        // Push rax onto stack
 
-
 	case opNot:
 		write("\tpopq\t%%rax")          // Pop from stack to rax
 		write("\tnotq\t%%rax")          // rax = ~rax
@@ -252,6 +251,16 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tmovq\t$1, %%rbx")      // Load true into rbx
 		write("\tmovq\t$0, %%rax")      // Load false into rax
 		write("\tcmovg\t%%rbx, %%rax")  // Conditionally move rbx (true) into rax (false) if previous comparison was greater than
+		write("\tpushq\t%%rax")         // Push result onto stack
+
+	case opEq:
+
+		write("\tpopq\t%%rax")          // Pop from stack to rax
+		write("\tpopq\t%%rbx")          // Pop from stack to rbx
+		write("\tcmpq\t%%rbx, %%rax")   // Compare rax <-> rbx
+		write("\tmovq\t$1, %%rbx")      // Load true into rbx
+		write("\tmovq\t$0, %%rax")      // Load false into rax
+		write("\tcmove\t%%rbx, %%rax")  // Conditionally move rbx (true) into rax (false) if previous comparison was equal
 		write("\tpushq\t%%rax")         // Push result onto stack
 
 	case opAnd:

@@ -33,6 +33,7 @@ const (
 	opIntMin
 	opIntMul
 	opIntDiv
+	opEq
 	opNot
 	opAnd
 	opIdentifier
@@ -59,6 +60,7 @@ var nodeTypes = map[int]string{
 	opIf:     	  "If Stmt",
 	opGt:     	  "Comparison Op [>]",
 	opNot:     	  "Negation [not]",
+	opEq:     	  "Equality [eq]",
 	opAnd:     	  "Logical [and]",
 	opOr:     	  "Logical [or]",
 	opError:      "(error)",

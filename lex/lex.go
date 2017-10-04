@@ -36,6 +36,7 @@ const (
 	// -----------------------------------------------------------------------------------------------------------------
 	// Comparison Operators
 	Gt
+	Eq
 
 	// -----------------------------------------------------------------------------------------------------------------
 
@@ -59,7 +60,7 @@ const (
 
 func (k Kind) IsBinaryOperator() bool {
 	switch k {
-	case Plus, Gt, And, Or, Mul, Div, Min:
+	case Plus, Gt, And, Or, Mul, Div, Min, Eq:
 		return true
 	default:
 		return false
@@ -80,12 +81,14 @@ func (k Kind) Precedence() int {
 	// TODO: other operators should get added here
 	switch k {
 	case Not:
-		return 6
+		return 7
 	case Mul, Div:
-		return 5
+		return 6
 	case Plus, Min:
-		return 4
+		return 5
 	case Gt:
+		return 4
+	case Eq:
 		return 3
 	case And:
 		return 2
@@ -105,7 +108,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus, And, Or, Mul, Div, Min:
+	case LParen, Plus, And, Or, Mul, Div, Min, Eq:
 		return Left
 	case Not:
 		return Right
@@ -147,6 +150,7 @@ var KindValues = map[Kind]string {
 	False: "false",
 	Not: "not",
 	And: "and",
+	Eq: "==",
 	Comma: ",",
 	Colon: ":",
 	Space : "<space>",
@@ -241,6 +245,12 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Gt)
 		case r == '"':
 			return lexString
+		case r == '=':
+			if l.peek() != '=' {
+				return l.errorf("Unexpected character %#U", r) // TODO: Will be assignment in future
+			}
+			l.next()
+			l.emit(Eq)
 		case r == '/':
 			if l.peek() == '/' {
 				l.next()

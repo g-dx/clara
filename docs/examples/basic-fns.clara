@@ -1,6 +1,7 @@
 // Entry point
 fn main() {
   fn1()
+  printf("Fib(25) = %d\n", fib(25))
 }
 
 fn fn2() {
@@ -12,3 +13,12 @@ fn fn1() {
     fn2()
 }
 
+fn fib(n : int) int {
+    if n == 0 {
+        return 0
+    }
+    if n == 1 {
+        return 1
+    }
+    return fib(n - 1) + fib(n - 2)
+}
