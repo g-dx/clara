@@ -50,7 +50,8 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			if n.token.Val == "printf" {
+			// TODO: Add a "built-in" flag to function symbols
+			if n.token.Val == "printf" || n.token.Val == "malloc" || n.token.Val == "memcpy"{
 				// Skip as this in done in glibc
 			} else {
 				// FN declaration

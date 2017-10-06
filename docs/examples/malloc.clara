@@ -1,0 +1,15 @@
+// Entry point
+fn main() {
+  printf("append('Hello', 'world!') = '%s'\n", append("Hello", 5, " world!", 7))
+}
+
+fn append(s1: int, s1Len :int, s2: int, s2Len: int) int {
+    return copy(malloc(s1Len + s2Len), s1, s1Len, s2, s2Len)
+}
+
+fn copy(dst: int, s1: int, s1Len :int, s2: int, s2Len: int) int {
+    memcpy(dst, s1, s1Len)
+    memcpy(dst + s1Len, s2, s2Len)
+    // TODO: Define length?
+    return dst
+}

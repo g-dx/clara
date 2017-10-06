@@ -110,7 +110,7 @@ func main() {
 	if err != nil {
 		fmt.Printf(" - %v\n", err)
 	}
-	fmt.Fprintf(f, "#include <stdio.h>\nint clara_main();\nint main(int argc, char** argv) { clara_main(); return 0; }")
+	fmt.Fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\nint clara_main();\nint main(int argc, char** argv) { clara_main(); return 0; }")
 	f.Close()
 
 	// Invoke gcc to link files
@@ -135,8 +135,15 @@ func stdSyms() []Symbol {
 
 func stdlib() []*Node {
 	return []*Node{
-		// Built in print function
-		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl, sym:&Function{"printf", 1, true, 0 , nil, nil}},
+		// printf (from libc)
+		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
+		sym:&Function{"printf", 1, true, 0 , nil, nil}},
+		// memcpy (from libc)
+		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
+			sym:&Function{"memcpy", 3, false, 0 , nil, nil}},
+		// malloc (from libc)
+		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
+			sym:&Function{"malloc", 1, false, 0 , nil, nil}},
 	}
 }
 
