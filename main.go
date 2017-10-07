@@ -65,8 +65,11 @@ func main() {
 	parser := NewParser(tokens, stdlib(), stdSyms())
 	errs, tree := parser.Parse()
 
-    // Resolve function calls
-    errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
+	// Rewrite dot selections
+	errs = append(errs, walk(parser.symtab, tree, rewriteDotSelections)...)
+
+	// Resolve function calls
+	errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
 
 	// Resolve variables/identifiers
 	errs = append(errs, walk(parser.symtab, tree, resolveVariables)...)

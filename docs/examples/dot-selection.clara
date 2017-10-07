@@ -1,0 +1,34 @@
+// Entry point
+fn main() {
+  printf("2.cubed().pow(3).inc() = %d\n", 2.cubed().pow(3).inc())
+  printf("false.toString() = %s, true.toString() = %s\n", false.toString(), true.toString())
+}
+
+fn cubed(x: int) int {
+    return x.pow(3)
+}
+
+fn pow(x: int, n: int) int {
+    if n.isOne() {
+        return x
+    }
+    return x*pow(x, n-1)
+}
+
+fn inc(x: int) int {
+    return x+1
+}
+
+fn isOne(x: int) bool {
+    if x == 1 {
+        return true
+    }
+    return false
+}
+
+fn toString(b: bool) string {
+    if b {
+        return "true"
+    }
+    return "false"
+}

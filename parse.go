@@ -238,6 +238,8 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 	switch p.Kind() {
 	case lex.Not:
 		return opNot, p.next()
+	case lex.Dot:
+		return opDot, p.next()
 	case lex.Plus:
 		return opIntAdd, p.next()
 	case lex.Mul:

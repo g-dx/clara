@@ -35,6 +35,7 @@ const (
 	opIntDiv
 	opEq
 	opNot
+	opDot
 	opAnd
 	opIdentifier
 	opReturn
@@ -57,12 +58,13 @@ var nodeTypes = map[int]string{
 	opIntDiv:     "Binary Op [Div]",
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
-	opIf:     	  "If Stmt",
-	opGt:     	  "Comparison Op [>]",
-	opNot:     	  "Negation [not]",
-	opEq:     	  "Equality [eq]",
-	opAnd:     	  "Logical [and]",
-	opOr:     	  "Logical [or]",
+	opIf:         "If Stmt",
+	opGt:         "Comparison Op [>]",
+	opNot:        "Negation [not]",
+	opDot:        "Dot Select",
+	opEq:         "Equality [eq]",
+	opAnd:        "Logical [and]",
+	opOr:         "Logical [or]",
 	opError:      "(error)",
 	opRoot:       "<none>",
 }

@@ -107,6 +107,27 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 	}
 	return nil
 }
+func rewriteDotSelections(symtab *SymTab, n *Node) error {
+	if n.op == opDot {
+
+		// We only support function calls at present. TODO: When structs and fields get added this will need to change!
+		if n.right.op != opFuncCall {
+				return nil // This will (currently) be reported as unknown identifier
+		}
+
+		// Configure this node to be a func call. Must be careful here to copy across all state required for a func call!
+		n.op = opFuncCall
+		n.token = n.right.token
+		n.symtab = n.right.symtab
+		n.stmts = append([]*Node{n.left}, n.right.stmts...)
+
+		// Clear children
+		n.left = nil
+		n.right = nil
+	}
+	return nil
+}
+
 func resolveFnCall(symtab *SymTab, n *Node) (error) {
 
 	if n.op == opFuncCall {

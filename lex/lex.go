@@ -17,8 +17,9 @@ const (
 	LBrace = '{'
 	RParen = ')'
 	LParen = '('
-	Comma = ','
-	Colon = ':'
+	Comma  = ','
+	Colon  = ':'
+	Dot    = '.'
 
 	Comment = 256 + iota // Start outside ascii range
 	Identifier
@@ -60,7 +61,7 @@ const (
 
 func (k Kind) IsBinaryOperator() bool {
 	switch k {
-	case Plus, Gt, And, Or, Mul, Div, Min, Eq:
+	case Plus, Gt, And, Or, Mul, Div, Min, Eq, Dot:
 		return true
 	default:
 		return false
@@ -80,6 +81,8 @@ func (k Kind) Precedence() int {
 
 	// TODO: other operators should get added here
 	switch k {
+	case Dot:
+		return 8
 	case Not:
 		return 7
 	case Mul, Div:
@@ -108,7 +111,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus, And, Or, Mul, Div, Min, Eq:
+	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot:
 		return Left
 	case Not:
 		return Right
@@ -131,31 +134,32 @@ var key = map[string]Kind{
 }
 
 var KindValues = map[Kind]string {
-	LBrace: "{",
-	RBrace: "}",
-	LParen: "(",
-	RParen: ")",
+	LBrace:     "{",
+	RBrace:     "}",
+	LParen:     "(",
+	RParen:     ")",
 	Identifier: "<identifier>",
-	String: "<string lit>",
-	Integer: "<integer lit>",
-	Fn: "fn",
-	Return: "return",
-	If: "if",
-	Gt: ">",
-	Mul: "*",
-	Plus: "+",
-	Div: "/",
-	Min: "-",
-	True: "true",
-	False: "false",
-	Not: "not",
-	And: "and",
-	Eq: "==",
-	Comma: ",",
-	Colon: ":",
-	Space : "<space>",
-	EOL : "<EOL>",
-	EOF : "<EOF>",
+	String:     "<string lit>",
+	Integer:    "<integer lit>",
+	Fn:         "fn",
+	Return:     "return",
+	If:         "if",
+	Gt:         ">",
+	Mul:        "*",
+	Plus:       "+",
+	Div:        "/",
+	Min:        "-",
+	True:       "true",
+	False:      "false",
+	Not:        "not",
+	And:        "and",
+	Eq:         "==",
+	Comma:      ",",
+	Colon:      ":",
+	Dot:        ".",
+	Space :     "<space>",
+	EOL :       "<EOL>",
+	EOF :       "<EOF>",
 }
 
 type Token struct {
@@ -243,6 +247,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Mul)
 		case r == '>':
 			l.emit(Gt)
+		case r == '.':
+			l.emit(Dot)
 		case r == '"':
 			return lexString
 		case r == '=':
@@ -337,7 +343,9 @@ func lexIdentifier(l *Lexer) stateFn {
 
 func (l *Lexer) atTerminator() bool {
 	r := l.peek()
-	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n'
+	// TODO: Extract some helpers to ask isOperator(), isNewline(), etc...
+	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n' ||
+		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>'
 }
 
 func (l *Lexer) peek() rune {
