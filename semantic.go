@@ -19,7 +19,7 @@ const (
 )
 
 // TODO: When code like `type Person record [firstName: string, lastName: string]` is added symbol resolution _could_ be done during parse
-func resolveVariables(symtab *SymTab, n *Node) error {
+func resolveVariables(root *Node, symtab *SymTab, n *Node) error {
 	var stab *SymTab
 	if n.op == opFuncDcl || n.op == opFuncCall || n.op == opIdentifier {
 
@@ -107,7 +107,7 @@ func resolveVariables(symtab *SymTab, n *Node) error {
 	}
 	return nil
 }
-func rewriteDotSelections(symtab *SymTab, n *Node) error {
+func rewriteDotSelections(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opDot {
 
 		// We only support function calls at present. TODO: When structs and fields get added this will need to change!
@@ -128,7 +128,7 @@ func rewriteDotSelections(symtab *SymTab, n *Node) error {
 	return nil
 }
 
-func resolveFnCall(symtab *SymTab, n *Node) (error) {
+func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
 
 	if n.op == opFuncCall {
 		// Check exists
@@ -182,18 +182,18 @@ func semanticError(msg string, t *lex.Token) error {
 		t.Val))
 }
 
-func walk(symtab *SymTab, n *Node, visit func(*SymTab, *Node) error) (errs []error) {
+func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {
 
 	// Visit node
-	if err := visit(symtab, n); err != nil {
+	if err := visit(root, symtab, n); err != nil {
 		errs = append(errs, err)
 	}
 	// Visit left and right
 	if n.left != nil {
-		errs = append(errs, walk(symtab, n.left, visit)...)
+		errs = append(errs, walk(root, symtab, n.left, visit)...)
 	}
 	if n.right != nil {
-		errs = append(errs, walk(symtab, n.right, visit)...)
+		errs = append(errs, walk(root, symtab, n.right, visit)...)
 	}
 
 	// TODO: What about function args?
@@ -201,7 +201,7 @@ func walk(symtab *SymTab, n *Node, visit func(*SymTab, *Node) error) (errs []err
 	// Visit children
 	for _, stat := range n.stmts {
 		if stat != nil {
-			errs = append(errs, walk(symtab, stat, visit)...)
+			errs = append(errs, walk(root, symtab, stat, visit)...)
 		}
 	}
 	return

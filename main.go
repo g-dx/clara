@@ -66,13 +66,13 @@ func main() {
 	errs, tree := parser.Parse()
 
 	// Rewrite dot selections
-	errs = append(errs, walk(parser.symtab, tree, rewriteDotSelections)...)
+	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotSelections)...)
 
 	// Resolve function calls
-	errs = append(errs, walk(parser.symtab, tree, resolveFnCall)...)
+	errs = append(errs, walk(tree, parser.symtab, tree, resolveFnCall)...)
 
 	// Resolve variables/identifiers
-	errs = append(errs, walk(parser.symtab, tree, resolveVariables)...)
+	errs = append(errs, walk(tree, parser.symtab, tree, resolveVariables)...)
 
 	// Print AST if necessary
 	if *showAst {
