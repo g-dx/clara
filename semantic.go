@@ -90,8 +90,8 @@ func resolveVariables(root *Node, symtab *SymTab, n *Node) error {
 					fmt.Printf(" -- type: %v\n", arg.typ.Val)
 				}
 
-				if vr, ok := arg.sym.(*VarSymbol); ok {
-					if vr.typ == nil {
+				if id, ok := arg.sym.(*IdentSymbol); ok {
+					if id.typ == nil {
 
 						// Lookup
 						ts, err := resolveTypeSym(stab, arg.typ, errUnknownTypeMsg)
@@ -100,8 +100,8 @@ func resolveVariables(root *Node, symtab *SymTab, n *Node) error {
 						}
 
 						// Finally set symbol on node
-						vr.typ = ts
-						fmt.Printf(" --- Set type: %v\n", vr.typ.val)
+						id.typ = ts
+						fmt.Printf(" --- Set type: %v\n", id.typ.val)
 					}
 				}
 			}
@@ -161,7 +161,7 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opDot && n.right.op == opIdentifier {
 
 		// Determine struct type on left
-		typName := n.left.sym.(*VarSymbol).typ.name()
+		typName := n.left.sym.(*IdentSymbol).typ.name()
 		strct, ok := n.symtab.Resolve(symStructDecl, typName)
 		if !ok {
 			// TODO: Currently this block will never trigger because if unknown types are caught and reported earlier
@@ -170,7 +170,7 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 
 		// Find field in struct
 		strctSym := strct.(*StructSymbol)
-		offset := strctSym.offset(n.right.sym.(*VarSymbol))
+		offset := strctSym.offset(n.right.sym.(*IdentSymbol))
 		if offset == -1 {
 			// TODO: Currently this block will never trigger because if unknown type are caught and reported earlier
 			return semanticError2(errStructHasNoFieldMsg, n.right.token, strct.name(), n.right.token.Val)
@@ -178,7 +178,7 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 
 		// Set field offset
 		// TODO: When structs can have structs inside we need to set the type symbol on opDot node correctly
-		n.right.sym.(*VarSymbol).addr = offset
+		n.right.sym.(*IdentSymbol).addr = offset
 
 		// Get type symbol for struct
 		ts, found := n.symtab.Resolve(symType, typName)

@@ -46,7 +46,7 @@ func (i *IntegerLiteralSymbol) kind() int {
 
 type StructSymbol struct {
 	val string
-	fields []*VarSymbol // TODO: What about structs in structs?
+	fields []*IdentSymbol // TODO: What about structs in structs?
 }
 
 func (s *StructSymbol) name() string {
@@ -65,7 +65,7 @@ func (s *StructSymbol) width() int {
 	return i
 }
 
-func (s *StructSymbol) offset(v *VarSymbol) int {
+func (s *StructSymbol) offset(v *IdentSymbol) int {
 	off := 0
 	for _, field := range s.fields {
 		if field == v {
@@ -93,18 +93,18 @@ func (t *TypeSymbol) kind() int {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-type VarSymbol struct {
+type IdentSymbol struct {
 	val  string
 	addr int
 	isStack bool
 	typ  *TypeSymbol // TODO: What about StructSymbol?
 }
 
-func (v *VarSymbol) name() string {
-	return v.val
+func (i *IdentSymbol) name() string {
+	return i.val
 }
 
-func (v *VarSymbol) kind() int {
+func (i *IdentSymbol) kind() int {
 	return symVar
 }
 

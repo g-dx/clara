@@ -81,9 +81,9 @@ func (p *Parser) parseStructDeclaration() *Node {
 	p.need(lex.RBrace)
 
 	// Get all symbols
-	var vars []*VarSymbol
+	var vars []*IdentSymbol
 	for _, f := range fields {
-		vars = append(vars, f.sym.(*VarSymbol))
+		vars = append(vars, f.sym.(*IdentSymbol))
 	}
 
 	// Declare new type symbol
@@ -182,9 +182,9 @@ func (p *Parser) parseParameter() *Node {
 		typ = p.need(lex.Identifier)
 	}
 	// TODO: Is where a better AST would help. We could record both position of the identifier and the optional type.
-	v := &VarSymbol{ val: ident.Val }
-	p.symtab.Define(v)
-	return &Node{token: ident, op: opIdentifier, typ: typ, sym: v, symtab: p.symtab}
+	i := &IdentSymbol{ val: ident.Val }
+	p.symtab.Define(i)
+	return &Node{token: ident, op: opIdentifier, typ: typ, sym: i, symtab: p.symtab}
 }
 
 func (p *Parser) parseArgs() (n []*Node) {

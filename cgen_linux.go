@@ -69,9 +69,9 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				// Copy register values into stack slots
 				for i := 0; i < len(n.params); i++ {
 					addr := 8 * (i + 1) // Assign a stack slot for var
-					v := n.params[i].sym.(*VarSymbol)
-					v.addr = addr
-					v.isStack = true
+					id := n.params[i].sym.(*IdentSymbol)
+					id.addr = addr
+					id.isStack = true
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 
@@ -106,12 +106,12 @@ func genConstructor(write func(s string, a ...interface{}), fn *Function, params
 	// Copy stack values into fields
 	offset := 0
 	for _, param := range params {
-		v := param.sym.(*VarSymbol)
+		id := param.sym.(*IdentSymbol)
 		// Can't move mem -> mem. Must go through a register.
 		// TODO: These values are in registers (rdi, rsi, etc) so mov from there to mem
-		write("\tmovq\t-%v(%%rbp), %%rbx", v.addr)
+		write("\tmovq\t-%v(%%rbp), %%rbx", id.addr)
 		write("\tmovq\t%%rbx, %v(%%rax)", offset)
-		offset += v.typ.width
+		offset += id.typ.width
 	}
 
 	// Pointer is already in rax so nothing to do...
@@ -309,7 +309,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opIdentifier:
 
-		v := expr.sym.(*VarSymbol)
+		v := expr.sym.(*IdentSymbol)
 		if v.isStack {
 			write("\tpushq\t-%v(%%rbp)", v.addr) // Push stack slot offset onto top of stack
 		} else {
