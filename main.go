@@ -140,13 +140,13 @@ func stdlib() []*Node {
 	return []*Node{
 		// printf (from libc)
 		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
-		sym:&Function{"printf", 1, true, 0 , nil, nil}},
+		sym:&Function{fnName: "printf", fnArgCount: 1, isVariadic: true}},
 		// memcpy (from libc)
 		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
-			sym:&Function{"memcpy", 3, false, 0 , nil, nil}},
+			sym:&Function{fnName: "memcpy", fnArgCount: 3}},
 		// malloc (from libc)
 		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
-			sym:&Function{"malloc", 1, false, 0 , nil, nil}},
+			sym:&Function{fnName: "malloc", fnArgCount: 1}},
 	}
 }
 
