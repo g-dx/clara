@@ -128,11 +128,11 @@ func main() {
 func stdSyms() []Symbol {
 	return []Symbol{
 		// string type
-		&TypeSymbol{val: "string" },
+		&TypeSymbol{val: "string", width: 8},
 		// int type
-		&TypeSymbol{val: "int" },
+		&TypeSymbol{val: "int", width: 8},
 		// bool type
-		&TypeSymbol{val: "bool"},
+		&TypeSymbol{val: "bool", width: 8},
 	}
 }
 

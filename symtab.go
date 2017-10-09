@@ -42,7 +42,8 @@ func (i *IntegerLiteralSymbol) kind() int {
 //----------------------------------------------------------------------------------------------------------------------
 
 type TypeSymbol struct {
-	val string
+	val   string
+	width int
 }
 
 func (t *TypeSymbol) name() string {
