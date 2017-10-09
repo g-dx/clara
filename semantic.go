@@ -3,6 +3,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/g-dx/clarac/lex"
+	"strings"
 )
 
 //
@@ -16,6 +17,9 @@ const (
 	errTooFewArgsMsg = "%v:%d:%d: error, not enough arguments to call '%v'"
 	errUnknownTypeMsg = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg = "%v:%d:%d: error, unknown var '%v'"
+	errStructNamingLowerMsg = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
+	errStructNotFoundMsg = "%v:%d:%d: error, struct '%v' not found"
+	errStructHasNoFieldMsg = "%v:%d:%d: error, struct '%v' has no field '%v'"
 )
 
 // TODO: When code like `type Person record [firstName: string, lastName: string]` is added symbol resolution _could_ be done during parse
@@ -107,14 +111,39 @@ func resolveVariables(root *Node, symtab *SymTab, n *Node) error {
 	}
 	return nil
 }
-func rewriteDotSelections(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opDot {
 
-		// We only support function calls at present. TODO: When structs and fields get added this will need to change!
-		if n.right.op != opFuncCall {
-				return nil // This will (currently) be reported as unknown identifier
+func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opStruct {
+
+		name := n.token.Val
+		firstLetter := name[:1]
+
+		// Check struct begins with lowercase
+		if strings.ToUpper(firstLetter) == firstLetter {
+			return semanticError(errStructNamingLowerMsg, n.token)
 		}
 
+		// Get symbol
+		typ, err := resolveTypeSym(n.symtab, n.token, errUnknownTypeMsg)
+		if err != nil {
+			panic(err) // Should not happen! Struct type symbol should have been added during parse...
+		}
+
+		// Create name
+		constructorName := strings.ToUpper(firstLetter) + name[1:]
+
+		// Create & define symbol
+		fnSym := &Function{fnName: constructorName, fnArgCount: len(n.stmts), isConstructor: true, ret: typ, args: n.symtab}
+		root.symtab.Define(fnSym)
+
+		// Add AST node
+		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: n.stmts, symtab: n.symtab, sym: fnSym})
+	}
+	return nil
+}
+
+func rewriteDotFuncCalls(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opDot && n.right.op == opFuncCall {
 		// Configure this node to be a func call. Must be careful here to copy across all state required for a func call!
 		n.op = opFuncCall
 		n.token = n.right.token
@@ -124,6 +153,41 @@ func rewriteDotSelections(root *Node, symtab *SymTab, n *Node) error {
 		// Clear children
 		n.left = nil
 		n.right = nil
+	}
+	return nil
+}
+
+func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opDot && n.right.op == opIdentifier {
+
+		// Determine struct type on left
+		typName := n.left.sym.(*VarSymbol).typ.name()
+		strct, ok := n.symtab.Resolve(symStructDecl, typName)
+		if !ok {
+			// TODO: Currently this block will never trigger because if unknown types are caught and reported earlier
+			return semanticError(errStructNotFoundMsg, n.left.token)
+		}
+
+		// Find field in struct
+		strctSym := strct.(*StructSymbol)
+		offset := strctSym.offset(n.right.sym.(*VarSymbol))
+		if offset == -1 {
+			// TODO: Currently this block will never trigger because if unknown type are caught and reported earlier
+			return semanticError2(errStructHasNoFieldMsg, n.right.token, strct.name(), n.right.token.Val)
+		}
+
+		// Set field offset
+		// TODO: When structs can have structs inside we need to set the type symbol on opDot node correctly
+		n.right.sym.(*VarSymbol).addr = offset
+
+		// Get type symbol for struct
+		ts, found := n.symtab.Resolve(symType, typName)
+		if !found {
+			panic(fmt.Sprintf("Struct '%v' has no corresponding type symbol?", typName)) // This should not be possible!
+		}
+
+		// Add width information which is required during codegen
+		ts.(*TypeSymbol).width = strctSym.width()
 	}
 	return nil
 }
@@ -180,6 +244,14 @@ func semanticError(msg string, t *lex.Token) error {
 		t.Line,
 		t.Pos,
 		t.Val))
+}
+
+func semanticError2(msg string, t *lex.Token, vals ...string) error {
+	return errors.New(fmt.Sprintf(msg,
+		t.File,
+		t.Line,
+		t.Pos,
+		vals))
 }
 
 func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {

@@ -57,6 +57,7 @@ const (
 	Not
 	And
 	Or
+	Struct
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -131,6 +132,7 @@ var key = map[string]Kind{
 	"not": Not,
 	"and": And,
 	"or": Or,
+	"struct": Struct,
 }
 
 var KindValues = map[Kind]string {
@@ -160,6 +162,7 @@ var KindValues = map[Kind]string {
 	Space :     "<space>",
 	EOL :       "<EOL>",
 	EOF :       "<EOF>",
+	Struct: 	"struct",
 }
 
 type Token struct {

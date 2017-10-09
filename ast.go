@@ -44,6 +44,7 @@ const (
 	opOr
 	opError
 	opRoot
+	opStruct
 )
 
 var nodeTypes = map[int]string{
@@ -67,6 +68,7 @@ var nodeTypes = map[int]string{
 	opOr:         "Logical [or]",
 	opError:      "(error)",
 	opRoot:       "<none>",
+	opStruct:     "Struct",
 }
 
 func (n * Node) Walk(fn func(*Node)) {

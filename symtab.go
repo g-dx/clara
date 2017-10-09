@@ -8,12 +8,14 @@ const (
 	symStrLit = iota
 	symIntegerLit
 	symFnDecl
+	symStructDecl
 	symType
 	symVar
 )
 
 var symTypes = map[int]string{
 	symFnDecl:     "Func Decl",
+	symStructDecl: "Struct Decl",
 	symStrLit:     "String Lit",
 	symIntegerLit: "Integer Lit",
 	symType:       "Type",
@@ -39,6 +41,41 @@ func (i *IntegerLiteralSymbol) kind() int {
 	return symIntegerLit
 }
 
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type StructSymbol struct {
+	val string
+	fields []*VarSymbol // TODO: What about structs in structs?
+}
+
+func (s *StructSymbol) name() string {
+	return s.val
+}
+
+func (s *StructSymbol) kind() int {
+	return symStructDecl
+}
+
+func (s *StructSymbol) width() int {
+	i := 0
+	for _, s := range s.fields {
+		i += s.typ.width
+	}
+	return i
+}
+
+func (s *StructSymbol) offset(v *VarSymbol) int {
+	off := 0
+	for _, field := range s.fields {
+		if field == v {
+			return off
+		}
+		off += field.typ.width
+	}
+	return -1 // Not found
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type TypeSymbol struct {
@@ -58,8 +95,9 @@ func (t *TypeSymbol) kind() int {
 
 type VarSymbol struct {
 	val  string
-	addr int // Stack = rbp offset, Mem = <not implement>
-	typ  *TypeSymbol
+	addr int
+	isStack bool
+	typ  *TypeSymbol // TODO: What about StructSymbol?
 }
 
 func (v *VarSymbol) name() string {
@@ -103,6 +141,7 @@ type Function struct {
 	rva uint32
 	args *SymTab
 	ret *TypeSymbol
+	isConstructor bool
 }
 
 func (fn *Function) name() string {

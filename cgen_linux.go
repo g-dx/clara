@@ -69,12 +69,20 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				// Copy register values into stack slots
 				for i := 0; i < len(n.params); i++ {
 					addr := 8 * (i + 1) // Assign a stack slot for var
-					n.params[i].sym.(*VarSymbol).addr = addr
+					v := n.params[i].sym.(*VarSymbol)
+					v.addr = addr
+					v.isStack = true
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 
-				// Generate code for all statments
-				genStmtList(write, n.stmts, n.symtab)
+				// Generate functions
+				fn := n.sym.(*Function)
+				if fn.isConstructor {
+					genConstructor(write, fn, n.params)
+				} else {
+					// Generate code for all statements
+					genStmtList(write, n.stmts, n.symtab)
+				}
 
 				// TODO: If last statement was a ReturnExpression - no need for this epilogue...
 				write("\tleave")
@@ -88,6 +96,27 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	return nil
 }
+
+func genConstructor(write func(s string, a ...interface{}), fn *Function, params []*Node) {
+
+	// Malloc memory of appropriate size
+	write("\tmovq\t$%v, %%rdi", fn.ret.width)
+	write("\tcall\tmalloc")
+
+	// Copy stack values into fields
+	offset := 0
+	for _, param := range params {
+		v := param.sym.(*VarSymbol)
+		// Can't move mem -> mem. Must go through a register.
+		// TODO: These values are in registers (rdi, rsi, etc) so mov from there to mem
+		write("\tmovq\t-%v(%%rbp), %%rbx", v.addr)
+		write("\tmovq\t%%rbx, %v(%%rax)", offset)
+		offset += v.typ.width
+	}
+
+	// Pointer is already in rax so nothing to do...
+}
+
 func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *SymTab) {
 	for _, stmt := range stmts {
 
@@ -280,7 +309,12 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opIdentifier:
 
-		write("\tpushq\t-%v(%%rbp)", expr.sym.(*VarSymbol).addr) // Push onto top of stack
+		v := expr.sym.(*VarSymbol)
+		if v.isStack {
+			write("\tpushq\t-%v(%%rbp)", v.addr) // Push stack slot offset onto top of stack
+		} else {
+			write("\tpushq\t$%v", v.addr)        // Push struct field offset onto top of stack
+		}
 
 	case opFuncCall:
 
@@ -288,6 +322,13 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		genFuncCall(write, expr.stmts, expr.sym.(*Function), syms)
 		restore(write, regsInUse) // Restore registers previously in use
 		write("\tpushq\t%%rax")   // Push result (rax) onto stack
+
+	case opDot:
+
+		write("\tpopq\t%%rax")                 // Pop from stack to rax
+		write("\tpopq\t%%rbx")                 // Pop from stack to rbx
+		write("\tmovq\t(%%rax,%%rbx), %%rax")  // rax = load[rax + rbx]
+		write("\tpushq\t%%rax")                // Push result (rax) onto stack
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))

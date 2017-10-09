@@ -66,27 +66,21 @@ func main() {
 	errs, tree := parser.Parse()
 
 	// Rewrite dot selections
-	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotSelections)...)
+	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotFuncCalls)...)
+
+	// Generate constructor functions
+	errs = append(errs, walk(tree, parser.symtab, tree, generateStructConstructors)...)
 
 	// Resolve function calls
 	errs = append(errs, walk(tree, parser.symtab, tree, resolveFnCall)...)
 
 	// Resolve variables/identifiers
 	errs = append(errs, walk(tree, parser.symtab, tree, resolveVariables)...)
+	exitIfErrors(showAst, tree, errs, prog)
 
-	// Print AST if necessary
-	if *showAst {
-		printTree(tree)
-	}
-
-	if len(errs) > 0 {
-		printProgram(prog)
-        fmt.Println("\nParse Errors\n")
-		for _, err := range errs {
-			fmt.Printf(" - %v\n", err)
-		}
-		os.Exit(1)
-	}
+	// Configure field offsets to struct vars
+	errs = append(errs, walk(tree, parser.symtab, tree, configureFieldAccess)...)
+	exitIfErrors(showAst, tree, errs, prog)
 
 	// Create assembly file
 	basename := filepath.Base(*path)
@@ -122,6 +116,21 @@ func main() {
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("Link failure: %v\n%v", err, out)
+	}
+}
+
+func exitIfErrors(showAst *bool, tree *Node, errs []error, prog string) {
+	// Print AST if necessary
+	if *showAst {
+		printTree(tree)
+	}
+	if len(errs) > 0 {
+		printProgram(prog)
+		fmt.Println("\nParse Errors\n")
+		for _, err := range errs {
+			fmt.Printf(" - %v\n", err)
+		}
+		os.Exit(1)
 	}
 }
 

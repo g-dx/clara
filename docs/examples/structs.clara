@@ -1,0 +1,21 @@
+struct object {
+    number : int
+    boolean : bool
+    text: string
+}
+
+// Entry point
+fn main() {
+  print(Object(1234567890, true, "Hello from a struct!"))
+}
+
+fn print(obj: object) {
+    printf("Object[number: %d, boolean: %s, text: '%s']\n", obj.number, obj.boolean.toString(), obj.text)
+}
+
+fn toString(b: bool) string {
+    if b {
+        return "true"
+    }
+    return "false"
+}

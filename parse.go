@@ -47,6 +47,8 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	for p.isNot(lex.EOF) {
 		if p.is(lex.Fn) {
 			root.Add(p.fnDeclaration())
+		} else if p.is(lex.Struct) {
+			root.Add(p.parseStructDeclaration())
 		} else {
 			p.syntaxError(lex.Fn, lex.EOF)
 			p.next()
@@ -64,6 +66,40 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 
 // ==========================================================================================================
 // Grammar-implementing functions
+
+func (p *Parser) parseStructDeclaration() *Node {
+
+	p.need(lex.Struct)
+	id := p.need(lex.Identifier)
+	p.need(lex.LBrace)
+
+	// Parse fields
+	var fields []*Node
+	for p.isNot(lex.RBrace) {
+		fields = append(fields, p.parseParameter())
+	}
+	p.need(lex.RBrace)
+
+	// Get all symbols
+	var vars []*VarSymbol
+	for _, f := range fields {
+		vars = append(vars, f.sym.(*VarSymbol))
+	}
+
+	// Declare new type symbol
+	sym, found := p.symtab.Resolve(symType, id.Val)
+	if found {
+		p.symbolError(errRedeclaredMsg, id)
+	} else {
+		// Define struct & type symbol
+		// TODO: Having to define 2 symbols seems awkward. Revisit symbol definitions
+		sym = &StructSymbol{ val: id.Val, fields: vars }
+		p.symtab.Define(sym)
+		p.symtab.Define(&TypeSymbol{ val: id.Val })
+	}
+
+	return &Node{op: opStruct, token: id, symtab: p.symtab, sym: sym, stmts: fields}
+}
 
 func (p *Parser) fnDeclaration() *Node {
 
