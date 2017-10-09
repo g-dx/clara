@@ -181,7 +181,7 @@ func (p *Parser) parseExpr(prec int) (*Node) {
 			q += 1
 		}
 		t1 := p.parseExpr(q)
-		t = &Node{ op: op, token: tok, left: t, right: t1 }
+		t = &Node{ op: op, token: tok, left: t, right: t1, symtab: p.symtab }
 	}
 	return t
 }
@@ -193,7 +193,7 @@ func (p *Parser) parseOperand() *Node {
 	case next.IsUnaryOperator():
 		op, tok := p.parseOperator()
 		t := p.parseExpr(next.Precedence())
-		return &Node{ op: op, token: tok, left: t } // Unary operators store expr in left
+		return &Node{ op: op, token: tok, left: t, symtab: p.symtab} // Unary operators store expr in left
 
 	case next == lex.LParen:
 		p.next()
