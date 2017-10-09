@@ -306,7 +306,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		sym = &Function{token.Val, len(params), false, 0, syms, nil}
+		sym = &Function{fnName: token.Val, fnArgCount: len(params), args: syms}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
