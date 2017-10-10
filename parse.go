@@ -174,17 +174,19 @@ func (p *Parser) parseParameters() []*Node {
 }
 
 func (p *Parser) parseParameter() *Node {
-	ident := p.need(lex.Identifier)
-	var typ *lex.Token
-	if p.is(lex.Colon) {
-		// Type is also declared
-		p.next()
-		typ = p.need(lex.Identifier)
+	idTok := p.need(lex.Identifier)
+	p.need(lex.Colon)
+	typeTok := p.need(lex.Identifier)
+
+	// Attempt to resolve type
+	sym, _ := p.symtab.Resolve(symType, typeTok.Val)
+	var typeSym *TypeSymbol
+	if sym != nil {
+		typeSym = sym.(*TypeSymbol)
 	}
-	// TODO: Is where a better AST would help. We could record both position of the identifier and the optional type.
-	i := &IdentSymbol{ val: ident.Val }
-	p.symtab.Define(i)
-	return &Node{token: ident, op: opIdentifier, typ: typ, sym: i, symtab: p.symtab}
+	idSym := &IdentSymbol{ val: idTok.Val, typ: typeSym }
+	p.symtab.Define(idSym)
+	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab, typ: typeTok }
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
@@ -342,6 +344,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
+		// TODO: Attempt to resolve return type!
 		sym = &Function{fnName: token.Val, fnArgCount: len(params), args: syms}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}

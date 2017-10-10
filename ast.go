@@ -9,7 +9,7 @@ import (
 
 type Node struct {
 	token  *lex.Token
-	typ    *lex.Token // OpIdentifier (typed parameter), opFuncDecl (function return type)
+	typ    *lex.Token // opFuncDecl (function return type)
 	left   *Node
 	right  *Node
 	stmts  []*Node

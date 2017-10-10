@@ -74,8 +74,8 @@ func main() {
 	// Resolve function calls
 	errs = append(errs, walk(tree, parser.symtab, tree, resolveFnCall)...)
 
-	// Resolve variables/identifiers
-	errs = append(errs, walk(tree, parser.symtab, tree, resolveVariables)...)
+	// Resolve expression identifier types
+	errs = append(errs, walk(tree, parser.symtab, tree, resolveIdentifierTypes)...)
 	exitIfErrors(showAst, tree, errs, prog)
 
 	// Configure field offsets to struct vars

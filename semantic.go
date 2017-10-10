@@ -16,98 +16,38 @@ const (
 	errTooManyArgsMsg = "%v:%d:%d: error, too many arguments to call '%v'"
 	errTooFewArgsMsg = "%v:%d:%d: error, not enough arguments to call '%v'"
 	errUnknownTypeMsg = "%v:%d:%d: error, unknown type '%v'"
-	errUnknownVarMsg = "%v:%d:%d: error, unknown var '%v'"
+	errUnknownVarMsg = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errStructNamingLowerMsg = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
 	errStructNotFoundMsg = "%v:%d:%d: error, struct '%v' not found"
 	errStructHasNoFieldMsg = "%v:%d:%d: error, struct '%v' has no field '%v'"
+
+	// Debug messages
+	debugVarTypeMsg = "%v:%d:%d: debug, identifier '%v' assigned type '%v'\n"
 )
 
-// TODO: When code like `type Person record [firstName: string, lastName: string]` is added symbol resolution _could_ be done during parse
-func resolveVariables(root *Node, symtab *SymTab, n *Node) error {
-	var stab *SymTab
-	if n.op == opFuncDcl || n.op == opFuncCall || n.op == opIdentifier {
+func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opIdentifier {
 
-		// Record current symtab
-		var nodes []*Node
-		// TODO: Double check that this will ensure the current symtab is available when resolve fn calls!
-		if n.op == opFuncDcl {
-			stab = n.sym.(*Function).args
-			nodes = n.params
-			fmt.Printf("Resolving function Declaration: %v\n", n.token.Val)
-		} else {
-			nodes = n.stmts
-			stab = n.symtab
-			fmt.Printf("Resolving function Call: %v\n", n.token.Val)
-		}
-
-		if stab != nil {
-			fmt.Printf("Symbols:\n")
-			for _, v := range stab.symbols {
-				fmt.Printf(" @ %v : %v\n", symTypes[v.kind()], v)
-			}
-		}
-
-		// Resolve function return type (if it declares one)
-		if n.op == opFuncDcl && n.typ != nil {
-
-			// Lookup
-			ts, err := resolveTypeSym(stab, n.typ, errUnknownTypeMsg)
-			if err != nil {
-				return err
-			}
-
-			// Set symbol
-			n.sym.(*Function).ret = ts
-			fmt.Printf(" -- type: %v\n", n.typ.Val)
-		}
-
-		// Resolve variables for identifiers
-		if n.op == opIdentifier {
-			v, found := stab.Resolve(symVar, n.token.Val)
-			if !found {
+		// If no symbol - try to find variable declaration
+		if n.sym == nil {
+			def, ok := n.symtab.Resolve(symVar, n.token.Val)
+			if !ok {
 				return semanticError(errUnknownVarMsg, n.token)
 			}
-			n.sym = v
+			n.sym = def
 		}
 
-		for _, arg := range nodes {
-
-			// Only interested in resolving types for identifiers
-			if arg.op == opIdentifier {
-
-				fmt.Printf(" -- var: %v\n", arg.token.Val)
-				// 1. Lookup var if none set
-				if arg.sym == nil {
-					v, found := stab.Resolve(symVar, arg.token.Val)
-					if !found {
-						return semanticError(errUnknownVarMsg, arg.token)
-					}
-					arg.sym = v
-				}
-
-				// 2. Lookup type if none set
-				if arg.typ != nil {
-					fmt.Printf(" -- type: %v\n", arg.typ.Val)
-				}
-
-				if id, ok := arg.sym.(*IdentSymbol); ok {
-					if id.typ == nil {
-
-						// Lookup
-						ts, err := resolveTypeSym(stab, arg.typ, errUnknownTypeMsg)
-						if err != nil {
-							return err
-						}
-
-						// Finally set symbol on node
-						id.typ = ts
-						fmt.Printf(" --- Set type: %v\n", id.typ.val)
-					}
-				}
+		// If symbol has no type and the parser recorded one - check symbol table
+		if idSym, ok := n.sym.(*IdentSymbol); ok && idSym.typ == nil && n.typ != nil {
+			typ, ok := n.symtab.Resolve(symType, n.typ.Val)
+			if !ok {
+				return semanticError(errUnknownTypeMsg, n.typ)
 			}
-		}
+			idSym.typ = typ.(*TypeSymbol)
 
-		// TODO: Check for identifier clashes...
+			// DEBUG
+			fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val, idSym.typ.val))
+		}
 	}
 	return nil
 }
@@ -256,10 +196,8 @@ func semanticError2(msg string, t *lex.Token, vals ...string) error {
 
 func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {
 
-	// Visit node
-	if err := visit(root, symtab, n); err != nil {
-		errs = append(errs, err)
-	}
+	// Depth First Search
+
 	// Visit left and right
 	if n.left != nil {
 		errs = append(errs, walk(root, symtab, n.left, visit)...)
@@ -268,13 +206,23 @@ func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node)
 		errs = append(errs, walk(root, symtab, n.right, visit)...)
 	}
 
-	// TODO: What about function args?
+	// Visit parameters
+	for _, param := range n.params {
+		if param != nil {
+			errs = append(errs, walk(root, symtab, param, visit)...)
+		}
+	}
 
-	// Visit children
+	// Visit statement
 	for _, stat := range n.stmts {
 		if stat != nil {
 			errs = append(errs, walk(root, symtab, stat, visit)...)
 		}
+	}
+
+	// Visit node
+	if err := visit(root, symtab, n); err != nil {
+		errs = append(errs, err)
 	}
 	return
 }
