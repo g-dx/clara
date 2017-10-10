@@ -82,6 +82,11 @@ func main() {
 	errs = append(errs, walk(tree, parser.symtab, tree, configureFieldAccess)...)
 	exitIfErrors(showAst, tree, errs, prog)
 
+	// Show final AST if necessary
+	if *showAst {
+		printTree(tree)
+	}
+
 	// Create assembly file
 	basename := filepath.Base(*path)
 	progName := strings.TrimSuffix(basename, filepath.Ext(basename))
@@ -121,10 +126,11 @@ func main() {
 
 func exitIfErrors(showAst *bool, tree *Node, errs []error, prog string) {
 	// Print AST if necessary
-	if *showAst {
-		printTree(tree)
-	}
 	if len(errs) > 0 {
+
+		// Show state of AST before exit
+		printTree(tree)
+
 		printProgram(prog)
 		fmt.Println("\nParse Errors\n")
 		for _, err := range errs {
