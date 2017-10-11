@@ -46,9 +46,9 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 	root = &Node{op : opRoot, symtab: p.symtab}
 	for p.isNot(lex.EOF) {
 		if p.is(lex.Fn) {
-			root.Add(p.fnDeclaration())
+			root.Add(p.parseFnDecl())
 		} else if p.is(lex.Struct) {
-			root.Add(p.parseStructDeclaration())
+			root.Add(p.parseStructDecl())
 		} else {
 			p.syntaxError(lex.Fn, lex.EOF)
 			p.next()
@@ -67,7 +67,7 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 // ==========================================================================================================
 // Grammar-implementing functions
 
-func (p *Parser) parseStructDeclaration() *Node {
+func (p *Parser) parseStructDecl() *Node {
 
 	p.need(lex.Struct)
 	id := p.need(lex.Identifier)
@@ -101,7 +101,7 @@ func (p *Parser) parseStructDeclaration() *Node {
 	return &Node{op: opStruct, token: id, symtab: p.symtab, sym: sym, stmts: fields}
 }
 
-func (p *Parser) fnDeclaration() *Node {
+func (p *Parser) parseFnDecl() *Node {
 
 	// Open new symtab
 	p.symtab = p.symtab.Child()
