@@ -44,7 +44,7 @@ type Type struct {
 }
 
 func (t *Type) AsStruct() *StructType {
-	return nil
+	return t.Data.(*StructType)
 }
 
 func (t *Type) AsFunction() *FunctionType {
@@ -54,7 +54,19 @@ func (t *Type) AsFunction() *FunctionType {
 //----------------------------------------------------------------------------------------------------------------------
 
 type StructType struct {
+	Fields []*IdentSymbol
+	Width int
+}
 
+func (st *StructType) Offset(i *IdentSymbol) int {
+	off := 0
+	for _, field := range st.Fields {
+		if field == i {
+			return off
+		}
+		off += 8 // field.typ.width TODO: Fix this width calculation!
+	}
+	return -1 // Not found
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -89,13 +101,11 @@ type BoolType struct {
 //----------------------------------------------------------------------------------------------------------------------
 
 const (
-	symStructDecl = iota
-	symType
+	symType = iota
 	symVar
 )
 
 var symTypes = map[int]string{
-	symStructDecl: "Struct Decl",
 	symType:       "Type",
 	symVar:        "Variable",
 }
@@ -104,45 +114,6 @@ type Symbol interface {
 	name() string
 	kind() int
 	Type() *Type
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-type StructSymbol struct {
-	val string
-	fields []*IdentSymbol // TODO: What about structs in structs?
-	typ *Type
-}
-
-func (s *StructSymbol) name() string {
-	return s.val
-}
-
-func (s *StructSymbol) kind() int {
-	return symStructDecl
-}
-
-func (s *StructSymbol) width() int {
-	i := 0
-	for _, s := range s.fields {
-		i += s.typ.width
-	}
-	return i
-}
-
-func (s *StructSymbol) offset(v *IdentSymbol) int {
-	off := 0
-	for _, field := range s.fields {
-		if field == v {
-			return off
-		}
-		off += field.typ.width
-	}
-	return -1 // Not found
-}
-
-func (s *StructSymbol) Type() *Type {
-	return s.typ
 }
 
 //----------------------------------------------------------------------------------------------------------------------

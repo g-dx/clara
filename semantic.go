@@ -103,15 +103,15 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 
 		// Determine struct type on left
 		typName := n.left.sym.(*IdentSymbol).typ.name()
-		strct, ok := n.symtab.Resolve(symStructDecl, typName)
+		strct, ok := n.symtab.Resolve(symVar, typName)
 		if !ok {
 			// TODO: Currently this block will never trigger because if unknown types are caught and reported earlier
 			return semanticError(errStructNotFoundMsg, n.left.token)
 		}
 
 		// Find field in struct
-		strctSym := strct.(*StructSymbol)
-		offset := strctSym.offset(n.right.sym.(*IdentSymbol))
+		strctSym := strct.(*IdentSymbol).Type().AsStruct()
+		offset := strctSym.Offset(n.right.sym.(*IdentSymbol))
 		if offset == -1 {
 			// TODO: Currently this block will never trigger because if unknown type are caught and reported earlier
 			return semanticError2(errStructHasNoFieldMsg, n.right.token, strct.name(), n.right.token.Val)
@@ -128,7 +128,7 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 		}
 
 		// Add width information which is required during codegen
-		ts.(*TypeSymbol).width = strctSym.width()
+		ts.(*TypeSymbol).width = strctSym.Width
 	}
 	return nil
 }

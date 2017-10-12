@@ -86,13 +86,14 @@ func (p *Parser) parseStructDecl() *Node {
 	}
 
 	// Declare new type symbol
-	sym, found := p.symtab.Resolve(symType, id.Val)
+	sym, found := p.symtab.Resolve(symVar, id.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, id)
 	} else {
 		// Define struct & type symbol
 		// TODO: Having to define 2 symbols seems awkward. Revisit symbol definitions
-		sym = &StructSymbol{ val: id.Val, fields: vars, typ: &Type{ Kind: Struct, Data: &StructType{}}}
+		// TODO: This width calc shouldn't happen here
+		sym = &IdentSymbol{val: id.Val, typ2: &Type{ Kind: Struct, Data: &StructType{ Width: len(fields) * 8, Fields: vars }}}
 		p.symtab.Define(sym)
 		p.symtab.Define(&TypeSymbol{ val: id.Val })
 	}
