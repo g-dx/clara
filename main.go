@@ -143,11 +143,11 @@ func exitIfErrors(showAst *bool, tree *Node, errs []error, prog string) {
 func stdSyms() []Symbol {
 	return []Symbol{
 		// string type
-		&TypeSymbol{val: "string", width: 8},
+		&TypeSymbol{val: "string", width: 8, typ: stringType },
 		// int type
-		&TypeSymbol{val: "int", width: 8},
+		&TypeSymbol{val: "int", width: 8, typ: intType },
 		// bool type
-		&TypeSymbol{val: "bool", width: 8},
+		&TypeSymbol{val: "bool", width: 8, typ: boolType },
 	}
 }
 
@@ -155,13 +155,13 @@ func stdlib() []*Node {
 	return []*Node{
 		// printf (from libc)
 		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
-		sym:&Function{fnName: "printf", fnArgCount: 1, isVariadic: true}},
+		sym:&Function{fnName: "printf", fnArgCount: 1, isVariadic: true, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
 		// memcpy (from libc)
 		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
-			sym:&Function{fnName: "memcpy", fnArgCount: 3}},
+			sym:&Function{fnName: "memcpy", fnArgCount: 3, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
 		// malloc (from libc)
 		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
-			sym:&Function{fnName: "malloc", fnArgCount: 1}},
+			sym:&Function{fnName: "malloc", fnArgCount: 1, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
 	}
 }
 

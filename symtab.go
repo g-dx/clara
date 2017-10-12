@@ -4,6 +4,86 @@ import (
 	"strconv"
 )
 
+//----------------------------------------------------------------------------------------------------------------------
+
+var intType = &Type{ Kind: Integer, Data: &IntType{} }
+var boolType = &Type{ Kind: Boolean, Data: &BoolType{} }
+var stringType = &Type{ Kind: String, Data: &StringType{} }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type TypeKind byte
+const (
+	Struct = TypeKind(iota)
+	Function2
+	Integer
+	Boolean
+	String
+)
+
+var typeKindNames = map[TypeKind]string {
+	Struct: "struct",
+	Function2: "function",
+	Integer: "int",
+	Boolean: "bool",
+	String: "string",
+}
+
+func (tk TypeKind) String() string {
+	s, ok := typeKindNames[tk]
+	if !ok {
+		s = "<unknown type kind>"
+	}
+	return s
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type Type struct {
+	Kind TypeKind
+	Data interface{}
+}
+
+func (t *Type) AsStruct() *StructType {
+	return nil
+}
+
+func (t *Type) AsFunction() *StructType {
+	return nil
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type StructType struct {
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type FunctionType struct {
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type IntType struct {
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type StringType struct {
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type BoolType struct {
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 const (
 	symStrLit = iota
 	symIntegerLit
@@ -25,6 +105,7 @@ var symTypes = map[int]string{
 type Symbol interface {
 	name() string
 	kind() int
+	Type() *Type
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -41,12 +122,17 @@ func (i *IntegerLiteralSymbol) kind() int {
 	return symIntegerLit
 }
 
+func (i *IntegerLiteralSymbol) Type() *Type {
+	return intType
+}
+
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type StructSymbol struct {
 	val string
 	fields []*IdentSymbol // TODO: What about structs in structs?
+	typ *Type
 }
 
 func (s *StructSymbol) name() string {
@@ -76,11 +162,16 @@ func (s *StructSymbol) offset(v *IdentSymbol) int {
 	return -1 // Not found
 }
 
+func (s *StructSymbol) Type() *Type {
+	return s.typ
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type TypeSymbol struct {
 	val   string
 	width int
+	typ *Type
 }
 
 func (t *TypeSymbol) name() string {
@@ -89,6 +180,10 @@ func (t *TypeSymbol) name() string {
 
 func (t *TypeSymbol) kind() int {
 	return symType
+}
+
+func (t *TypeSymbol) Type() *Type {
+	return t.typ
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -106,6 +201,10 @@ func (i *IdentSymbol) name() string {
 
 func (i *IdentSymbol) kind() int {
 	return symVar
+}
+
+func (i *IdentSymbol) Type() *Type {
+	return nil // Nothing to return
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -132,6 +231,10 @@ func (str *StringLiteralSymbol) Rva() uint32 {
 	return str.rva
 }
 
+func (str *StringLiteralSymbol) Type() *Type {
+	return stringType
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type Function struct {
@@ -142,6 +245,7 @@ type Function struct {
 	args *SymTab
 	ret *TypeSymbol
 	isConstructor bool
+	typ *Type
 }
 
 func (fn *Function) name() string {
@@ -158,6 +262,10 @@ func (fn *Function) Rva() *uint32 {
 
 func (fn *Function) kind() int {
 	return symFnDecl
+}
+
+func (fn *Function) Type() *Type {
+	return fn.typ
 }
 
 type SymTab struct {

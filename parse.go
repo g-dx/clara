@@ -93,7 +93,7 @@ func (p *Parser) parseStructDecl() *Node {
 	} else {
 		// Define struct & type symbol
 		// TODO: Having to define 2 symbols seems awkward. Revisit symbol definitions
-		sym = &StructSymbol{ val: id.Val, fields: vars }
+		sym = &StructSymbol{ val: id.Val, fields: vars, typ: &Type{ Kind: Struct, Data: &StructType{}}}
 		p.symtab.Define(sym)
 		p.symtab.Define(&TypeSymbol{ val: id.Val })
 	}
@@ -345,7 +345,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// TODO: Attempt to resolve return type!
-		sym = &Function{fnName: token.Val, fnArgCount: len(params), args: syms}
+		sym = &Function{fnName: token.Val, fnArgCount: len(params), args: syms, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
