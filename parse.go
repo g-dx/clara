@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"strconv"
 	"github.com/g-dx/clarac/lex"
 )
 
@@ -305,13 +304,9 @@ func (p *Parser) parseIntegerLit() (*Node) {
 	// Match first arg
 	arg := p.next()
 	// Define symbol
-	sym, found := p.symtab.Resolve(symIntegerLit, arg.Val)
+	sym, found := p.symtab.Resolve(symVar, arg.Val)
 	if !found {
-		i, err := strconv.ParseInt(arg.Val, 10, 64)
-		if err != nil {
-			panic(err) // Should never happen
-		}
-		sym = &IntegerLiteralSymbol{val : i }
+		sym = &IdentSymbol{val : arg.Val, typ2: intType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opIntLit, sym : sym, symtab: p.symtab}
@@ -322,9 +317,9 @@ func (p *Parser) parseStringLit() (*Node) {
 	arg := p.next()
 
 	// Define symbol
-	sym, found := p.symtab.Resolve(symStrLit, arg.Val)
+	sym, found := p.symtab.Resolve(symVar, arg.Val)
 	if !found {
-		sym = &StringLiteralSymbol{val : arg.Val }
+		sym = &IdentSymbol{val : arg.Val, typ2: stringType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}

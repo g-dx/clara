@@ -86,12 +86,12 @@ func cgenPrintCall(node *Node, ops *x64.OpcodeList) {
 
 	// Push values onto stack (string RVA & length)
 
-	str, ok := node.stmts[0].sym.(*StringLiteralSymbol)
-	if !ok {
-		panic(fmt.Sprintf("print function parameter not string literal! - %v", str))
-	}
-	ops.PUSHI(str.Rva())
-	ops.PUSHI(uint32(len(str.Val())))
+	//str, ok := node.stmts[0].sym.(*StringLiteralSymbol)
+	//if !ok {
+	//	panic(fmt.Sprintf("print function parameter not string literal! - %v", str))
+	//}
+	//ops.PUSHI(str.Rva())
+	//ops.PUSHI(uint32(len(str.Val())))
 
 	// Call print
 
@@ -270,14 +270,14 @@ func addDataSection(imageBase uint64, dataSection pe.SectionHeader, w *leWriter,
 
 	// Walk symbol table and assign RVAs
 	symtab.Walk(func(sym Symbol) {
-		if str, ok := sym.(*StringLiteralSymbol); ok {
-			// Set RVA & write
-			str.rva = pos
-			// Remove leading and trailing double quotes and add newline
-			str.val = str.val[1:len(str.val)-1] + "\x0D\x0A"
-			w.Write([]byte(str.val))
-			pos += uint32(len(str.val))
-		}
+		//if str, ok := sym.(*StringLiteralSymbol); ok {
+		//	// Set RVA & write
+		//	str.rva = pos
+		//	// Remove leading and trailing double quotes and add newline
+		//	str.val = str.val[1:len(str.val)-1] + "\x0D\x0A"
+		//	w.Write([]byte(str.val))
+		//	pos += uint32(len(str.val))
+		//}
 	})
 }
 

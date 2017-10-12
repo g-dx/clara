@@ -37,8 +37,8 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	// Output strings
 	symtab.Walk(func(s Symbol) {
-		if str, ok := s.(*StringLiteralSymbol); ok {
-			strLabels[str.Val()] = genStringLit(write, str.Val())
+		if str, ok := s.(*IdentSymbol); ok && str.typ2 != nil && str.typ2.Kind == String {
+			strLabels[str.val] = genStringLit(write, str.val)
 		}
 	})
 
@@ -221,11 +221,11 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opStrLit:
 
-		write("\tpushq\t$%v", strLabels[expr.sym.(*StringLiteralSymbol).Val()])
+		write("\tpushq\t$%v", strLabels[expr.sym.(*IdentSymbol).val])
 
 	case opIntLit:
 
-		write("\tpushq\t$%v", expr.sym.(*IntegerLiteralSymbol).val) // Push onto top of stack
+		write("\tpushq\t$%v", expr.sym.(*IdentSymbol).val) // Push onto top of stack
 
 	case opBoolLit:
 

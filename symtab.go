@@ -1,7 +1,6 @@
 package main
 import (
 	"fmt"
-	"strconv"
 )
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -85,9 +84,7 @@ type BoolType struct {
 //----------------------------------------------------------------------------------------------------------------------
 
 const (
-	symStrLit = iota
-	symIntegerLit
-	symFnDecl
+	symFnDecl = iota
 	symStructDecl
 	symType
 	symVar
@@ -96,8 +93,6 @@ const (
 var symTypes = map[int]string{
 	symFnDecl:     "Func Decl",
 	symStructDecl: "Struct Decl",
-	symStrLit:     "String Lit",
-	symIntegerLit: "Integer Lit",
 	symType:       "Type",
 	symVar:        "Variable",
 }
@@ -107,25 +102,6 @@ type Symbol interface {
 	kind() int
 	Type() *Type
 }
-
-//----------------------------------------------------------------------------------------------------------------------
-
-type IntegerLiteralSymbol struct {
-	val int64
-}
-
-func (i *IntegerLiteralSymbol) name() string {
-	return strconv.FormatInt(i.val, 10)
-}
-
-func (i *IntegerLiteralSymbol) kind() int {
-	return symIntegerLit
-}
-
-func (i *IntegerLiteralSymbol) Type() *Type {
-	return intType
-}
-
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -193,6 +169,7 @@ type IdentSymbol struct {
 	addr int
 	isStack bool
 	typ  *TypeSymbol // TODO: What about StructSymbol?
+	typ2 *Type
 }
 
 func (i *IdentSymbol) name() string {
@@ -204,35 +181,7 @@ func (i *IdentSymbol) kind() int {
 }
 
 func (i *IdentSymbol) Type() *Type {
-	return nil // Nothing to return
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-type StringLiteralSymbol struct {
-	val string
-	rva uint32
-}
-
-func (str *StringLiteralSymbol) name() string {
-	return str.val
-}
-
-func (str *StringLiteralSymbol) kind() int {
-	return symStrLit
-}
-
-
-func (str *StringLiteralSymbol) Val() string {
-	return str.val
-}
-
-func (str *StringLiteralSymbol) Rva() uint32 {
-	return str.rva
-}
-
-func (str *StringLiteralSymbol) Type() *Type {
-	return stringType
+	return nil
 }
 
 //----------------------------------------------------------------------------------------------------------------------
