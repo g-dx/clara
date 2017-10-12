@@ -44,6 +44,10 @@ type Type struct {
 	Data interface{}
 }
 
+func (t *Type) Is(kind TypeKind) bool {
+	return t.Kind == kind
+}
+
 func (t *Type) AsStruct() *StructType {
 	return t.Data.(*StructType)
 }

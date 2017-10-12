@@ -137,12 +137,12 @@ func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
 		}
 
 		// Check is a function
-		fn, ok := s.Type.Data.(*FunctionType)
-		if !ok {
+		if !s.Type.Is(Function) {
 			return semanticError(errNotFuncMsg, n.token)
 		}
 
 		// Check for too few args
+		fn := s.Type.AsFunction()
 		if len(n.stmts) < fn.ArgCount {
 			return semanticError(errTooFewArgsMsg, n.token)
 		}
