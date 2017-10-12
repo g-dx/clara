@@ -23,7 +23,7 @@ type Parser struct {
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
-func NewParser(tokens []*lex.Token, nodes []*Node, syms []Symbol) *Parser {
+func NewParser(tokens []*lex.Token, nodes []*Node, syms []*Symbol) *Parser {
 	// Add any symbols from predefined nodes
 	symtab := NewSymtab()
 	for _, n := range nodes {
@@ -80,19 +80,19 @@ func (p *Parser) parseStructDecl() *Node {
 	p.need(lex.RBrace)
 
 	// Get all symbols
-	var vars []*IdentSymbol
+	var vars []*Symbol
 	for _, f := range fields {
-		vars = append(vars, f.sym.(*IdentSymbol))
+		vars = append(vars, f.sym)
 	}
 
 	// Declare new type symbol
-	sym, found := p.symtab.Resolve(symVar, id.Val)
+	sym, found := p.symtab.Resolve(id.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, id)
 	} else {
 		// Define struct symbol
 		// TODO: This width calc shouldn't happen here
-		sym = &IdentSymbol{val: id.Val, typ: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
+		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
 		p.symtab.Define(sym)
 	}
 
@@ -177,12 +177,9 @@ func (p *Parser) parseParameter() *Node {
 	typeTok := p.need(lex.Identifier)
 
 	// Attempt to resolve type
-	sym, _ := p.symtab.Resolve(symVar, typeTok.Val)
-	var typeSym *IdentSymbol
-	if sym != nil {
-		typeSym = sym.(*IdentSymbol)
-	}
-	idSym := &IdentSymbol{ val: idTok.Val, typ: typeSym.typ}
+	// TODO: Add "tracking" here if the type could not be resolved!
+	sym, _ := p.symtab.Resolve(typeTok.Val)
+	idSym := &Symbol{ Name: idTok.Val, Type: sym.Type}
 	p.symtab.Define(idSym)
 	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab, typ: typeTok }
 }
@@ -303,9 +300,9 @@ func (p *Parser) parseIntegerLit() (*Node) {
 	// Match first arg
 	arg := p.next()
 	// Define symbol
-	sym, found := p.symtab.Resolve(symVar, arg.Val)
+	sym, found := p.symtab.Resolve(arg.Val)
 	if !found {
-		sym = &IdentSymbol{val : arg.Val, typ: intType }
+		sym = &Symbol{ Name: arg.Val, Type: intType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opIntLit, sym : sym, symtab: p.symtab}
@@ -316,9 +313,9 @@ func (p *Parser) parseStringLit() (*Node) {
 	arg := p.next()
 
 	// Define symbol
-	sym, found := p.symtab.Resolve(symVar, arg.Val)
+	sym, found := p.symtab.Resolve(arg.Val)
 	if !found {
-		sym = &IdentSymbol{val : arg.Val, typ: stringType }
+		sym = &Symbol{ Name: arg.Val, Type: stringType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}
@@ -334,12 +331,12 @@ func (p *Parser) parseBoolLit() (*Node) {
 func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
 
 	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(symVar, token.Val)
+	sym, found := p.symtab.Resolve(token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// TODO: Attempt to resolve return type!
-		sym = &IdentSymbol{val: token.Val, typ: &Type{ Kind: Function, Data:
+		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Name: token.Val, ArgCount: len(params), args: syms, }}}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
@@ -352,7 +349,7 @@ func (p *Parser) parseFnCall() *Node {
 
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	// TODO: TEMPORARY WORKAROUND!
-	sym, _ := p.symtab.Resolve(symVar, token.Val)
+	sym, _ := p.symtab.Resolve(token.Val)
 	return &Node{token : token, stmts: args, op : opFuncCall, sym : sym, symtab: p.symtab}
 }
 

@@ -67,17 +67,17 @@ func (t *Type) Width() int {
 
 type StructType struct {
 	Name string
-	Fields []*IdentSymbol
+	Fields []*Symbol
 	Width int
 }
 
-func (st *StructType) Offset(i *IdentSymbol) int {
+func (st *StructType) Offset(i *Symbol) int {
 	off := 0
 	for _, field := range st.Fields {
 		if field == i {
 			return off
 		}
-		off += 8 // field.typ.width TODO: Fix this width calculation!
+		off += 8 // field.Type.width TODO: Fix this width calculation!
 	}
 	return -1 // Not found
 }
@@ -113,62 +113,35 @@ type BoolType struct {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-const (
-	symVar = iota
-)
-
-var symTypes = map[int]string{
-	symVar:        "Variable",
+type Symbol struct {
+	Name    string
+	Addr    int
+	IsStack bool
+	Type    *Type
 }
-
-type Symbol interface {
-	name() string
-	kind() int
-	Type() *Type
-}
-
 
 //----------------------------------------------------------------------------------------------------------------------
-
-type IdentSymbol struct {
-	val     string
-	addr    int
-	isStack bool
-	typ     *Type
-}
-
-func (i *IdentSymbol) name() string {
-	return i.val
-}
-
-func (i *IdentSymbol) kind() int {
-	return symVar
-}
-
-func (i *IdentSymbol) Type() *Type {
-	return i.typ
-}
 
 type SymTab struct {
 	parent *SymTab
 	children []*SymTab
-	symbols map[string]Symbol
+	symbols map[string]*Symbol
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 func NewSymtab() *SymTab {
-	return &SymTab{nil, nil, make(map[string]Symbol)}
+	return &SymTab{nil, nil, make(map[string]*Symbol)}
 }
 
-func (s *SymTab) Define(sym Symbol) {
-	s.symbols[fmt.Sprintf("%v.%v", sym.kind(), sym.name())] = sym
+func (s *SymTab) Define(sym *Symbol) {
+	s.symbols[sym.Name] = sym
 }
 
-func (s *SymTab) Resolve(symType int, name string) (Symbol, bool) {
-	sym, ok := s.symbols[fmt.Sprintf("%v.%v", symType, name)]
+func (s *SymTab) Resolve(name string) (*Symbol, bool) {
+	sym, ok := s.symbols[name]
 	if !ok && s.parent != nil {
-		sym, ok = s.parent.Resolve(symType, name)
+		sym, ok = s.parent.Resolve(name)
 	}
 	return sym, ok
 }
@@ -184,7 +157,7 @@ func (s *SymTab) Child() *SymTab {
 	return child
 }
 
-func (s *SymTab) Walk(f func(Symbol)) {
+func (s *SymTab) Walk(f func(*Symbol)) {
 	// Walk children first then this node
 	for _, child := range s.children {
 		child.Walk(f)

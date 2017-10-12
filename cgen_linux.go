@@ -36,9 +36,9 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	write("\t.section\t.rodata")
 
 	// Output strings
-	symtab.Walk(func(s Symbol) {
-		if str, ok := s.(*IdentSymbol); ok && str.Type() != nil && str.Type().Kind == String {
-			strLabels[str.val] = genStringLit(write, str.val)
+	symtab.Walk(func(str *Symbol) {
+		if str.Type != nil && str.Type.Kind == String {
+			strLabels[str.Name] = genStringLit(write, str.Name)
 		}
 	})
 
@@ -69,14 +69,14 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				// Copy register values into stack slots
 				for i := 0; i < len(n.params); i++ {
 					addr := 8 * (i + 1) // Assign a stack slot for var
-					id := n.params[i].sym.(*IdentSymbol)
-					id.addr = addr
-					id.isStack = true
+					id := n.params[i].sym
+					id.Addr = addr
+					id.IsStack = true
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 
 				// Generate functions
-				fn := n.sym.Type().AsFunction()
+				fn := n.sym.Type.AsFunction()
 				if fn.isConstructor {
 					genConstructor(write, fn, n.params)
 				} else {
@@ -106,12 +106,12 @@ func genConstructor(write func(s string, a ...interface{}), fn *FunctionType, pa
 	// Copy stack values into fields
 	offset := 0
 	for _, param := range params {
-		id := param.sym.(*IdentSymbol)
+		id := param.sym
 		// Can't move mem -> mem. Must go through a register.
 		// TODO: These values are in registers (rdi, rsi, etc) so mov from there to mem
-		write("\tmovq\t-%v(%%rbp), %%rbx", id.addr)
+		write("\tmovq\t-%v(%%rbp), %%rbx", id.Addr)
 		write("\tmovq\t%%rbx, %v(%%rax)", offset)
-		offset += id.typ.Width()
+		offset += id.Type.Width()
 	}
 
 	// Pointer is already in rax so nothing to do...
@@ -122,7 +122,7 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 
 		switch stmt.op {
 		case opFuncCall:
-			genFuncCall(write, stmt.stmts, stmt.sym.Type().AsFunction(), stmt.symtab)
+			genFuncCall(write, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.symtab)
 
 		case opReturn:
 			if len(stmt.stmts) == 1 {
@@ -221,11 +221,11 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opStrLit:
 
-		write("\tpushq\t$%v", strLabels[expr.sym.(*IdentSymbol).val])
+		write("\tpushq\t$%v", strLabels[expr.sym.Name])
 
 	case opIntLit:
 
-		write("\tpushq\t$%v", expr.sym.(*IdentSymbol).val) // Push onto top of stack
+		write("\tpushq\t$%v", expr.sym.Name) // Push onto top of stack
 
 	case opBoolLit:
 
@@ -309,17 +309,17 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	case opIdentifier:
 
-		v := expr.sym.(*IdentSymbol)
-		if v.isStack {
-			write("\tpushq\t-%v(%%rbp)", v.addr) // Push stack slot offset onto top of stack
+		v := expr.sym
+		if v.IsStack {
+			write("\tpushq\t-%v(%%rbp)", v.Addr) // Push stack slot offset onto top of stack
 		} else {
-			write("\tpushq\t$%v", v.addr)        // Push struct field offset onto top of stack
+			write("\tpushq\t$%v", v.Addr) // Push struct field offset onto top of stack
 		}
 
 	case opFuncCall:
 
 		spill(write, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(write, expr.stmts, expr.sym.Type().AsFunction(), syms)
+		genFuncCall(write, expr.stmts, expr.sym.Type.AsFunction(), syms)
 		restore(write, regsInUse) // Restore registers previously in use
 		write("\tpushq\t%%rax")   // Push result (rax) onto stack
 

@@ -15,7 +15,7 @@ type Node struct {
 	stmts  []*Node
 	params []*Node // OpFuncDecl
 	op     int
-	sym    Symbol
+	sym    *Symbol
 	symtab *SymTab // Enclosing scope
 }
 
@@ -103,7 +103,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
     // Print node
 	fmt.Printf("%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
 	if n.sym != nil {
-		fmt.Printf(": %v%v%v(%v%v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.name(), console.Disable)
+		fmt.Printf(": %v%v%v(%v%v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, console.Disable)
 	} else {
 		fmt.Printf(": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
 	}
