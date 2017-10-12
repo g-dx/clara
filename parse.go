@@ -335,12 +335,13 @@ func (p *Parser) parseBoolLit() (*Node) {
 func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
 
 	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(symFnDecl, token.Val)
+	sym, found := p.symtab.Resolve(symVar, token.Val)
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// TODO: Attempt to resolve return type!
-		sym = &Function{fnName: token.Val, fnArgCount: len(params), args: syms, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}
+		sym = &IdentSymbol{val: token.Val, typ2: &Type{ Kind: Function2, Data:
+			&FunctionType{ Name: token.Val, ArgCount: len(params), args: syms, }}}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}
 	return &Node{token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
@@ -352,7 +353,7 @@ func (p *Parser) parseFnCall() *Node {
 
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	// TODO: TEMPORARY WORKAROUND!
-	sym, _ := p.symtab.Resolve(symFnDecl, token.Val)
+	sym, _ := p.symtab.Resolve(symVar, token.Val)
 	return &Node{token : token, stmts: args, op : opFuncCall, sym : sym, symtab: p.symtab}
 }
 

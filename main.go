@@ -155,13 +155,15 @@ func stdlib() []*Node {
 	return []*Node{
 		// printf (from libc)
 		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
-		sym:&Function{fnName: "printf", fnArgCount: 1, isVariadic: true, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
+		sym:&IdentSymbol{val: "printf", typ2: &Type{ Kind: Function2, Data:
+			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true }}}},
 		// memcpy (from libc)
 		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
-			sym:&Function{fnName: "memcpy", fnArgCount: 3, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
+			sym:&IdentSymbol{val: "memcpy", typ2: &Type{ Kind: Function2, Data:
+				&FunctionType{ Name: "memcpy", ArgCount: 3,}}}},
 		// malloc (from libc)
 		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
-			sym:&Function{fnName: "malloc", fnArgCount: 1, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}},
+			sym:&IdentSymbol{val: "malloc", typ2: &Type{ Kind: Function2, Data: &FunctionType{ Name: "malloc", ArgCount: 1 }}}},
 	}
 }
 

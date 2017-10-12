@@ -76,7 +76,7 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				}
 
 				// Generate functions
-				fn := n.sym.(*Function)
+				fn := n.sym.Type().AsFunction()
 				if fn.isConstructor {
 					genConstructor(write, fn, n.params)
 				} else {
@@ -97,7 +97,7 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	return nil
 }
 
-func genConstructor(write func(s string, a ...interface{}), fn *Function, params []*Node) {
+func genConstructor(write func(s string, a ...interface{}), fn *FunctionType, params []*Node) {
 
 	// Malloc memory of appropriate size
 	write("\tmovq\t$%v, %%rdi", fn.ret.width)
@@ -122,7 +122,7 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 
 		switch stmt.op {
 		case opFuncCall:
-			genFuncCall(write, stmt.stmts, stmt.sym.(*Function), stmt.symtab)
+			genFuncCall(write, stmt.stmts, stmt.sym.Type().AsFunction(), stmt.symtab)
 
 		case opReturn:
 			if len(stmt.stmts) == 1 {
@@ -170,7 +170,7 @@ func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab
 	write("\tret")
 }
 
-func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, symtab *SymTab) {
+func genFuncCall(write func(string,...interface{}), args []*Node, fn *FunctionType, symtab *SymTab) {
 
 	// Generate arg code
 	for i, arg := range args {
@@ -187,7 +187,7 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *Function, 
 		write("\tmovq\t$%v, %%rax", 0 /*len(args) - fn.fnArgCount*/)
 	}
 
-	write("\tcall\t%v", fn.fnName)
+	write("\tcall\t%v", fn.Name)
 }
 
 func restore(write func(string, ...interface{}), regPos int) {
@@ -319,7 +319,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 	case opFuncCall:
 
 		spill(write, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(write, expr.stmts, expr.sym.(*Function), syms)
+		genFuncCall(write, expr.stmts, expr.sym.Type().AsFunction(), syms)
 		restore(write, regsInUse) // Restore registers previously in use
 		write("\tpushq\t%%rax")   // Push result (rax) onto stack
 

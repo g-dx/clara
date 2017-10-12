@@ -47,8 +47,8 @@ func (t *Type) AsStruct() *StructType {
 	return nil
 }
 
-func (t *Type) AsFunction() *StructType {
-	return nil
+func (t *Type) AsFunction() *FunctionType {
+	return t.Data.(*FunctionType)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -60,7 +60,12 @@ type StructType struct {
 //----------------------------------------------------------------------------------------------------------------------
 
 type FunctionType struct {
-
+	Name          string
+	ArgCount      int
+	isVariadic    bool
+	args          *SymTab
+	ret           *TypeSymbol
+	isConstructor bool
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -84,14 +89,12 @@ type BoolType struct {
 //----------------------------------------------------------------------------------------------------------------------
 
 const (
-	symFnDecl = iota
-	symStructDecl
+	symStructDecl = iota
 	symType
 	symVar
 )
 
 var symTypes = map[int]string{
-	symFnDecl:     "Func Decl",
 	symStructDecl: "Struct Decl",
 	symType:       "Type",
 	symVar:        "Variable",
@@ -181,40 +184,7 @@ func (i *IdentSymbol) kind() int {
 }
 
 func (i *IdentSymbol) Type() *Type {
-	return nil
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-type Function struct {
-	fnName string
-	fnArgCount int
-	isVariadic bool
-	rva uint32
-	args *SymTab
-	ret *TypeSymbol
-	isConstructor bool
-	typ *Type
-}
-
-func (fn *Function) name() string {
-	return fn.fnName
-}
-
-func (fn *Function) argCount() int {
-	return fn.fnArgCount
-}
-
-func (fn *Function) Rva() *uint32 {
-	return &fn.rva
-}
-
-func (fn *Function) kind() int {
-	return symFnDecl
-}
-
-func (fn *Function) Type() *Type {
-	return fn.typ
+	return i.typ2
 }
 
 type SymTab struct {

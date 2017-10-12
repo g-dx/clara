@@ -73,7 +73,8 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
 
 		// Create & define symbol
-		fnSym := &Function{fnName: constructorName, fnArgCount: len(n.stmts), isConstructor: true, ret: typ, args: n.symtab, typ: &Type{ Kind: Function2, Data: &FunctionType{}}}
+		fnSym := &IdentSymbol{val: constructorName, typ2: &Type{ Kind: Function2, Data:
+			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: typ, args: n.symtab, }}}
 		root.symtab.Define(fnSym)
 
 		// Add AST node
@@ -136,25 +137,26 @@ func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
 
 	if n.op == opFuncCall {
 		// Check exists
-		s, found := symtab.Resolve(symFnDecl, n.token.Val)
+		s, found := symtab.Resolve(symVar, n.token.Val)
 		if !found {
 			// Undefined
 			return semanticError(errUndefinedMsg, n.token)
 		}
 
 		// Check is a function
-		fn, ok := s.(*Function)
+		id, ok := s.(*IdentSymbol)
 		if !ok {
 			return semanticError(errNotFuncMsg, n.token)
 		}
+		fn := id.typ2.AsFunction()
 
 		// Check for too few args
-		if len(n.stmts) < fn.argCount() {
+		if len(n.stmts) < fn.ArgCount {
 			return semanticError(errTooFewArgsMsg, n.token)
 		}
 
 		// Check for too many
-		if len(n.stmts) > fn.argCount() && !fn.isVariadic {
+		if len(n.stmts) > fn.ArgCount && !fn.isVariadic {
 			return semanticError(errTooManyArgsMsg, n.token)
 		}
 
