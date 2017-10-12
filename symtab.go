@@ -14,18 +14,18 @@ var stringType = &Type{ Kind: String, Data: &StringType{} }
 type TypeKind byte
 const (
 	Struct = TypeKind(iota)
-	Function2
+	Function
 	Integer
 	Boolean
 	String
 )
 
 var typeKindNames = map[TypeKind]string {
-	Struct: "struct",
-	Function2: "function",
-	Integer: "int",
-	Boolean: "bool",
-	String: "string",
+	Struct:   "struct",
+	Function: "function",
+	Integer:  "int",
+	Boolean:  "bool",
+	String:   "string",
 }
 
 func (tk TypeKind) String() string {

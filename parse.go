@@ -341,7 +341,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// TODO: Attempt to resolve return type!
-		sym = &IdentSymbol{val: token.Val, typ2: &Type{ Kind: Function2, Data:
+		sym = &IdentSymbol{val: token.Val, typ2: &Type{ Kind: Function, Data:
 			&FunctionType{ Name: token.Val, ArgCount: len(params), args: syms, }}}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}

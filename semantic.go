@@ -73,7 +73,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
 
 		// Create & define symbol
-		fnSym := &IdentSymbol{val: constructorName, typ2: &Type{ Kind: Function2, Data:
+		fnSym := &IdentSymbol{val: constructorName, typ2: &Type{ Kind: Function, Data:
 			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: typ, args: n.symtab, }}}
 		root.symtab.Define(fnSym)
 
