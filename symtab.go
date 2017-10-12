@@ -5,9 +5,9 @@ import (
 
 //----------------------------------------------------------------------------------------------------------------------
 
-var intType = &Type{ Kind: Integer, Data: &IntType{} }
-var boolType = &Type{ Kind: Boolean, Data: &BoolType{} }
-var stringType = &Type{ Kind: String, Data: &StringType{} }
+var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
+var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
+var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -40,6 +40,7 @@ func (tk TypeKind) String() string {
 
 type Type struct {
 	Kind TypeKind
+	Name string // TODO: Add this!
 	Data interface{}
 }
 
@@ -51,9 +52,21 @@ func (t *Type) AsFunction() *FunctionType {
 	return t.Data.(*FunctionType)
 }
 
+func (t *Type) Width() int {
+	switch x := t.Data.(type) {
+	case *StructType: return x.Width
+	case *IntType: return x.Width
+	case *BoolType: return x.Width
+	case *StringType: return x.Width
+	default:
+		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type StructType struct {
+	Name string
 	Fields []*IdentSymbol
 	Width int
 }
@@ -76,37 +89,35 @@ type FunctionType struct {
 	ArgCount      int
 	isVariadic    bool
 	args          *SymTab
-	ret           *TypeSymbol
+	ret           *Type
 	isConstructor bool
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type IntType struct {
-
+	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type StringType struct {
-
+	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type BoolType struct {
-
+	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 const (
-	symType = iota
-	symVar
+	symVar = iota
 )
 
 var symTypes = map[int]string{
-	symType:       "Type",
 	symVar:        "Variable",
 }
 
@@ -116,34 +127,14 @@ type Symbol interface {
 	Type() *Type
 }
 
-//----------------------------------------------------------------------------------------------------------------------
-
-type TypeSymbol struct {
-	val   string
-	width int
-	typ *Type
-}
-
-func (t *TypeSymbol) name() string {
-	return t.val
-}
-
-func (t *TypeSymbol) kind() int {
-	return symType
-}
-
-func (t *TypeSymbol) Type() *Type {
-	return t.typ
-}
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type IdentSymbol struct {
-	val  string
-	addr int
+	val     string
+	addr    int
 	isStack bool
-	typ  *TypeSymbol // TODO: What about StructSymbol?
-	typ2 *Type
+	typ     *Type
 }
 
 func (i *IdentSymbol) name() string {
@@ -155,7 +146,7 @@ func (i *IdentSymbol) kind() int {
 }
 
 func (i *IdentSymbol) Type() *Type {
-	return i.typ2
+	return i.typ
 }
 
 type SymTab struct {

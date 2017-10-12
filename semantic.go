@@ -38,15 +38,17 @@ func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
 		}
 
 		// If symbol has no type and the parser recorded one - check symbol table
-		if idSym, ok := n.sym.(*IdentSymbol); ok && idSym.typ == nil && n.typ != nil {
-			typ, ok := n.symtab.Resolve(symType, n.typ.Val)
+		if idSym, ok := n.sym.(*IdentSymbol); ok && idSym.Type() == nil && n.typ != nil {
+			id, ok := n.symtab.Resolve(symVar, n.typ.Val)
 			if !ok {
 				return semanticError(errUnknownTypeMsg, n.typ)
 			}
-			idSym.typ = typ.(*TypeSymbol)
+			idSym.typ = id.Type()
 
 			// DEBUG
-			fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val, idSym.typ.val))
+			// TODO: Fix the type name printing!
+			fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val,
+				idSym.Type()))
 		}
 	}
 	return nil
@@ -73,8 +75,8 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
 
 		// Create & define symbol
-		fnSym := &IdentSymbol{val: constructorName, typ2: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: typ, args: n.symtab, }}}
+		fnSym := &IdentSymbol{val: constructorName, typ: &Type{ Kind: Function, Data:
+			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: typ.Type(), args: n.symtab, }}}
 		root.symtab.Define(fnSym)
 
 		// Add AST node
@@ -102,7 +104,7 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opDot && n.right.op == opIdentifier {
 
 		// Determine struct type on left
-		typName := n.left.sym.(*IdentSymbol).typ.name()
+		typName := n.left.sym.(*IdentSymbol).Type().AsStruct().Name
 		strct, ok := n.symtab.Resolve(symVar, typName)
 		if !ok {
 			// TODO: Currently this block will never trigger because if unknown types are caught and reported earlier
@@ -120,15 +122,6 @@ func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
 		// Set field offset
 		// TODO: When structs can have structs inside we need to set the type symbol on opDot node correctly
 		n.right.sym.(*IdentSymbol).addr = offset
-
-		// Get type symbol for struct
-		ts, found := n.symtab.Resolve(symType, typName)
-		if !found {
-			panic(fmt.Sprintf("Struct '%v' has no corresponding type symbol?", typName)) // This should not be possible!
-		}
-
-		// Add width information which is required during codegen
-		ts.(*TypeSymbol).width = strctSym.Width
 	}
 	return nil
 }
@@ -148,7 +141,7 @@ func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
 		if !ok {
 			return semanticError(errNotFuncMsg, n.token)
 		}
-		fn := id.typ2.AsFunction()
+		fn := id.typ.AsFunction()
 
 		// Check for too few args
 		if len(n.stmts) < fn.ArgCount {
@@ -168,14 +161,14 @@ func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
 	return nil
 }
 
-func resolveTypeSym(tab *SymTab, t *lex.Token, errMsg string) (*TypeSymbol, error) {
-	s, found := tab.Resolve(symType, t.Val)
+func resolveTypeSym(tab *SymTab, t *lex.Token, errMsg string) (*IdentSymbol, error) {
+	s, found := tab.Resolve(symVar, t.Val)
 	if !found {
 		return nil, semanticError(errMsg, t)
 	}
-	ts, ok := s.(*TypeSymbol)
+	ts, ok := s.(*IdentSymbol)
 	if !ok {
-		panic(fmt.Sprintf("Expected *TypeSymbol: %v", symTypes[s.kind()]))
+		panic(fmt.Sprintf("Expected *IdentSymbol: %v", symTypes[s.kind()]))
 	}
 	return ts, nil
 }

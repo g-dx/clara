@@ -90,12 +90,10 @@ func (p *Parser) parseStructDecl() *Node {
 	if found {
 		p.symbolError(errRedeclaredMsg, id)
 	} else {
-		// Define struct & type symbol
-		// TODO: Having to define 2 symbols seems awkward. Revisit symbol definitions
+		// Define struct symbol
 		// TODO: This width calc shouldn't happen here
-		sym = &IdentSymbol{val: id.Val, typ2: &Type{ Kind: Struct, Data: &StructType{ Width: len(fields) * 8, Fields: vars }}}
+		sym = &IdentSymbol{val: id.Val, typ: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
 		p.symtab.Define(sym)
-		p.symtab.Define(&TypeSymbol{ val: id.Val })
 	}
 
 	return &Node{op: opStruct, token: id, symtab: p.symtab, sym: sym, stmts: fields}
@@ -179,12 +177,12 @@ func (p *Parser) parseParameter() *Node {
 	typeTok := p.need(lex.Identifier)
 
 	// Attempt to resolve type
-	sym, _ := p.symtab.Resolve(symType, typeTok.Val)
-	var typeSym *TypeSymbol
+	sym, _ := p.symtab.Resolve(symVar, typeTok.Val)
+	var typeSym *IdentSymbol
 	if sym != nil {
-		typeSym = sym.(*TypeSymbol)
+		typeSym = sym.(*IdentSymbol)
 	}
-	idSym := &IdentSymbol{ val: idTok.Val, typ: typeSym }
+	idSym := &IdentSymbol{ val: idTok.Val, typ: typeSym.typ}
 	p.symtab.Define(idSym)
 	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab, typ: typeTok }
 }
@@ -307,7 +305,7 @@ func (p *Parser) parseIntegerLit() (*Node) {
 	// Define symbol
 	sym, found := p.symtab.Resolve(symVar, arg.Val)
 	if !found {
-		sym = &IdentSymbol{val : arg.Val, typ2: intType }
+		sym = &IdentSymbol{val : arg.Val, typ: intType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opIntLit, sym : sym, symtab: p.symtab}
@@ -320,7 +318,7 @@ func (p *Parser) parseStringLit() (*Node) {
 	// Define symbol
 	sym, found := p.symtab.Resolve(symVar, arg.Val)
 	if !found {
-		sym = &IdentSymbol{val : arg.Val, typ2: stringType }
+		sym = &IdentSymbol{val : arg.Val, typ: stringType }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}
@@ -341,7 +339,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// TODO: Attempt to resolve return type!
-		sym = &IdentSymbol{val: token.Val, typ2: &Type{ Kind: Function, Data:
+		sym = &IdentSymbol{val: token.Val, typ: &Type{ Kind: Function, Data:
 			&FunctionType{ Name: token.Val, ArgCount: len(params), args: syms, }}}
 		p.symtab.Define(sym) // Functions don't take params yet
 	}

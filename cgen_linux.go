@@ -37,7 +37,7 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 
 	// Output strings
 	symtab.Walk(func(s Symbol) {
-		if str, ok := s.(*IdentSymbol); ok && str.typ2 != nil && str.typ2.Kind == String {
+		if str, ok := s.(*IdentSymbol); ok && str.Type() != nil && str.Type().Kind == String {
 			strLabels[str.val] = genStringLit(write, str.val)
 		}
 	})
@@ -100,7 +100,7 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 func genConstructor(write func(s string, a ...interface{}), fn *FunctionType, params []*Node) {
 
 	// Malloc memory of appropriate size
-	write("\tmovq\t$%v, %%rdi", fn.ret.width)
+	write("\tmovq\t$%v, %%rdi", fn.ret.Width())
 	write("\tcall\tmalloc")
 
 	// Copy stack values into fields
@@ -111,7 +111,7 @@ func genConstructor(write func(s string, a ...interface{}), fn *FunctionType, pa
 		// TODO: These values are in registers (rdi, rsi, etc) so mov from there to mem
 		write("\tmovq\t-%v(%%rbp), %%rbx", id.addr)
 		write("\tmovq\t%%rbx, %v(%%rax)", offset)
-		offset += id.typ.width
+		offset += id.typ.Width()
 	}
 
 	// Pointer is already in rax so nothing to do...
