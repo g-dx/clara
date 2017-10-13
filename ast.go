@@ -9,7 +9,6 @@ import (
 
 type Node struct {
 	token  *lex.Token
-	typ    *lex.Token // opFuncDecl (function return type)
 	left   *Node
 	right  *Node
 	stmts  []*Node

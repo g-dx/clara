@@ -2,15 +2,17 @@ struct object {
     number : int
     boolean : bool
     text: string
+    col: colour
 }
 
 // Entry point
 fn main() {
-  print(Object(1234567890, true, "Hello from a struct!"))
+  print(Object(1234567890, true, "Hello from a struct!", Colour("#00FF00", 0, 255, 0)))
 }
 
-fn print(obj: object) {
+fn print(obj: object) colour {
     printf("Object[number: %d, boolean: %s, text: '%s']\n", obj.number, obj.boolean.toString(), obj.text)
+    return obj.col
 }
 
 fn toString(b: bool) string {
@@ -18,4 +20,11 @@ fn toString(b: bool) string {
         return "true"
     }
     return "false"
+}
+
+struct colour {
+    hex: string
+    r: int
+    g: int
+    b: int
 }

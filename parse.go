@@ -19,6 +19,7 @@ type Parser struct {
 	discard bool // Are we in "discard" mode?
 	symtab *SymTab
 	extra []*Node
+	linker *TypeLinker
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
@@ -33,7 +34,7 @@ func NewParser(tokens []*lex.Token, nodes []*Node, syms []*Symbol) *Parser {
 	for _, s := range syms {
 		symtab.Define(s)
 	}
-	return &Parser{tokens : tokens, symtab: symtab, extra : nodes}
+	return &Parser{tokens : tokens, symtab: symtab, extra : nodes, linker: NewTypeLinker() }
 }
 
 func (p *Parser) Parse() (errs []error, root *Node) {
@@ -60,6 +61,12 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 		root.Add(n)
 	}
 
+	// Any unlinked types are undefined
+	for name, _ := range p.linker.types {
+		for _, token := range p.linker.tokens[name] {
+			p.symbolError(errUnknownTypeMsg, token)
+		}
+	}
 	return p.errs, root
 }
 
@@ -94,6 +101,9 @@ func (p *Parser) parseStructDecl() *Node {
 		// TODO: This width calc shouldn't happen here
 		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
 		p.symtab.Define(sym)
+
+		// Update any other nodes waiting on this type
+		p.linker.Link(id, sym.Type)
 	}
 
 	return &Node{op: opStruct, token: id, symtab: p.symtab, sym: sym, stmts: fields}
@@ -177,11 +187,16 @@ func (p *Parser) parseParameter() *Node {
 	typeTok := p.need(lex.Identifier)
 
 	// Attempt to resolve type
-	// TODO: Add "tracking" here if the type could not be resolved!
 	sym, _ := p.symtab.Resolve(typeTok.Val)
-	idSym := &Symbol{ Name: idTok.Val, Type: sym.Type}
+	idSym := &Symbol{ Name: idTok.Val }
+	if sym != nil {
+		idSym.Type = sym.Type
+	} else {
+		// Register to be updated when/if type becomes available
+		p.linker.Add(typeTok, &idSym.Type)
+	}
 	p.symtab.Define(idSym)
-	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab, typ: typeTok }
+	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab }
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
@@ -335,12 +350,25 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		// TODO: Attempt to resolve return type!
-		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: token.Val, ArgCount: len(params), args: syms, }}}
+		// Define function type
+		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), args: syms,}
+		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
 		p.symtab.Define(sym) // Functions don't take params yet
+
+		// Resolve return type
+		if returnTyp == nil {
+			functionType.ret = nothingType
+		} else {
+			retSym, found := p.symtab.Resolve(returnTyp.Val)
+			if !found {
+				// Register to be updated when/if type becomes available
+				p.linker.Add(returnTyp, &functionType.ret)
+			} else {
+				functionType.ret = retSym.Type
+			}
+		}
 	}
-	return &Node{token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab, typ: returnTyp}
+	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab }
 }
 
 func (p *Parser) parseFnCall() *Node {

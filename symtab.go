@@ -1,6 +1,7 @@
 package main
 import (
 	"fmt"
+	"github.com/g-dx/clarac/lex"
 )
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8,6 +9,7 @@ import (
 var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
 var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
 var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
+var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -18,6 +20,7 @@ const (
 	Integer
 	Boolean
 	String
+	Nothing
 )
 
 var typeKindNames = map[TypeKind]string {
@@ -26,6 +29,7 @@ var typeKindNames = map[TypeKind]string {
 	Integer:  "int",
 	Boolean:  "bool",
 	String:   "string",
+	Nothing:   "Nothing",
 }
 
 func (tk TypeKind) String() string {
@@ -65,6 +69,30 @@ func (t *Type) Width() int {
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type TypeLinker struct {
+	types map[string][]**Type
+	tokens map[string][]*lex.Token
+}
+
+func NewTypeLinker() *TypeLinker {
+	return &TypeLinker{ types: make(map[string][]**Type), tokens: make(map[string][]*lex.Token) }
+}
+
+func (tl *TypeLinker) Add(token *lex.Token, t **Type) {
+	tl.types[token.Val] = append(tl.types[token.Val], t)
+	tl.tokens[token.Val] = append(tl.tokens[token.Val], token)
+}
+
+func (tl *TypeLinker) Link(token *lex.Token, t *Type) {
+	for _, typ := range tl.types[token.Val] {
+		*typ = t
+	}
+	delete(tl.types, token.Val)
+	delete(tl.tokens, token.Val)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -115,6 +143,11 @@ type BoolType struct {
 	Width int
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
+type NothingType struct {
+	Width int
+}
 //----------------------------------------------------------------------------------------------------------------------
 
 type Symbol struct {

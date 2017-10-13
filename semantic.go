@@ -28,7 +28,7 @@ const (
 func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opIdentifier {
 
-		// If no symbol - try to find variable declaration
+		// If no symbol - try to find identifier declaration
 		if n.sym == nil {
 			def, ok := n.symtab.Resolve(n.token.Val)
 			if !ok {
@@ -37,19 +37,10 @@ func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
 			n.sym = def
 		}
 
-		// If symbol has no type and the parser recorded one - check symbol table
-		if n.sym.Type == nil && n.typ != nil {
-			id, ok := n.symtab.Resolve(n.typ.Val)
-			if !ok {
-				return semanticError(errUnknownTypeMsg, n.typ)
-			}
-			n.sym.Type = id.Type
-
-			// DEBUG
-			// TODO: Fix the type name printing!
-			fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val,
-				n.sym.Type))
-		}
+		// DEBUG
+		// TODO: Fix the type name printing!
+		fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val,
+			n.sym.Type))
 	}
 	return nil
 }
