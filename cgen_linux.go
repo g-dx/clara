@@ -219,45 +219,48 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 	switch expr.op {
 
-	case opStrLit:
+	case opLit:
+		switch expr.sym.Type.Kind {
+		case String:
+			write("\tpushq\t$%v", strLabels[expr.sym.Name])
 
-		write("\tpushq\t$%v", strLabels[expr.sym.Name])
+		case Integer:
+			write("\tpushq\t$%v", expr.sym.Name) // Push onto top of stack
 
-	case opIntLit:
+		case Boolean:
+			// TODO: Seems a bit hacky. Maybe a bool symbol with Val (1|0)?
+			x := 0
+			if expr.token.Val == "true" {
+				x = 1
+			}
+			write("\tpushq\t$%v", x) // Push onto top of stack
 
-		write("\tpushq\t$%v", expr.sym.Name) // Push onto top of stack
-
-	case opBoolLit:
-
-		// TODO: Seems a bit hacky. Maybe a bool symbol with Val (1|0)?
-		x := 0
-		if expr.token.Val == "true" {
-			x = 1
+		default:
+			panic(fmt.Sprintf("Unknown type for literal: %v", expr.sym.Type.Kind))
 		}
-		write("\tpushq\t$%v", x) // Push onto top of stack
 
-	case opIntAdd:
+	case opAdd:
 
 		write("\tpopq\t%%rbx")       // Pop from stack to rbx
 		write("\tpopq\t%%rax")       // Pop from stack to rax
 		write("\taddq\t%%rbx, %%rax") // rax = (rbx + rax)
 		write("\tpushq\t%%rax")      // Push rax onto stack
 
-	case opIntMin:
+	case opMin:
 
 		write("\tpopq\t%%rax")       // Pop from stack to rbx
 		write("\tpopq\t%%rbx")       // Pop from stack to rax
 		write("\tsubq\t%%rbx, %%rax") // rax = (rbx - rax)
 		write("\tpushq\t%%rax")      // Push rax onto stack
 
-	case opIntMul:
+	case opMul:
 
 		write("\tpopq\t%%rbx")         // Pop from stack to rbx
 		write("\tpopq\t%%rax")         // Pop from stack to rax
 		write("\timulq\t%%rbx, %%rax") // rdx(high-64 bits):rax(low 64-bits) = (rbx * rax) TODO: We ignore high bits!
 		write("\tpushq\t%%rax")        // Push rax onto stack
 
-	case opIntDiv:
+	case opDiv:
 
 		write("\tpopq\t%%rax")         // Pop from stack to rbx
 		write("\tpopq\t%%rbx")         // Pop from stack to rax
@@ -274,7 +277,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 	case opGt: // TODO: Other comparisons can get added here as they all share the same code!
 
 		// NOTE: The order we pop from the stack here important
-		// TODO: Consider changing opIntAdd to have the same order as addition is associative
+		// TODO: Consider changing opAdd to have the same order as addition is associative
 		write("\tpopq\t%%rax")          // Pop from stack to rax
 		write("\tpopq\t%%rbx")          // Pop from stack to rbx
 		write("\tcmpq\t%%rbx, %%rax")   // Compare rax <-> rbx

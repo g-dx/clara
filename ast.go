@@ -25,13 +25,11 @@ func (n *Node) Add(stmt *Node) {
 const (
 	opFuncDcl = iota
 	opFuncCall
-	opStrLit
-	opIntLit
-	opBoolLit
-	opIntAdd
-	opIntMin
-	opIntMul
-	opIntDiv
+	opLit
+	opAdd
+	opMin
+	opMul
+	opDiv
 	opEq
 	opNot
 	opDot
@@ -49,13 +47,11 @@ const (
 var nodeTypes = map[int]string{
 	opFuncDcl:    "Func Decl",
 	opFuncCall:   "Func Call",
-	opStrLit:     "String Lit",
-	opIntLit:     "Integer Lit",
-	opBoolLit:    "Boolean Lit",
-	opIntAdd:     "Binary Op [Add]",
-	opIntMin:     "Binary Op [Min]",
-	opIntMul:     "Binary Op [Mul]",
-	opIntDiv:     "Binary Op [Div]",
+	opLit:    	  "Literal",
+	opAdd:        "Binary Op [Add]",
+	opMin:        "Binary Op [Min]",
+	opMul:        "Binary Op [Mul]",
+	opDiv:        "Binary Op [Div]",
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
 	opIf:         "If Stmt",
@@ -102,7 +98,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
     // Print node
 	fmt.Printf("%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
 	if n.sym != nil {
-		fmt.Printf(": %v%v%v(%v%v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, console.Disable)
+		fmt.Printf(": %v%v%v(%v%v - %v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, n.sym.Type.Kind, console.Disable)
 	} else {
 		fmt.Printf(": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
 	}

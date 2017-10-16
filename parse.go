@@ -243,13 +243,13 @@ func (p *Parser) parseOperand() *Node {
 		return t
 
 	case next == lex.Integer:
-		return p.parseIntegerLit()
+		return p.parseLit(intType)
 
 	case next == lex.String:
-		return p.parseStringLit()
+		return p.parseLit(stringType)
 
 	case next == lex.True || next == lex.False:
-		return p.parseBoolLit()
+		return p.parseLit(boolType)
 
 	case next == lex.Identifier:
 		return p.parseIdentifierOrFnCall()
@@ -281,15 +281,15 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 	case lex.Dot:
 		return opDot, p.next()
 	case lex.Plus:
-		return opIntAdd, p.next()
+		return opAdd, p.next()
 	case lex.Mul:
-		return opIntMul, p.next()
+		return opMul, p.next()
 	case lex.Div:
-		return opIntDiv, p.next()
+		return opDiv, p.next()
 	case lex.Eq:
 		return opEq, p.next()
 	case lex.Min:
-		return opIntMin, p.next()
+		return opMin, p.next()
 	case lex.And:
 		return opAnd, p.next()
 	case lex.Or:
@@ -303,34 +303,16 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 	}
 }
 
-func (p *Parser) parseIntegerLit() (*Node) {
-	// Match first arg
-	arg := p.next()
-	// Define symbol
-	sym, found := p.symtab.Resolve(arg.Val)
+func (p *Parser) parseLit(t *Type) (*Node) {
+	token := p.next()
+	sym, found := p.symtab.Resolve(token.Val)
 	if !found {
-		sym = &Symbol{ Name: arg.Val, Type: intType }
+		sym = &Symbol{ Name: token.Val, Type: t }
 		p.symtab.Define(sym)
 	}
-	return &Node{token : arg, op : opIntLit, sym : sym, symtab: p.symtab}
+	return &Node{token : token, op : opLit, symtab: p.symtab, sym: sym }
 }
 
-func (p *Parser) parseStringLit() (*Node) {
-	// Match first arg
-	arg := p.next()
-
-	// Define symbol
-	sym, found := p.symtab.Resolve(arg.Val)
-	if !found {
-		sym = &Symbol{ Name: arg.Val, Type: stringType }
-		p.symtab.Define(sym)
-	}
-	return &Node{token : arg, op : opStrLit, sym : sym, symtab: p.symtab}
-}
-
-func (p *Parser) parseBoolLit() (*Node) {
-	return &Node{token : p.next(), op : opBoolLit, symtab: p.symtab}
-}
 
 // ==========================================================================================================
 // AST Node functions
