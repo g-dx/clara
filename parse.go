@@ -75,6 +75,9 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 
 func (p *Parser) parseStructDecl() *Node {
 
+	// Open new symtab
+	p.symtab = p.symtab.Child()
+
 	p.need(lex.Struct)
 	id := p.need(lex.Identifier)
 	p.need(lex.LBrace)
@@ -92,21 +95,10 @@ func (p *Parser) parseStructDecl() *Node {
 		vars = append(vars, f.sym)
 	}
 
-	// Declare new type symbol
-	sym, found := p.symtab.Resolve(id.Val)
-	if found {
-		p.symbolError(errRedeclaredMsg, id)
-	} else {
-		// Define struct symbol
-		// TODO: This width calc shouldn't happen here
-		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
-		p.symtab.Define(sym)
-
-		// Update any other nodes waiting on this type
-		p.linker.Link(id, sym.Type)
-	}
-
-	return &Node{op: opStruct, token: id, symtab: p.symtab, sym: sym, stmts: fields}
+	// Close symtab
+	syms := p.symtab
+	p.symtab = p.symtab.Parent()
+	return p.structDclNode(id, syms, fields, vars)
 }
 
 func (p *Parser) parseFnDecl() *Node {
@@ -380,6 +372,25 @@ func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 	sym, _ := p.symtab.Resolve(token.Val)
 	return &Node{token : token, stmts: args, op : opFuncCall, sym : sym, symtab: p.symtab}
 }
+
+func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars []*Symbol) *Node {
+
+	// Declare new type symbol
+	sym, found := p.symtab.Resolve(id.Val)
+	if found {
+		p.symbolError(errRedeclaredMsg, id)
+	} else {
+		// Define struct symbol
+		// TODO: This width calc shouldn't happen here
+		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
+		p.symtab.Define(sym)
+
+		// Update any other nodes waiting on this type
+		p.linker.Link(id, sym.Type)
+	}
+	return &Node{op: opStruct, token: id, symtab: syms, sym: sym, stmts: fields}
+}
+
 
 // ==========================================================================================================
 // Matching & movement functions

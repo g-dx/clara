@@ -103,15 +103,15 @@ type StructType struct {
 	Width int
 }
 
-func (st *StructType) Offset(i *Symbol) int {
+func (st *StructType) Offset(name string) (*Symbol, int) {
 	off := 0
 	for _, field := range st.Fields {
-		if field == i {
-			return off
+		if field.Name == name {
+			return field, off
 		}
 		off += 8 // field.Type.width TODO: Fix this width calculation!
 	}
-	return -1 // Not found
+	return nil, -1 // Not found
 }
 
 //----------------------------------------------------------------------------------------------------------------------

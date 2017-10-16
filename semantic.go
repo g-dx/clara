@@ -18,8 +18,9 @@ const (
 	errUnknownTypeMsg = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errStructNamingLowerMsg = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
-	errStructNotFoundMsg = "%v:%d:%d: error, struct '%v' not found"
-	errStructHasNoFieldMsg = "%v:%d:%d: error, struct '%v' has no field '%v'"
+	errNotStructMsg = "%v:%d:%d: error, '%v' is not a struct"
+	errStructHasNoFieldMsg = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
+	errInvalidDotSelectionMsg = "%v:%d:%d: error '%v', expected field or function call"
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, identifier '%v' assigned type '%v'\n"
@@ -76,43 +77,62 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 	return nil
 }
 
-func rewriteDotFuncCalls(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opDot && n.right.op == opFuncCall {
-		// Configure this node to be a func call. Must be careful here to copy across all state required for a func call!
-		n.op = opFuncCall
-		n.token = n.right.token
-		n.symtab = n.right.symtab
-		n.stmts = append([]*Node{n.left}, n.right.stmts...)
+func rewriteDotSelection(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opDot {
 
-		// Clear children
-		n.left = nil
-		n.right = nil
-	}
-	return nil
-}
+		// Process children
+		left := n.left
+		right := n.right
 
-func configureFieldAccess(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opDot && n.right.op == opIdentifier {
-
-		// Determine struct type on left
-		typName := n.left.sym.Type.AsStruct().Name
-		strct, ok := n.symtab.Resolve(typName)
-		if !ok {
-			// TODO: Currently this block will never trigger because if unknown types are caught and reported earlier
-			return semanticError(errStructNotFoundMsg, n.left.token)
+		// Resolve type on left if not set
+		if left.sym == nil {
+			sym, found := left.symtab.Resolve(left.token.Val)
+			if !found {
+				return semanticError(errUnknownVarMsg, left.token)
+			}
+			left.sym = sym
 		}
 
-		// Find field in struct
-		strctSym := strct.Type.AsStruct()
-		offset := strctSym.Offset(n.right.sym)
-		if offset == -1 {
-			// TODO: Currently this block will never trigger because if unknown type are caught and reported earlier
-			return semanticError2(errStructHasNoFieldMsg, n.right.token, strct.Name, n.right.token.Val)
-		}
+		// Handle func call on right
+		if right.op == opFuncCall {
 
-		// Set field offset
-		// TODO: When structs can have structs inside we need to set the type symbol on opDot node correctly
-		n.right.sym.Addr = offset
+			// Rewrite to func call
+			n.op = opFuncCall
+			n.token = right.token
+			n.symtab = right.symtab
+			n.stmts = append([]*Node{n.left}, right.stmts...)
+			n.left = nil
+			n.right = nil
+
+		// Handle field access on right
+		} else if right.op == opIdentifier {
+
+			// Check we have a struct
+			if !left.sym.Type.Is(Struct) {
+				return semanticError(errNotStructMsg, left.token)
+			}
+
+			// Check field exists in struct
+			strct := left.sym.Type.AsStruct()
+			sym, offset := strct.Offset(right.token.Val)
+			if sym == nil {
+				return semanticError(errStructHasNoFieldMsg, right.token, strct.Name)
+			}
+
+			// Set field offset
+			// TODO: This whole process process isn't necessary because when we build a StructType we can set the offsets
+			// for each symbol
+			sym.Addr = offset
+
+			// Set right symbol and set parent as right
+			right.sym = sym
+			n.sym = right.sym
+
+		// Unexpected
+		} else {
+			// TODO: Ideally we do not want to process and more field access or function calls
+			return semanticError(errInvalidDotSelectionMsg, right.token)
+		}
 	}
 	return nil
 }
@@ -159,20 +179,10 @@ func resolveTypeSym(tab *SymTab, t *lex.Token, errMsg string) (*Symbol, error) {
 	return s, nil
 }
 
-func semanticError(msg string, t *lex.Token) error {
-	return errors.New(fmt.Sprintf(msg,
-		t.File,
-		t.Line,
-		t.Pos,
-		t.Val))
-}
-
-func semanticError2(msg string, t *lex.Token, vals ...string) error {
-	return errors.New(fmt.Sprintf(msg,
-		t.File,
-		t.Line,
-		t.Pos,
-		vals))
+func semanticError(msg string, t *lex.Token, vals ...interface{}) error {
+	args := append([]interface{}(nil), t.File, t.Line, t.Pos, t.Val)
+	args = append(args, vals...)
+	return errors.New(fmt.Sprintf(msg, args...))
 }
 
 func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {

@@ -66,7 +66,7 @@ func main() {
 	errs, tree := parser.Parse()
 
 	// Rewrite dot selections
-	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotFuncCalls)...)
+	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotSelection)...)
 
 	// Generate constructor functions
 	errs = append(errs, walk(tree, parser.symtab, tree, generateStructConstructors)...)
@@ -76,10 +76,6 @@ func main() {
 
 	// Resolve expression identifier types
 	errs = append(errs, walk(tree, parser.symtab, tree, resolveIdentifierTypes)...)
-	exitIfErrors(showAst, tree, errs, prog)
-
-	// Configure field offsets to struct vars
-	errs = append(errs, walk(tree, parser.symtab, tree, configureFieldAccess)...)
 	exitIfErrors(showAst, tree, errs, prog)
 
 	// Show final AST if necessary
