@@ -132,7 +132,7 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 			}
 
 		case opIf:
-			genIfStmt(write, stmt, stmt.symtab)
+			genIfElseIfElseStmts(write, stmt, stmt.symtab)
 
 		default:
 			panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
@@ -140,21 +140,30 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 	}
 }
 
-func genIfStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
+func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 
-	// Generate condition
-	genExprWithoutAssignment(write, n.left, tab, 0) // Left stores condition
+	cur := n
+	for cur != nil {
+		if cur.left != nil {
+			// Generate condition
+			genExprWithoutAssignment(write, cur.left, tab, 0) // Left stores condition
 
-	// Create new label
-	label := fmt.Sprintf("if%v", labelIndex)
-	labelIndex++
+			// Create new label
+			label := fmt.Sprintf("if%v", labelIndex)
+			labelIndex++
 
-	write("\tpopq\t%%rax")       // Pop result from stack to rax
-	write("\tcmpq\t$1, %%rax")   // Compare (true) to rax
-	write("\tjne\t%v", label)    // Jump over block if not equal
+			write("\tpopq\t%%rax")     // Pop result from stack to rax
+			write("\tcmpq\t$1, %%rax") // Compare (true) to rax
+			write("\tjne\t%v", label)  // Jump over block if not equal
 
-	genStmtList(write, n.stmts, n.symtab) // Generate if (true) stmt block
-	write("%v:", label)                // Label to jump if false
+			genStmtList(write, cur.stmts, cur.symtab) // Generate if (true) stmt block
+
+			write("%v:", label)                // Label to jump if false
+		} else {
+			genStmtList(write, cur.stmts, cur.symtab) // Generate if (true) stmt block
+		}
+		cur = cur.right // Move down tree
+	}
 }
 
 func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {

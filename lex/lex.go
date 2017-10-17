@@ -53,6 +53,8 @@ const (
 	Fn
 	Return
 	If
+	ElseIf
+	Else
 	True
 	False
 	Not
@@ -125,18 +127,20 @@ func (k Kind) Associativity() Associative {
 }
 
 var key = map[string]Kind{
-	"fn": Fn,
+	"fn":     Fn,
 	"return": Return,
-	"if": If,
-	"true": True,
-	"false": False,
-	"not": Not,
-	"and": And,
-	"or": Or,
+	"if":     If,
+	"elseif": ElseIf,
+	"else":   Else,
+	"true":   True,
+	"false":  False,
+	"not":    Not,
+	"and":    And,
+	"or":     Or,
 	"struct": Struct,
 }
 
-var KindValues = map[Kind]string {
+var KindValues = map[Kind]string{
 	LBrace:     "{",
 	RBrace:     "}",
 	LParen:     "(",
@@ -147,6 +151,8 @@ var KindValues = map[Kind]string {
 	Fn:         "fn",
 	Return:     "return",
 	If:         "if",
+	ElseIf:     "elseif",
+	Else:       "else",
 	Gt:         ">",
 	Lt:         "<",
 	Mul:        "*",
@@ -161,10 +167,10 @@ var KindValues = map[Kind]string {
 	Comma:      ",",
 	Colon:      ":",
 	Dot:        ".",
-	Space :     "<space>",
-	EOL :       "<EOL>",
-	EOF :       "<EOF>",
-	Struct: 	"struct",
+	Space:      "<space>",
+	EOL:        "<EOL>",
+	EOF:        "<EOF>",
+	Struct:     "struct",
 }
 
 type Token struct {

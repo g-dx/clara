@@ -146,14 +146,29 @@ func (p *Parser) parseStatement() *Node {
 		// TODO: Assumes all identifiers beginning statements are function calls!
 		return p.parseFnCall()
 	default:
-		p.syntaxError(lex.Identifier, lex.Return)
-		p.next()
-		return &Node{op: opError} // TODO: Bad statement node?
+		p.syntaxError(lex.Identifier, lex.Return, lex.If)
+		return &Node{op: opError, token: p.next()} // TODO: Bad statement node?
 	}
 }
+
 func (p *Parser) parseIfStmt() *Node {
-	// TODO: Need to handle elseif, else statements here too. When added they can be right node
-	return &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(0), stmts: p.parseStatements() }
+	ifStmt := &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(0), stmts: p.parseStatements() }
+	p.parseElseStmt(p.parseElseIfStmt(ifStmt))
+	return ifStmt
+}
+
+func (p *Parser) parseElseIfStmt(n *Node) *Node {
+	for p.is(lex.ElseIf) {
+		n.right = &Node { op: opElseIf, token: p.need(lex.ElseIf), left: p.parseExpr(0), stmts: p.parseStatements() }
+		n = n.right
+	}
+	return n
+}
+
+func (p *Parser) parseElseStmt(n *Node) {
+	if p.is(lex.Else) {
+		n.right = &Node { op: opElse, token: p.need(lex.Else), stmts: p.parseStatements() }
+	}
 }
 
 func (p *Parser) parseReturnExpr() *Node {

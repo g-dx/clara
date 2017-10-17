@@ -38,6 +38,8 @@ const (
 	opIdentifier
 	opReturn
 	opIf
+	opElseIf
+	opElse
 	opGt
 	opLt
 	opOr
@@ -49,7 +51,7 @@ const (
 var nodeTypes = map[int]string{
 	opFuncDcl:    "Func Decl",
 	opFuncCall:   "Func Call",
-	opLit:    	  "Literal",
+	opLit:        "Literal",
 	opAdd:        "Binary Op [Add]",
 	opMin:        "Binary Op [Min]",
 	opMul:        "Binary Op [Mul]",
@@ -57,6 +59,8 @@ var nodeTypes = map[int]string{
 	opIdentifier: "Identifier",
 	opReturn:     "Return Expr",
 	opIf:         "If Stmt",
+	opElseIf:     "ElseIf Stmt",
+	opElse:       "Else Stmt",
 	opGt:         "Comparison Op [>]",
 	opLt:         "Comparison Op [<]",
 	opNot:        "Negation [not]",
