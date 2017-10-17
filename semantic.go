@@ -100,7 +100,7 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		}
 		n.typ = boolType
 
-	case opGt, opEq:
+	case opGt, opLt, opEq:
 		if left.typ == nil || right.typ == nil {
 			return nil
 		}

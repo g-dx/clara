@@ -294,8 +294,10 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 		return opOr, p.next()
 	case lex.Gt:
 		return opGt, p.next()
+	case lex.Lt:
+		return opLt, p.next()
 	default:
-		p.syntaxError(lex.Plus)
+		p.syntaxError(lex.Dot, lex.Not, lex.Plus, lex.Mul, lex.Div, lex.Eq, lex.Min, lex.And, lex.Or, lex.Gt, lex.Lt)
 		p.next()
 		return opError, nil
 	}
