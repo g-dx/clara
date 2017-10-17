@@ -157,9 +157,7 @@ func (p *Parser) parseIfStmt() *Node {
 }
 
 func (p *Parser) parseReturnExpr() *Node {
-
-	tok := p.need(lex.Return)
-	return &Node{op:opReturn, stmts: []*Node{ p.parseExpr(0) }, token: tok }
+	return &Node{op:opReturn, token: p.need(lex.Return), left: p.parseExpr(0), symtab: p.symtab}
 }
 
 func (p *Parser) parseParameters() []*Node {

@@ -125,8 +125,8 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 			genFuncCall(write, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.symtab)
 
 		case opReturn:
-			if len(stmt.stmts) == 1 {
-				genReturnExpression(write, stmt.stmts[0], stmt.symtab)
+			if stmt.left != nil {
+				genReturnExpression(write, stmt.left, stmt.symtab)
 			} else {
 				// TODO: This is a "naked" return
 			}
