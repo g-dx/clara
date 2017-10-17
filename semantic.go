@@ -21,14 +21,25 @@ const (
 	errNotStructMsg = "%v:%d:%d: error, '%v' is not a struct"
 	errStructHasNoFieldMsg = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
 	errInvalidDotSelectionMsg = "%v:%d:%d: error '%v', expected field or function call"
+	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, identifier '%v' assigned type '%v'\n"
+	debugVarNoTypeMsg = "%v:%d:%d: debug, node '%v' has no associated type\n"
 )
 
-func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opIdentifier {
+var fn *FunctionType // Function which is currently being type checked
 
+func typeCheck(root *Node, symtab *SymTab, n *Node) error {
+
+	left := n.left
+	right := n.right
+
+	switch n.op {
+	case opLit:
+		n.typ = n.sym.Type
+
+	case opIdentifier:
 		// If no symbol - try to find identifier declaration
 		if n.sym == nil {
 			def, ok := n.symtab.Resolve(n.token.Val)
@@ -37,11 +48,104 @@ func resolveIdentifierTypes(root *Node, symtab *SymTab, n *Node) error {
 			}
 			n.sym = def
 		}
+		n.typ = n.sym.Type
 
-		// DEBUG
-		// TODO: Fix the type name printing!
-		fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val,
-			n.sym.Type))
+	case opFuncCall:
+		// Check exists
+		s, found := symtab.Resolve(n.token.Val)
+		if !found {
+			// Undefined
+			return semanticError(errUndefinedMsg, n.token)
+		}
+
+		// Check is a function
+		if !s.Type.Is(Function) {
+			return semanticError(errNotFuncMsg, n.token)
+		}
+
+		// Check for too few args
+		fn := s.Type.AsFunction()
+		if len(n.stmts) < fn.ArgCount {
+			return semanticError(errTooFewArgsMsg, n.token)
+		}
+
+		// Check for too many
+		if len(n.stmts) > fn.ArgCount && !fn.isVariadic {
+			return semanticError(errTooManyArgsMsg, n.token)
+		}
+
+		// TODO: type check args to function signature!
+
+		// Finally set symbol on node
+		n.sym = s
+		n.typ = fn.ret
+
+	case opAdd, opMin, opMul, opDiv :
+		if left.typ == nil || right.typ == nil {
+			return nil
+		}
+
+		// TODO: Not checking string & int distinction here...
+		if left.typ.Kind == right.typ.Kind {
+			n.typ = left.typ
+		}
+
+	case opOr, opAnd:
+		if left.typ == nil || right.typ == nil {
+			return nil
+		}
+		if !left.typ.Is(Boolean) || !right.typ.Is(Boolean) {
+			// TODO: Need to know which side is wrong so we can output a better position
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind)
+		}
+		n.typ = boolType
+
+	case opGt, opEq:
+		if left.typ == nil || right.typ == nil {
+			return nil
+		}
+		if left.typ.Kind != right.typ.Kind {
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind)
+		}
+		n.typ = boolType
+
+	case opIf, opNot:
+		if left.typ == nil {
+			return nil
+		}
+		if !left.typ.Is(Boolean) {
+			// TODO: More specific message for if statement?
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind)
+		}
+
+	case opReturn:
+		if left.typ == nil {
+			return nil
+		}
+		if !fn.ret.Is(left.typ.Kind) {
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, fn.ret.Kind)
+		}
+		n.typ = n.left.typ
+
+	case opRoot, opError, opDot:
+
+	case opFuncDcl:
+		n.typ = n.sym.Type
+
+		// TODO:
+		// - Last statement should be a return expression if this function returns something
+		// - All return expression should return the correct type
+
+	default:
+		panic(fmt.Sprintf("Node type [%v] not processed during type check!", nodeTypes[n.op]))
+	}
+
+	// DEBUG
+	// TODO: Fix the type name printing!
+	if n.typ != nil {
+		fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val, n.typ.Kind))
+	} else {
+		fmt.Printf(fmt.Sprintf(debugVarNoTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val))
 	}
 	return nil
 }
@@ -57,18 +161,12 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 			return semanticError(errStructNamingLowerMsg, n.token)
 		}
 
-		// Get symbol
-		typ, err := resolveTypeSym(n.symtab, n.token, errUnknownTypeMsg)
-		if err != nil {
-			panic(err) // Should not happen! Struct type symbol should have been added during parse...
-		}
-
 		// Create name
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
 
 		// Create & define symbol
 		fnSym := &Symbol{ Name: constructorName, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: typ.Type, args: n.symtab, }}}
+			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: n.sym.Type, args: n.symtab, }}}
 		root.symtab.Define(fnSym)
 
 		// Add AST node
@@ -137,50 +235,22 @@ func rewriteDotSelection(root *Node, symtab *SymTab, n *Node) error {
 	return nil
 }
 
-func resolveFnCall(root *Node, symtab *SymTab, n *Node) (error) {
-
-	if n.op == opFuncCall {
-		// Check exists
-		s, found := symtab.Resolve(n.token.Val)
-		if !found {
-			// Undefined
-			return semanticError(errUndefinedMsg, n.token)
-		}
-
-		// Check is a function
-		if !s.Type.Is(Function) {
-			return semanticError(errNotFuncMsg, n.token)
-		}
-
-		// Check for too few args
-		fn := s.Type.AsFunction()
-		if len(n.stmts) < fn.ArgCount {
-			return semanticError(errTooFewArgsMsg, n.token)
-		}
-
-		// Check for too many
-		if len(n.stmts) > fn.ArgCount && !fn.isVariadic {
-			return semanticError(errTooManyArgsMsg, n.token)
-		}
-
-		// Finally set symbol on node
-		n.sym = s
+func returnTypeCheck(root *Node, symtab *SymTab, n *Node) error {
+	switch n.op {
+	case opFuncDcl:
+	case opReturn:
 	}
-
-	// Check args
 	return nil
-}
-
-func resolveTypeSym(tab *SymTab, t *lex.Token, errMsg string) (*Symbol, error) {
-	s, found := tab.Resolve(t.Val)
-	if !found {
-		return nil, semanticError(errMsg, t)
-	}
-	return s, nil
 }
 
 func semanticError(msg string, t *lex.Token, vals ...interface{}) error {
 	args := append([]interface{}(nil), t.File, t.Line, t.Pos, t.Val)
+	args = append(args, vals...)
+	return errors.New(fmt.Sprintf(msg, args...))
+}
+
+func semanticError2(msg string, t *lex.Token, vals ...interface{}) error {
+	args := append([]interface{}(nil), t.File, t.Line, t.Pos)
 	args = append(args, vals...)
 	return errors.New(fmt.Sprintf(msg, args...))
 }

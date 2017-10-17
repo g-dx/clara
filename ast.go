@@ -15,6 +15,7 @@ type Node struct {
 	params []*Node // OpFuncDecl
 	op     int
 	sym    *Symbol
+	typ    *Type   // Set after typeCheck()..
 	symtab *SymTab // Enclosing scope
 }
 

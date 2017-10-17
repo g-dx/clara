@@ -71,11 +71,14 @@ func main() {
 	// Generate constructor functions
 	errs = append(errs, walk(tree, parser.symtab, tree, generateStructConstructors)...)
 
-	// Resolve function calls
-	errs = append(errs, walk(tree, parser.symtab, tree, resolveFnCall)...)
-
-	// Resolve expression identifier types
-	errs = append(errs, walk(tree, parser.symtab, tree, resolveIdentifierTypes)...)
+	// Type check functions
+	for _, topLevel := range tree.stmts {
+		if topLevel.op == opFuncDcl {
+			// Set current function as a global so we can check returns...
+			fn = topLevel.sym.Type.AsFunction()
+			errs = append(errs, walk(tree, parser.symtab, topLevel, typeCheck)...)
+		}
+	}
 	exitIfErrors(showAst, tree, errs, prog)
 
 	// Show final AST if necessary
@@ -152,14 +155,15 @@ func stdlib() []*Node {
 		// printf (from libc)
 		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
 		sym:&Symbol{ Name: "printf", Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true }}}},
+			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true, ret: nothingType }}}},
 		// memcpy (from libc)
 		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
 			sym:&Symbol{ Name: "memcpy", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "memcpy", ArgCount: 3,}}}},
+				&FunctionType{ Name: "memcpy", ArgCount: 3, ret: nothingType }}}},
 		// malloc (from libc)
 		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
-			sym:&Symbol{ Name: "malloc", Type: &Type{ Kind: Function, Data: &FunctionType{ Name: "malloc", ArgCount: 1 }}}},
+			sym:&Symbol{ Name: "malloc", Type: &Type{ Kind: Function, Data:
+				&FunctionType{ Name: "malloc", ArgCount: 1, ret: nothingType }}}}, // TODO: This _actually_ returns the number of bytes allocated
 	}
 }
 
