@@ -200,7 +200,13 @@ func (p *Parser) parseParameter() *Node {
 		// Register to be updated when/if type becomes available
 		p.linker.Add(typeTok, &idSym.Type)
 	}
-	p.symtab.Define(idSym)
+	// Check for unique parameter names
+	_, found := p.symtab.Resolve(idSym.Name)
+	if found {
+		p.symbolError(errRedeclaredMsg, idTok)
+	} else {
+		p.symtab.Define(idSym)
+	}
 	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab }
 }
 
