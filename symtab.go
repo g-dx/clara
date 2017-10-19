@@ -152,10 +152,11 @@ type NothingType struct {
 //----------------------------------------------------------------------------------------------------------------------
 
 type Symbol struct {
-	Name    string
-	Addr    int
-	IsStack bool
-	Type    *Type
+	Name      string
+	Addr      int
+	IsStack   bool
+	IsLiteral bool
+	Type      *Type
 }
 
 //----------------------------------------------------------------------------------------------------------------------

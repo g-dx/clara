@@ -36,9 +36,9 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	write("\t.section\t.rodata")
 
 	// Output strings
-	symtab.Walk(func(str *Symbol) {
-		if str.Type != nil && str.Type.Kind == String {
-			strLabels[str.Name] = genStringLit(write, str.Name)
+	symtab.Walk(func(s *Symbol) {
+		if s.Type.Kind == String && s.IsLiteral {
+			strLabels[s.Name] = genStringLit(write, s.Name)
 		}
 	})
 

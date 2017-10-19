@@ -328,7 +328,7 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 	token := p.next()
 	sym, found := p.symtab.Resolve(token.Val)
 	if !found {
-		sym = &Symbol{ Name: token.Val, Type: t }
+		sym = &Symbol{ Name: token.Val, Type: t, IsLiteral: true  }
 		p.symtab.Define(sym)
 	}
 	return &Node{token : token, op : opLit, symtab: p.symtab, sym: sym }
