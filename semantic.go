@@ -25,7 +25,6 @@ const (
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, identifier '%v' assigned type '%v'\n"
-	debugVarNoTypeMsg = "%v:%d:%d: debug, node '%v' has no associated type\n"
 )
 
 var fn *FunctionType // Function which is currently being type checked
@@ -141,13 +140,24 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 	}
 
 	// DEBUG
-	// TODO: Fix the type name printing!
-	if n.typ != nil {
-		fmt.Printf(fmt.Sprintf(debugVarTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val, n.typ.Kind))
-	} else {
-		fmt.Printf(fmt.Sprintf(debugVarNoTypeMsg, n.token.File, n.token.Line, n.token.Pos, n.token.Val))
-	}
+	printTypeInfo(n)
 	return nil
+}
+
+func printTypeInfo(n *Node) {
+	// TODO: Fix the type name printing!
+	calculatedType := "<EMPTY>"
+	if n.typ != nil {
+		calculatedType = n.typ.Kind.String()
+	}
+
+	// Dump type info
+	fmt.Printf(debugVarTypeMsg,
+		n.token.File,
+		n.token.Line,
+		n.token.Pos,
+		strings.Replace(n.token.Val, "%", "%%", -1), // Escape Go format strings
+		calculatedType)
 }
 
 func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
