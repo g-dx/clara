@@ -153,17 +153,17 @@ func stdSyms() []*Symbol {
 func stdlib() []*Node {
 	return []*Node{
 		// printf (from libc)
-		&Node{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
+		{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
 		sym:&Symbol{ Name: "printf", Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true, ret: nothingType }}}},
+			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true, ret: nothingType, IsExternal: true }}}},
 		// memcpy (from libc)
-		&Node{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
+		{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
 			sym:&Symbol{ Name: "memcpy", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "memcpy", ArgCount: 3, ret: nothingType }}}},
+				&FunctionType{ Name: "memcpy", ArgCount: 3, ret: nothingType, IsExternal: true }}}},
 		// malloc (from libc)
-		&Node{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
+		{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
 			sym:&Symbol{ Name: "malloc", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "malloc", ArgCount: 1, ret: nothingType }}}}, // TODO: This _actually_ returns the number of bytes allocated
+				&FunctionType{ Name: "malloc", ArgCount: 1, ret: nothingType, IsExternal: true }}}}, // TODO: This _actually_ returns the number of bytes allocated
 	}
 }
 

@@ -50,11 +50,11 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			// TODO: Add a "built-in" flag to function symbols
-			if n.token.Val == "printf" || n.token.Val == "malloc" || n.token.Val == "memcpy"{
-				// Skip as this in done in glibc
-			} else {
+			// Ensure we only generate code for "our" functions
+			fn := n.sym.Type.AsFunction()
+			if !fn.IsExternal {
 				// FN declaration
+				// TODO: Add "clara_" namespacing to all generated functions
 				if (n.token.Val == "main") {
 					n.token.Val = "clara_main" // Rewrite main
 				}
@@ -76,7 +76,6 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				}
 
 				// Generate functions
-				fn := n.sym.Type.AsFunction()
 				if fn.isConstructor {
 					genConstructor(write, fn, n.params)
 				} else {

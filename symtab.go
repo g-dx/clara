@@ -123,6 +123,7 @@ type FunctionType struct {
 	args          *SymTab
 	ret           *Type
 	isConstructor bool
+	IsExternal 	  bool  // Provided at linktime - no code gen required
 }
 
 //----------------------------------------------------------------------------------------------------------------------
