@@ -148,7 +148,7 @@ func printTypeInfo(n *Node) {
 	// TODO: Fix the type name printing!
 	calculatedType := "<EMPTY>"
 	if n.typ != nil {
-		calculatedType = n.typ.Kind.String()
+		calculatedType = n.typ.String()
 	}
 
 	// Dump type info

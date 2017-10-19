@@ -60,6 +60,15 @@ func (t *Type) AsFunction() *FunctionType {
 	return t.Data.(*FunctionType)
 }
 
+func (t *Type) String() string {
+	switch t.Kind {
+	//case Array: return t.Kind.String() + t.AsArray().Elem.String()
+	case Struct: return fmt.Sprintf("struct:%v", t.AsStruct().Name)
+	default:
+		return t.Kind.String()
+	}
+}
+
 func (t *Type) Width() int {
 	switch x := t.Data.(type) {
 	case *StructType: return x.Width

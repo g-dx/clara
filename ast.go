@@ -105,7 +105,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
     // Print node
 	fmt.Printf("%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
 	if n.sym != nil {
-		fmt.Printf(": %v%v%v(%v%v - %v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, n.sym.Type.Kind, console.Disable)
+		fmt.Printf(": %v%v%v(%v%v - %v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, n.sym.Type, console.Disable)
 	} else {
 		fmt.Printf(": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
 	}
