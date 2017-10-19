@@ -126,7 +126,13 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		}
 		n.typ = n.left.typ
 
-	case opRoot, opError, opDot, opElse:
+	case opDot:
+		if right.typ == nil {
+			return nil
+		}
+		n.typ = right.typ
+
+	case opRoot, opError, opElse:
 
 	case opFuncDcl:
 		n.typ = n.sym.Type
