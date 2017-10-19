@@ -221,6 +221,15 @@ func rewriteDotSelection(root *Node, symtab *SymTab, n *Node) error {
 		// Handle field access on right
 		} else if right.op == opIdentifier {
 
+			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
+			// TODO: Add arrays here too when required
+			if left.sym.Type.Is(String) && right.token.Val == "length" {
+				right.sym = &Symbol{ Name: "length", Addr: 0, Type: intType }
+				right.typ = right.sym.Type
+				n.typ = right.typ
+				return nil
+			}
+
 			// Check we have a struct
 			if !left.sym.Type.Is(Struct) {
 				return semanticError(errNotStructMsg, left.token)

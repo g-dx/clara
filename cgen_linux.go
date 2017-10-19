@@ -5,6 +5,7 @@ import (
 	"io"
 	"bufio"
 	"strings"
+	"encoding/binary"
 )
 
 var spacer = "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
@@ -187,6 +188,12 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *FunctionTy
 		}
 		genExprWithoutAssignment(write, arg, symtab, i) // Evaluate expression
 		write("\tpopq\t%%%v", regs[i])                  // Pop result from stack into correct reg
+
+		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
+		// so we can modify the pointer value to point "past" the length to the actual data
+		if arg.typ.Is(String) && fn.IsExternal && fn.Name == "printf" {
+			write("\tleaq\t%v(%%%v), %%%v", 8, regs[i], regs[i])
+		}
 	}
 
 	// If function is variadic - must set rax to number of parameters as part if SysV x64 calling convention
@@ -359,7 +366,16 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 func genStringLit(write func(string,...interface{}), s string) string {
 	label := fmt.Sprintf(".LC%v", strIndex)
 	write(label + ":")
-	write("\t.string \"%v\"", s[1:len(s)-1])
+
+	// Encode length in little endian format
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(len(s)-2)) // Trim double quotes
+
+	// Generate escaped Go string of raw hex values
+	size := fmt.Sprintf("\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x",
+		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
+
+	write("\t.ascii \"%v\"\"%v\\x0\"", size, s[1:len(s)-1])
 	strIndex += 1
 	return label
 }
