@@ -142,6 +142,9 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 
 func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 
+	// Generate exit label
+	exit := label("if_end")
+
 	cur := n
 	for cur != nil {
 		if cur.left != nil {
@@ -149,21 +152,21 @@ func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *
 			genExprWithoutAssignment(write, cur.left, tab, 0) // Left stores condition
 
 			// Create new label
-			label := fmt.Sprintf("if%v", labelIndex)
-			labelIndex++
+			next := label("else")
 
 			write("\tpopq\t%%rax")     // Pop result from stack to rax
 			write("\tcmpq\t$1, %%rax") // Compare (true) to rax
-			write("\tjne\t%v", label)  // Jump over block if not equal
+			write("\tjne\t%v", next)   // Jump over block if not equal
 
 			genStmtList(write, cur.stmts, cur.symtab) // Generate if (true) stmt block
-
-			write("%v:", label)                // Label to jump if false
+			write("\tjmp\t%v", exit)               // Exit if/elseif/else block completely
+			write("%v:", next)                     // Label to jump if false
 		} else {
-			genStmtList(write, cur.stmts, cur.symtab) // Generate if (true) stmt block
+			genStmtList(write, cur.stmts, cur.symtab) // Generate block without condition (else block)
 		}
 		cur = cur.right // Move down tree
 	}
+	write("%v:", exit) // Declare exit point
 }
 
 func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {
@@ -377,5 +380,11 @@ func genStringLit(write func(string,...interface{}), s string) string {
 
 	write("\t.ascii \"%v\"\"%v\\x0\"", size, s[1:len(s)-1])
 	strIndex += 1
+	return label
+}
+
+func label(name string) string {
+	label := fmt.Sprintf("%v_%v", name, labelIndex)
+	labelIndex++
 	return label
 }
