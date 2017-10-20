@@ -20,6 +20,7 @@ func main() {
 	showLex := flag.Bool("lex", false, "Print the lexical output.")
 	showAst := flag.Bool("ast", false, "Print the generated AST.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
+	outPath := flag.String("out", ".", "Path to write program to.")
     flag.Parse()
 
     // Read program file
@@ -115,7 +116,7 @@ func main() {
 	f.Close()
 
 	// Invoke gcc to link files
-	cmd := exec.Command("gcc", "-o", progName, asmPath, harnessPath)
+	cmd := exec.Command("gcc", "-o", fmt.Sprintf("/%v/%v", *outPath, progName), asmPath, harnessPath)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
