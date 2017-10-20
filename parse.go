@@ -173,7 +173,13 @@ func (p *Parser) parseElseStmt(n *Node) {
 }
 
 func (p *Parser) parseReturnExpr() *Node {
-	return &Node{op:opReturn, token: p.need(lex.Return), left: p.parseExpr(0), symtab: p.symtab}
+	ret := p.need(lex.Return)
+	var expr *Node
+	// TODO: This check for an operand may come up in other places
+	if p.is(lex.LParen, lex.Integer, lex.String, lex.Identifier, lex.Not) {
+		expr = p.parseExpr(0)
+	}
+	return &Node{op:opReturn, token: ret, left: expr, symtab: p.symtab}
 }
 
 func (p *Parser) parseParameters() []*Node {

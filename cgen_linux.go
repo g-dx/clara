@@ -125,17 +125,13 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 			genFuncCall(write, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.symtab)
 
 		case opReturn:
-			if stmt.left != nil {
-				genReturnExpression(write, stmt.left, stmt.symtab)
-			} else {
-				// TODO: This is a "naked" return
-			}
+			genReturnExpression(write, stmt, stmt.symtab)
 
 		case opIf:
 			genIfElseIfElseStmts(write, stmt, stmt.symtab)
 
 		default:
-			panic(fmt.Sprintf("Can't generate code for op: %v", stmt.op))
+			genExprWithoutAssignment(write, stmt, stmt.symtab, 0)
 		}
 	}
 }
@@ -169,13 +165,13 @@ func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *
 	write("%v:", exit) // Declare exit point
 }
 
-func genReturnExpression(write func(s string, a ...interface{}), expr *Node, tab *SymTab) {
+func genReturnExpression(write func(s string, a ...interface{}), ret *Node, tab *SymTab) {
 
-	// Result is on top of stack
-	genExprWithoutAssignment(write, expr, tab, 0)
-
-	// Pop from stack to rax
-	write("\tpopq\t%%rax")
+	// If return has expression evaluate it & pop result to rax
+	if ret.left != nil {
+		genExprWithoutAssignment(write, ret.left, tab, 0)
+		write("\tpopq\t%%rax")
+	}
 
 	// Clean stack & return
 	write("\tleave")
