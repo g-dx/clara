@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"bufio"
-	"strings"
 	"encoding/binary"
 )
 
@@ -205,17 +204,22 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *FunctionTy
 }
 
 func restore(write func(string, ...interface{}), regPos int) {
-
-	debug := fmt.Sprintf("DEBUG: Restore [%v]", strings.Join(regs[:regPos], ", "))
-	for i := regPos; i > 0; i-- {
-		write("\tpopq\t%%%v   # %v", regs[i-1], debug) // Pop stack into reg
+	if regPos > 0 {
+		write("#----------------------------- Restore")
+		for i := regPos; i > 0; i-- {
+			write("\tpopq\t%%%v", regs[i-1]) // Pop stack into reg
+		}
+		write("#------------------------------------#")
 	}
 }
 
 func spill(write func(string, ...interface{}), regPos int) {
-	debug := fmt.Sprintf("DEBUG: Spill [%v]", strings.Join(regs[:regPos], ", "))
-	for i := 0; i < regPos; i++ {
-		write("\tpushq\t%%%v   # %v", regs[i], debug) // Push reg onto stack
+	if regPos > 0 {
+		write("#------------------------------- Spill")
+		for i := 0; i < regPos; i++ {
+			write("\tpushq\t%%%v", regs[i]) // Push reg onto stack
+		}
+		write("#------------------------------------#")
 	}
 }
 
