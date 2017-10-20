@@ -1,7 +1,11 @@
 // Entry point
 fn main() {
-  printf("2.cubed().pow(3).inc() = %d\n", 2.cubed().pow(3).inc())
+  2.cubed().pow(3).inc().print("2.cubed().pow(3).inc() = %d\n")
   printf("false.toString() = %s, true.toString() = %s\n", false.toString(), true.toString())
+}
+
+fn print(x: int, msg :string) {
+    printf(msg, x)
 }
 
 fn cubed(x: int) int {

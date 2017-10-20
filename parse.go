@@ -142,11 +142,12 @@ func (p *Parser) parseStatement() *Node {
 		return p.parseReturnExpr()
 	case lex.If:
 		return p.parseIfStmt()
-	case lex.Identifier:
-		// TODO: Assumes all identifiers beginning statements are function calls!
-		return p.parseFnCall()
+	case lex.Integer, lex.String, lex.Identifier, lex.True, lex.False, lex.Not, lex.LParen: // All tokens which can start an expression
+		return p.parseExpr(0)
 	default:
-		p.syntaxError(lex.Identifier, lex.Return, lex.If)
+		// TODO: Maybe a better message would be "keyword or expression" expected
+		p.syntaxError(lex.Identifier, lex.Return, lex.If, lex.Integer, lex.String, lex.Identifier, lex.True,
+			lex.False, lex.Not, lex.LParen)
 		return &Node{op: opError, token: p.next()} // TODO: Bad statement node?
 	}
 }
