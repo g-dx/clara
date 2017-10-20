@@ -1,4 +1,17 @@
 // Entry point
 fn main() {
-  printf("'Hello!'.length = %d\n", "Hello!".length)
+  "Clara & Gary!".printChars(0)
+}
+
+fn printChars(s: string, pos: int) {
+    if pos == s.length {
+        printf("\n")
+        return
+    } elseif pos == 0 {
+        printf("'%s' = ", s)
+    } else {
+        printf(", ")
+    }
+    printf("'%c'", s[pos])
+    printChars(s, pos + 1)
 }

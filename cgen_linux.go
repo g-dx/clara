@@ -357,6 +357,28 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tmovq\t(%%rax,%%rbx), %%rax")  // rax = load[rax + rbx]
 		write("\tpushq\t%%rax")                // Push result (rax) onto stack
 
+	case opArray:
+
+		width := expr.typ.Width()
+
+		// TODO: Bounds check!
+
+		write("\tpopq\t%%rax")                 // stack(index) -> rax
+		write("\tpopq\t%%rbx")                 // stack(*array) -> rbx
+		write("\tleaq\t8(%%rbx), %%rbx")       // rbx = rbx(*array) + 8
+
+		// TODO: Should take element width into account here!
+		write("\tmovq\t(%%rbx,%%rax), %%rax")  // rax = load[rax(index) + rbx(*array)]
+
+		// TODO: This should dynamically create a mask for width < 8
+		if width == 1 {
+			write("\tandq\t$0xFF, %%rax")      // rax = rax & FF
+		} else {
+			panic(fmt.Sprintf("Array acces for element of 1 < width < 8 not yet implemented"))
+		}
+
+		write("\tpushq\t%%rax")                // rax(int/byte/...) -> stack
+
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
 	}

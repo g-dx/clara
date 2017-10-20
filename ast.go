@@ -36,6 +36,7 @@ const (
 	opDot
 	opAnd
 	opIdentifier
+	opArray
 	opReturn
 	opIf
 	opElseIf
@@ -57,6 +58,7 @@ var nodeTypes = map[int]string{
 	opMul:        "Binary Op [Mul]",
 	opDiv:        "Binary Op [Div]",
 	opIdentifier: "Identifier",
+	opArray:      "Array Access",
 	opReturn:     "Return Expr",
 	opIf:         "If Stmt",
 	opElseIf:     "ElseIf Stmt",

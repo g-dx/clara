@@ -196,17 +196,34 @@ func (p *Parser) parseParameters() []*Node {
 func (p *Parser) parseParameter() *Node {
 	idTok := p.need(lex.Identifier)
 	p.need(lex.Colon)
+	isArray := false
+	if p.is(lex.LBrack) {
+		p.next()
+		p.need(lex.RBrack)
+		isArray = true
+	}
 	typeTok := p.need(lex.Identifier)
 
 	// Attempt to resolve type
 	sym, _ := p.symtab.Resolve(typeTok.Val)
 	idSym := &Symbol{ Name: idTok.Val }
-	if sym != nil {
-		idSym.Type = sym.Type
+	if isArray {
+		arrayType := &ArrayType{Elem: sym.Type}
+		if sym != nil {
+			arrayType.Elem = sym.Type
+		} else {
+			p.linker.Add(typeTok, &arrayType.Elem)
+		}
+		idSym.Type = &Type{ Kind: Array, Data: arrayType }
 	} else {
-		// Register to be updated when/if type becomes available
-		p.linker.Add(typeTok, &idSym.Type)
+
+		if sym != nil {
+			idSym.Type = sym.Type
+		} else {
+			p.linker.Add(typeTok, &idSym.Type)
+		}
 	}
+
 	// Check for unique parameter names
 	_, found := p.symtab.Resolve(idSym.Name)
 	if found {
@@ -278,7 +295,7 @@ func (p *Parser) parseOperand() *Node {
 		return p.parseLit(boolType)
 
 	case next == lex.Identifier:
-		return p.parseIdentifierOrFnCall()
+		return p.parseIdentifierOrFnCallOrArrayAccess()
 
 	default:
 		// Error
@@ -289,15 +306,26 @@ func (p *Parser) parseOperand() *Node {
 	}
 }
 
-func (p *Parser) parseIdentifierOrFnCall() *Node {
+func (p *Parser) parseIdentifierOrFnCallOrArrayAccess() *Node {
 	// TODO: All logic from parseIdentifier() & parseFnCall() has been duplicated here!
 	tok := p.need(lex.Identifier)
 	switch p.Kind() {
 	case lex.LParen:
 		return p.fnCallNode(tok, p.parseArgs())
+	case lex.LBrack:
+		return p.arrayNode(tok)
 	default:
 		return &Node { op: opIdentifier, token: tok, symtab: p.symtab }
 	}
+}
+
+func (p *Parser) arrayNode(token *lex.Token) *Node {
+	p.need(lex.LBrack)
+	idx := p.parseExpr(0)
+	p.need(lex.RBrack)
+	id := &Node { op: opIdentifier, token: token, symtab: p.symtab }
+	// TODO: Should try and resolve type now?
+	return &Node { op: opArray, token: token, left: id, right: idx, symtab: p.symtab }
 }
 
 func (p *Parser) parseOperator() (int, *lex.Token) {

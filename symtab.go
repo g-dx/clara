@@ -6,6 +6,7 @@ import (
 
 //----------------------------------------------------------------------------------------------------------------------
 
+var byteType = &Type{ Kind: Integer, Data: &IntType{ Width: 1 } } // TODO: Possibly introduce this globally
 var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
 var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
 var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
@@ -20,6 +21,7 @@ const (
 	Integer
 	Boolean
 	String
+	Array
 	Nothing
 )
 
@@ -29,6 +31,7 @@ var typeKindNames = map[TypeKind]string {
 	Integer:  "int",
 	Boolean:  "bool",
 	String:   "string",
+	Array:    "[]",
 	Nothing:   "Nothing",
 }
 
@@ -60,9 +63,13 @@ func (t *Type) AsFunction() *FunctionType {
 	return t.Data.(*FunctionType)
 }
 
+func (t *Type) AsArray() *ArrayType {
+	return t.Data.(*ArrayType)
+}
+
 func (t *Type) String() string {
 	switch t.Kind {
-	//case Array: return t.Kind.String() + t.AsArray().Elem.String()
+	case Array: return t.Kind.String() + t.AsArray().Elem.String()
 	case Struct: return fmt.Sprintf("struct:%v", t.AsStruct().Name)
 	default:
 		return t.Kind.String()
@@ -75,6 +82,7 @@ func (t *Type) Width() int {
 	case *IntType: return x.Width
 	case *BoolType: return x.Width
 	case *StringType: return x.Width
+	case *ArrayType: return x.Width()
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
@@ -133,6 +141,16 @@ type FunctionType struct {
 	ret           *Type
 	isConstructor bool
 	IsExternal 	  bool  // Provided at linktime - no code gen required
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type ArrayType struct {
+	Elem *Type
+}
+
+func (at *ArrayType) Width() int {
+	return at.Elem.Width()
 }
 
 //----------------------------------------------------------------------------------------------------------------------

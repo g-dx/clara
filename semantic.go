@@ -22,9 +22,10 @@ const (
 	errStructHasNoFieldMsg = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
 	errInvalidDotSelectionMsg = "%v:%d:%d: error '%v', expected field or function call"
 	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
+	errNonIntegerIndexMsg = "%v:%d:%d: error, found type '%v', array index must be integer"
 
 	// Debug messages
-	debugVarTypeMsg = "%v:%d:%d: debug, identifier '%v' assigned type '%v'\n"
+	debugVarTypeMsg = "%v:%d:%d: debug, %v: identifier '%v' assigned type '%v'\n"
 )
 
 var fn *FunctionType // Function which is currently being type checked
@@ -51,7 +52,7 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 
 	case opFuncCall:
 		// Check exists
-		s, found := symtab.Resolve(n.token.Val)
+		s, found := symtab.Resolve(n.token.Val) // TODO: Should this be p.symtab?
 		if !found {
 			// Undefined
 			return semanticError(errUndefinedMsg, n.token)
@@ -118,6 +119,11 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		}
 
 	case opReturn:
+		// "Empty" return
+		if left == nil {
+			n.typ = nothingType
+			return nil
+		}
 		if left.typ == nil {
 			return nil
 		}
@@ -125,6 +131,20 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, fn.ret.Kind)
 		}
 		n.typ = n.left.typ
+
+	case opArray:
+		if left.typ == nil {
+			return nil
+		}
+		if !right.typ.Is(Integer) {
+			return semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Kind)
+		}
+		n.typ = left.typ
+
+		// SPECIAL CASE: If the left type is a string, array access yields a byte
+		if left.typ.Is(String) {
+			n.typ = byteType
+		}
 
 	case opDot:
 		if right.typ == nil {
@@ -162,6 +182,7 @@ func printTypeInfo(n *Node) {
 		n.token.File,
 		n.token.Line,
 		n.token.Pos,
+		nodeTypes[n.op],
 		strings.Replace(n.token.Val, "%", "%%", -1), // Escape Go format strings
 		calculatedType)
 }

@@ -17,6 +17,8 @@ const (
 	LBrace = '{'
 	RParen = ')'
 	LParen = '('
+	RBrack = ']'
+	LBrack = '['
 	Comma  = ','
 	Colon  = ':'
 	Dot    = '.'
@@ -145,6 +147,8 @@ var KindValues = map[Kind]string{
 	RBrace:     "}",
 	LParen:     "(",
 	RParen:     ")",
+	LBrack:     "[",
+	RBrack:     "]",
 	Identifier: "<identifier>",
 	String:     "<string lit>",
 	Integer:    "<integer lit>",
@@ -246,6 +250,10 @@ func lexText(l *Lexer) stateFn {
 			l.emit(LBrace)
 		case r == '}':
 			l.emit(RBrace)
+		case r == '[':
+			l.emit(LBrack)
+		case r == ']':
+			l.emit(RBrack)
 		case r == ',':
 			l.emit(Comma)
 		case r == ':':
@@ -358,7 +366,7 @@ func (l *Lexer) atTerminator() bool {
 	r := l.peek()
 	// TODO: Extract some helpers to ask isOperator(), isNewline(), etc...
 	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n' ||
-		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>'
+		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>' || r == '[' || r == ']'
 }
 
 func (l *Lexer) peek() rune {
