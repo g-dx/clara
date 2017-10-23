@@ -21,12 +21,42 @@ const (
 	errNotStructMsg = "%v:%d:%d: error, '%v' is not a struct"
 	errStructHasNoFieldMsg = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
 	errInvalidDotSelectionMsg = "%v:%d:%d: error '%v', expected field or function call"
+	errInvalidOperatorTypeMsg = "%v:%d:%d: type '%v' invalid for operator '%v'"
 	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
 	errNonIntegerIndexMsg = "%v:%d:%d: error, found type '%v', array index must be integer"
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, %v: identifier '%v' assigned type '%v'\n"
 )
+
+//---------------------------------------------------------------------------------------------------------------
+
+type OperatorTypes map[int][]TypeKind
+
+var operatorTypes = OperatorTypes {
+	opAdd: { Integer, String, Array },
+	opMin: { Integer },
+	opMul: { Integer },
+	opDiv: { Integer },
+	opOr:  { Boolean },
+	opAnd: { Boolean },
+	// TODO: What about unary operators? Operators which return a different type?
+}
+
+func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
+	tks := ot[op]
+	if tks == nil {
+		return false
+	}
+	for _, t := range tks {
+		if t == tk {
+			return true
+		}
+	}
+	return false
+}
+
+//---------------------------------------------------------------------------------------------------------------
 
 var fn *FunctionType // Function which is currently being type checked
 
@@ -80,25 +110,25 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		n.sym = s
 		n.typ = fn.ret
 
-	case opAdd, opMin, opMul, opDiv :
+	case opAdd, opMin, opMul, opDiv, opOr, opAnd:
 		if left.typ == nil || right.typ == nil {
 			return nil
 		}
 
-		// TODO: Not checking string & int distinction here...
-		if left.typ.Kind == right.typ.Kind {
-			n.typ = left.typ
+		if !operatorTypes.isValid(n.op, left.typ.Kind) {
+			// Not valid for op
+			return semanticError2(errInvalidOperatorTypeMsg, left.token, left.typ.Name(), n.token.Val)
+		}
+		if !operatorTypes.isValid(n.op, right.typ.Kind) {
+			// Not valid for op
+			return semanticError2(errInvalidOperatorTypeMsg, right.token, right.typ.Name(), n.token.Val)
+		}
+		if left.typ.Kind != right.typ.Kind {
+			// Mismatched types
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name())
 		}
 
-	case opOr, opAnd:
-		if left.typ == nil || right.typ == nil {
-			return nil
-		}
-		if !left.typ.Is(Boolean) || !right.typ.Is(Boolean) {
-			// TODO: Need to know which side is wrong so we can output a better position
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind)
-		}
-		n.typ = boolType
+		n.typ = left.typ
 
 	case opGt, opLt, opEq:
 		if left.typ == nil || right.typ == nil {
