@@ -47,7 +47,6 @@ func (tk TypeKind) String() string {
 
 type Type struct {
 	Kind TypeKind
-	Name string // TODO: Add this!
 	Data interface{}
 }
 
@@ -65,6 +64,15 @@ func (t *Type) AsFunction() *FunctionType {
 
 func (t *Type) AsArray() *ArrayType {
 	return t.Data.(*ArrayType)
+}
+
+func (t *Type) Name() string {
+	switch t.Kind {
+	case Array: return t.Kind.String() + t.AsArray().Elem.String()
+	case Struct: return t.AsStruct().Name
+	default:
+		return t.Kind.String()
+	}
 }
 
 func (t *Type) String() string {
