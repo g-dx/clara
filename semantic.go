@@ -139,7 +139,7 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		}
 		n.typ = boolType
 
-	case opIf, opElseIf, opNot:
+	case opNot:
 		if left.typ == nil {
 			return nil
 		}
@@ -147,6 +147,17 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 			// TODO: More specific message for if statement?
 			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind)
 		}
+		n.typ = left.typ
+
+	case opIf, opElseIf:
+		if left.typ == nil {
+			return nil
+		}
+		if !left.typ.Is(Boolean) {
+			// TODO: More specific message for if statement?
+			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind)
+		}
+		// Does not promote a type...
 
 	case opReturn:
 		// "Empty" return
