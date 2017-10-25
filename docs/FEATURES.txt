@@ -1,0 +1,26 @@
+(Hopefully these are in the order they should be tackled...)
+
+- support arrays of int, bool, string (all 8 bytes in size)
+
+- support function with same name but different signatures
+
+- support variables
+
+- dynamic string implementation
+
+- Add utility functions for basic types into some sort of standard library
+
+- support passing functions as parameters
+
+- support anonymous functions/closures
+
+- add single register stack machine in code gen
+- add short circuit boolean code gen
+
+- full register usage in code gen
+
+- support escape analysis for stack allocation
+
+DONE:
+
+- support empty return
