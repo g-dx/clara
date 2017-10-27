@@ -77,7 +77,7 @@ func main() {
 		if topLevel.op == opFuncDcl {
 			// Set current function as a global so we can check returns...
 			fn = topLevel.sym.Type.AsFunction()
-			errs = append(errs, walk(tree, parser.symtab, topLevel, typeCheck)...)
+			errs = append(errs, typeCheck(topLevel)...)
 		}
 	}
 	exitIfErrors(showAst, tree, errs, prog)

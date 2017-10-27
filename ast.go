@@ -23,6 +23,10 @@ func (n *Node) Add(stmt *Node) {
 	n.stmts = append(n.stmts, stmt)
 }
 
+func (n *Node) hasType() bool {
+	return n.typ != nil
+}
+
 const (
 	opFuncDcl = iota
 	opFuncCall

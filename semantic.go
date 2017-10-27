@@ -60,48 +60,149 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 
 var fn *FunctionType // Function which is currently being type checked
 
-func typeCheck(root *Node, symtab *SymTab, n *Node) error {
+func typeCheck(n *Node) (errs []error) {
 
 	left := n.left
 	right := n.right
 
 	switch n.op {
+	case opIf, opElseIf:
+		errs = append(errs, typeCheck(left)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		if !left.typ.Is(Boolean) {
+			// TODO: More specific message for if statement?
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind))
+			goto end
+		}
+
+		// Type check body
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt)...)
+		}
+
+		// Type check next elseif case (if any)
+		if right != nil {
+			errs = append(errs, typeCheck(right)...)
+		}
+
+		// Does not promote type...
+
+	case opElse:
+		// Type check body
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt)...)
+		}
+
+		// Does not promote type...
+
+	case opReturn:
+		// "Empty" return
+		if left == nil {
+			n.typ = nothingType
+			return errs
+		}
+
+		errs = append(errs, typeCheck(left)...)
+		if !left.hasType() {
+			goto end
+		}
+
+		if !fn.ret.Is(left.typ.Kind) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, fn.ret.Kind))
+			goto end
+		}
+		n.typ = left.typ
+
+
+	case opAnd, opOr, opAdd, opMul, opMin, opDiv:
+		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(right)...)
+
+		if !left.hasType() || !right.hasType() {
+			goto end
+		}
+
+		if !operatorTypes.isValid(n.op, left.typ.Kind) {
+			// Not valid for op
+			errs = append(errs, semanticError2(errInvalidOperatorTypeMsg, left.token, left.typ.Name(), n.token.Val))
+			goto end
+		}
+		if !operatorTypes.isValid(n.op, right.typ.Kind) {
+			// Not valid for op
+			errs = append(errs, semanticError2(errInvalidOperatorTypeMsg, right.token, right.typ.Name(), n.token.Val))
+			goto end
+		}
+		if left.typ.Kind != right.typ.Kind {
+			// Mismatched types
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
+		}
+
+		n.typ = left.typ
+
+	case opNot:
+		errs = append(errs, typeCheck(left)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		if !left.typ.Is(Boolean) {
+			// TODO: More specific message for if statement?
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind))
+			goto end
+		}
+		n.typ = left.typ
+
 	case opLit:
 		n.typ = n.sym.Type
 
 	case opIdentifier:
 		// If no symbol - try to find identifier declaration
 		if n.sym == nil {
-			def, ok := n.symtab.Resolve(n.token.Val)
-			if !ok {
-				return semanticError(errUnknownVarMsg, n.token)
+			sym, found := n.symtab.Resolve(n.token.Val)
+			if !found {
+				errs = append(errs, semanticError(errUnknownVarMsg, n.token))
+				goto end
 			}
-			n.sym = def
+			n.sym = sym
 		}
 		n.typ = n.sym.Type
 
 	case opFuncCall:
 		// Check exists
-		s, found := symtab.Resolve(n.token.Val) // TODO: Should this be p.symtab?
+		s, found := n.symtab.Resolve(n.token.Val)
 		if !found {
 			// Undefined
-			return semanticError(errUndefinedMsg, n.token)
+			errs = append(errs, semanticError2(errUndefinedMsg, n.token))
+			goto end
 		}
 
 		// Check is a function
 		if !s.Type.Is(Function) {
-			return semanticError(errNotFuncMsg, n.token)
+			errs = append(errs, semanticError(errNotFuncMsg, n.token))
+			goto end
 		}
 
 		// Check for too few args
 		fn := s.Type.AsFunction()
 		if len(n.stmts) < fn.ArgCount {
-			return semanticError(errTooFewArgsMsg, n.token)
+			errs = append(errs, semanticError(errTooFewArgsMsg, n.token))
+			goto end
 		}
 
 		// Check for too many
 		if len(n.stmts) > fn.ArgCount && !fn.isVariadic {
-			return semanticError(errTooManyArgsMsg, n.token)
+			errs = append(errs, semanticError(errTooManyArgsMsg, n.token))
+			goto end
+		}
+
+		// Type check args
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt)...)
 		}
 
 		// TODO: type check args to function signature!
@@ -110,75 +211,49 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 		n.sym = s
 		n.typ = fn.ret
 
-	case opAdd, opMin, opMul, opDiv, opOr, opAnd:
-		if left.typ == nil || right.typ == nil {
-			return nil
-		}
-
-		if !operatorTypes.isValid(n.op, left.typ.Kind) {
-			// Not valid for op
-			return semanticError2(errInvalidOperatorTypeMsg, left.token, left.typ.Name(), n.token.Val)
-		}
-		if !operatorTypes.isValid(n.op, right.typ.Kind) {
-			// Not valid for op
-			return semanticError2(errInvalidOperatorTypeMsg, right.token, right.typ.Name(), n.token.Val)
-		}
-		if left.typ.Kind != right.typ.Kind {
-			// Mismatched types
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name())
-		}
-
-		n.typ = left.typ
-
 	case opGt, opLt, opEq:
-		if left.typ == nil || right.typ == nil {
-			return nil
+		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(right)...)
+
+		if !left.hasType() || !right.hasType() {
+			goto end
 		}
 		if left.typ.Kind != right.typ.Kind {
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind)
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind))
+			goto end
 		}
 		n.typ = boolType
 
-	case opNot:
-		if left.typ == nil {
-			return nil
+	case opFuncDcl:
+		// Type check params
+		for _, param := range n.params {
+			errs = append(errs, typeCheck(param)...)
 		}
-		if !left.typ.Is(Boolean) {
-			// TODO: More specific message for if statement?
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind)
-		}
-		n.typ = left.typ
 
-	case opIf, opElseIf:
-		if left.typ == nil {
-			return nil
+		// Type check stmts
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt)...)
 		}
-		if !left.typ.Is(Boolean) {
-			// TODO: More specific message for if statement?
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind)
-		}
-		// Does not promote a type...
 
-	case opReturn:
-		// "Empty" return
-		if left == nil {
-			n.typ = nothingType
-			return nil
+		n.typ = n.sym.Type
+
+	case opDot:
+		if !right.hasType() {
+			goto end
 		}
-		if left.typ == nil {
-			return nil
-		}
-		if !fn.ret.Is(left.typ.Kind) {
-			return semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, fn.ret.Kind)
-		}
-		n.typ = n.left.typ
+		n.typ = right.typ
 
 	case opArray:
-		if left.typ == nil {
-			return nil
+		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(right)...)
+
+		if !left.hasType() || !right.hasType() {
+			goto end
 		}
+
 		if !right.typ.Is(Integer) {
-			return semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Kind)
+			errs = append(errs, semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Kind))
+			goto end
 		}
 		n.typ = left.typ
 
@@ -187,20 +262,12 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 			n.typ = byteType
 		}
 
-	case opDot:
-		if right.typ == nil {
-			return nil
-		}
-		n.typ = right.typ
+	case opRoot:
+		panic("Type check called on root node of AST")
 
-	case opRoot, opError, opElse:
-
-	case opFuncDcl:
-		n.typ = n.sym.Type
-
-		// TODO:
-		// - Last statement should be a return expression if this function returns something
-		// - All return expression should return the correct type
+	case opError:
+		// TODO: Decide what to do here...
+		goto end
 
 	default:
 		panic(fmt.Sprintf("Node type [%v] not processed during type check!", nodeTypes[n.op]))
@@ -208,7 +275,9 @@ func typeCheck(root *Node, symtab *SymTab, n *Node) error {
 
 	// DEBUG
 	printTypeInfo(n)
-	return nil
+
+end:
+	return errs
 }
 
 func printTypeInfo(n *Node) {
@@ -311,6 +380,7 @@ func rewriteDotSelection(root *Node, symtab *SymTab, n *Node) error {
 
 			// Set right symbol and set parent as right
 			right.sym = sym
+			right.typ = sym.Type
 			n.sym = right.sym
 
 		// Unexpected
