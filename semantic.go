@@ -238,10 +238,70 @@ func typeCheck(n *Node) (errs []error) {
 		n.typ = n.sym.Type
 
 	case opDot:
-		if !right.hasType() {
+		errs = append(errs, typeCheck(left)...)
+
+		if !left.hasType() {
 			goto end
 		}
-		n.typ = right.typ
+
+		// Handle func call on right
+		if right.op == opFuncCall {
+
+			// Rewrite to func call
+			n.op = opFuncCall
+			n.token = right.token
+			n.symtab = right.symtab
+			n.stmts = append([]*Node{n.left}, right.stmts...)
+			n.left = nil
+			n.right = nil
+
+			// Type check func call
+			errs = append(errs, typeCheck(n)...)
+
+			// Handle field access on right
+		} else if right.op == opIdentifier {
+
+			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
+			// TODO: Add arrays here too when required
+			if left.sym.Type.Is(String) && right.token.Val == "length" {
+				right.sym = &Symbol{Name: "length", Addr: 0, Type: intType}
+				right.typ = right.sym.Type
+				n.typ = right.typ
+				return errs
+			}
+
+			// Check we have a struct
+			if !left.sym.Type.Is(Struct) {
+				errs = append(errs, semanticError(errNotStructMsg, left.token))
+				goto end
+			}
+
+			// Check field exists in struct
+			strct := left.sym.Type.AsStruct()
+			sym, offset := strct.Offset(right.token.Val)
+			if sym == nil {
+				errs = append(errs, semanticError(errStructHasNoFieldMsg, right.token, strct.Name))
+				goto end
+			}
+
+			// Set field offset
+			// TODO: This whole process process isn't necessary because when we build a StructType we can set the offsets
+			// for each symbol
+			sym.Addr = offset
+
+			// Set right symbol and set parent as right
+			right.sym = sym
+			right.typ = sym.Type
+
+			n.sym = right.sym
+			n.typ = right.typ
+
+		} else {
+			// Unexpected type on right
+			errs = append(errs, semanticError(errInvalidDotSelectionMsg, right.token))
+			goto end
+		}
+
 
 	case opArray:
 		errs = append(errs, typeCheck(left)...)
@@ -318,84 +378,6 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 
 		// Add AST node
 		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: n.stmts, symtab: n.symtab, sym: fnSym})
-	}
-	return nil
-}
-
-func rewriteDotSelection(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opDot {
-
-		// Process children
-		left := n.left
-		right := n.right
-
-		// Resolve type on left if not set
-		if left.sym == nil {
-			sym, found := left.symtab.Resolve(left.token.Val)
-			if !found {
-				return semanticError(errUnknownVarMsg, left.token)
-			}
-			left.sym = sym
-		}
-
-		// Handle func call on right
-		if right.op == opFuncCall {
-
-			// Rewrite to func call
-			n.op = opFuncCall
-			n.token = right.token
-			n.symtab = right.symtab
-			n.stmts = append([]*Node{n.left}, right.stmts...)
-			n.left = nil
-			n.right = nil
-
-		// Handle field access on right
-		} else if right.op == opIdentifier {
-
-			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
-			// TODO: Add arrays here too when required
-			if left.sym.Type.Is(String) && right.token.Val == "length" {
-				right.sym = &Symbol{ Name: "length", Addr: 0, Type: intType }
-				right.typ = right.sym.Type
-				n.typ = right.typ
-				return nil
-			}
-
-			// Check we have a struct
-			if !left.sym.Type.Is(Struct) {
-				return semanticError(errNotStructMsg, left.token)
-			}
-
-			// Check field exists in struct
-			strct := left.sym.Type.AsStruct()
-			sym, offset := strct.Offset(right.token.Val)
-			if sym == nil {
-				return semanticError(errStructHasNoFieldMsg, right.token, strct.Name)
-			}
-
-			// Set field offset
-			// TODO: This whole process process isn't necessary because when we build a StructType we can set the offsets
-			// for each symbol
-			sym.Addr = offset
-
-			// Set right symbol and set parent as right
-			right.sym = sym
-			right.typ = sym.Type
-			n.sym = right.sym
-
-		// Unexpected
-		} else {
-			// TODO: Ideally we do not want to process and more field access or function calls
-			return semanticError(errInvalidDotSelectionMsg, right.token)
-		}
-	}
-	return nil
-}
-
-func returnTypeCheck(root *Node, symtab *SymTab, n *Node) error {
-	switch n.op {
-	case opFuncDcl:
-	case opReturn:
 	}
 	return nil
 }

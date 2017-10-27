@@ -66,9 +66,6 @@ func main() {
 	parser := NewParser(tokens, stdlib(), stdSyms())
 	errs, tree := parser.Parse()
 
-	// Rewrite dot selections
-	errs = append(errs, walk(tree, parser.symtab, tree, rewriteDotSelection)...)
-
 	// Generate constructor functions
 	errs = append(errs, walk(tree, parser.symtab, tree, generateStructConstructors)...)
 
