@@ -63,15 +63,25 @@ func codegen(symtab *SymTab, tree *Node, writer io.Writer, debug bool) error {
 				write("\t.type\t%v, @function", n.token.Val)
 				write("%v:", n.token.Val)
 
-				// Allocate space for parameters
-				write("\tenter\t$(8 * %v), $0", len(n.params))
+				// Assign stack offsets for temporaries
+				temps := len(n.params)
+				walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
+					// Look for symbols which should be on the stack but have no address
+					if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
+						n.sym.Addr = 8 * (temps + 1) // Assign a stack slot for temporary
+						temps++
+					}
+					return nil
+				})
+
+				// Allocate space for temporaries
+				write("\tenter\t$(8 * %v), $0", temps)
 
 				// Copy register values into stack slots
-				for i := 0; i < len(n.params); i++ {
+				for i, param := range n.params {
 					addr := 8 * (i + 1) // Assign a stack slot for var
-					id := n.params[i].sym
-					id.Addr = addr
-					id.IsStack = true
+					param.sym.Addr = addr
+					param.sym.IsStack = true
 					write("\tmovq\t%%%v, -%v(%%rbp)", regs[i], addr)
 				}
 
@@ -129,10 +139,24 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 		case opIf:
 			genIfElseIfElseStmts(write, stmt, stmt.symtab)
 
+		case opDas:
+			genDeclAndAssign(write, stmt, stmt.symtab)
+
 		default:
 			genExprWithoutAssignment(write, stmt, stmt.symtab, 0)
 		}
 	}
+}
+
+func genDeclAndAssign(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
+
+	// Evaluate expression
+	genExprWithoutAssignment(write, n.right, tab, 0)
+
+	// Pop result to rax, calc addr of temp & mov rax there
+	write("\tpopq\t%%rax")                               // stack -> rax
+	write("\tleaq\t-%v(%%rbp), %%rbx", n.left.sym.Addr)  // rbx = [rbp - offset]
+	write("\tmovq\t%%rax, (%%rbx)")                      // [rbx] = rax
 }
 
 func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
@@ -378,7 +402,7 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		if width == 1 {
 			write("\tandq\t$0xFF, %%rax")      // rax = rax & FF
 		} else {
-			panic(fmt.Sprintf("Array acces for element of 1 < width < 8 not yet implemented"))
+			panic(fmt.Sprintf("Array access for element of 1 < width < 8 not yet implemented"))
 		}
 
 		write("\tpushq\t%%rax")                // rax(int/byte/...) -> stack

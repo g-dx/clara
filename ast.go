@@ -43,6 +43,7 @@ const (
 	opArray
 	opReturn
 	opIf
+	opDas
 	opElseIf
 	opElse
 	opGt
@@ -65,6 +66,7 @@ var nodeTypes = map[int]string{
 	opArray:      "Array Access",
 	opReturn:     "Return Expr",
 	opIf:         "If Stmt",
+	opDas:        "Decl & Assign Stmt",
 	opElseIf:     "ElseIf Stmt",
 	opElse:       "Else Stmt",
 	opGt:         "Comparison Op [>]",

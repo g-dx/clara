@@ -143,13 +143,32 @@ func (p *Parser) parseStatement() *Node {
 	case lex.If:
 		return p.parseIfStmt()
 	case lex.Integer, lex.String, lex.Identifier, lex.True, lex.False, lex.Not, lex.LParen: // All tokens which can start an expression
-		return p.parseExpr(0)
+		expr := p.parseExpr(0)
+		if p.is(lex.Das) {
+			expr = p.parseDeclAssignStmt(expr)
+		}
+		return expr
 	default:
 		// TODO: Maybe a better message would be "keyword or expression" expected
 		p.syntaxError(lex.Identifier, lex.Return, lex.If, lex.Integer, lex.String, lex.Identifier, lex.True,
 			lex.False, lex.Not, lex.LParen)
 		return &Node{op: opError, token: p.next()} // TODO: Bad statement node?
 	}
+}
+
+func (p *Parser) parseDeclAssignStmt(id *Node) *Node {
+
+	sym, found := p.symtab.Resolve(id.token.Val)
+	if !found {
+		sym = &Symbol{ Name: id.token.Val, IsStack: true }
+		p.symtab.Define(sym)
+	} else {
+		p.symbolError(errRedeclaredMsg, id.token)
+	}
+	id.sym = sym
+	id.typ = sym.Type
+
+	return &Node{ op: opDas, token: p.need(lex.Das), left: id, right: p.parseExpr(0), symtab: p.symtab }
 }
 
 func (p *Parser) parseIfStmt() *Node {

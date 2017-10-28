@@ -47,6 +47,7 @@ const (
 	Space
 	EOL
 	EOF
+	Das // Declaration & assignment
 
 	// -----------------------------------------------------------------------------------------------------------------
 
@@ -168,6 +169,7 @@ var KindValues = map[Kind]string{
 	Not:        "not",
 	And:        "and",
 	Eq:         "==",
+	Das:        ":=",
 	Comma:      ",",
 	Colon:      ":",
 	Dot:        ".",
@@ -257,7 +259,12 @@ func lexText(l *Lexer) stateFn {
 		case r == ',':
 			l.emit(Comma)
 		case r == ':':
-			l.emit(Colon)
+			if l.peek() == '=' {
+				l.next()
+				l.emit(Das)
+			} else {
+				l.emit(Colon)
+			}
 		case r == '+':
 			l.emit(Plus)
 		case r == '-':

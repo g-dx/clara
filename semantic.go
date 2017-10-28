@@ -24,6 +24,7 @@ const (
 	errInvalidOperatorTypeMsg = "%v:%d:%d: type '%v' invalid for operator '%v'"
 	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
 	errNonIntegerIndexMsg = "%v:%d:%d: error, found type '%v', array index must be integer"
+	errUnexpectedAssignMsg = "%v:%d:%d: error, left hand side of assignment must be identifier"
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, %v: identifier '%v' assigned type '%v'\n"
@@ -321,6 +322,25 @@ func typeCheck(n *Node) (errs []error) {
 		if left.typ.Is(String) {
 			n.typ = byteType
 		}
+
+	case opDas:
+		errs = append(errs, typeCheck(right)...)
+
+		if !right.hasType() {
+			goto end
+		}
+
+		// Check we have identifier on left
+		// TODO: Should we attempt to type check left to get more information?
+		if left.op != opIdentifier {
+			errs = append(errs, semanticError2(errUnexpectedAssignMsg, left.token))
+		}
+
+		// Left gets type of right
+		left.sym.Type = right.typ
+		left.typ = right.typ
+
+		// Does not promote type...
 
 	case opRoot:
 		panic("Type check called on root node of AST")
