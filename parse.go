@@ -104,7 +104,7 @@ func (p *Parser) parseStructDecl() *Node {
 func (p *Parser) parseFnDecl() *Node {
 
 	// Open new symtab
-	p.symtab = p.symtab.Child()
+	p.openScope()
 
 	// Match declaration
 	p.need(lex.Fn)
@@ -120,8 +120,7 @@ func (p *Parser) parseFnDecl() *Node {
 	stmts := p.parseStatements()
 
 	// Close symtab
-	syms := p.symtab
-	p.symtab = p.symtab.Parent()
+	syms := p.closeScope()
 	return p.fnDclNode(name, params, stmts, syms, retType)
 }
 
@@ -172,14 +171,20 @@ func (p *Parser) parseDeclAssignStmt(id *Node) *Node {
 }
 
 func (p *Parser) parseIfStmt() *Node {
-	ifStmt := &Node { op: opIf, token: p.need(lex.If), left: p.parseExpr(0), stmts: p.parseStatements() }
+	tok := p.need(lex.If)
+	cond := p.parseExpr(0)
+	p.openScope()
+	ifStmt := &Node { op: opIf, token: tok, left: cond, stmts: p.parseStatements(), symtab: p.closeScope() }
 	p.parseElseStmt(p.parseElseIfStmt(ifStmt))
 	return ifStmt
 }
 
 func (p *Parser) parseElseIfStmt(n *Node) *Node {
 	for p.is(lex.ElseIf) {
-		n.right = &Node { op: opElseIf, token: p.need(lex.ElseIf), left: p.parseExpr(0), stmts: p.parseStatements() }
+		tok := p.need(lex.ElseIf)
+		cond := p.parseExpr(0)
+		p.openScope()
+		n.right = &Node { op: opElseIf, token: tok, left: cond, stmts: p.parseStatements(), symtab: p.closeScope() }
 		n = n.right
 	}
 	return n
@@ -187,7 +192,8 @@ func (p *Parser) parseElseIfStmt(n *Node) *Node {
 
 func (p *Parser) parseElseStmt(n *Node) {
 	if p.is(lex.Else) {
-		n.right = &Node { op: opElse, token: p.need(lex.Else), stmts: p.parseStatements() }
+		p.openScope()
+		n.right = &Node { op: opElse, token: p.need(lex.Else), stmts: p.parseStatements(), symtab: p.closeScope() }
 	}
 }
 
@@ -448,6 +454,18 @@ func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars
 	return &Node{op: opStruct, token: id, symtab: syms, sym: sym, stmts: fields}
 }
 
+// ==========================================================================================================
+// Scope functions
+
+func (p *Parser) openScope() {
+	p.symtab = p.symtab.Child()
+}
+
+func (p *Parser) closeScope() *SymTab {
+	syms := p.symtab
+	p.symtab = p.symtab.Parent()
+	return syms
+}
 
 // ==========================================================================================================
 // Matching & movement functions

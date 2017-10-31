@@ -13,6 +13,7 @@ fn main() {
   s := "<string>"
   c := Colour(255, 0, 0, "#FF0000")
   printf("i == %d, b == %s, s == %s, c.hex == %s\n", i + 128, (b or true).toString(), s, c.hex)
+  scopes(false)
 }
 
 fn toString(b: bool) string {
@@ -20,4 +21,14 @@ fn toString(b: bool) string {
         return "true"
     }
     return "false"
+}
+
+fn scopes(b: bool) {
+    if b {
+        x := 100
+        printf("x == %d\n", x)
+    } else {
+        x := "Hello"
+        printf("x == %s\n", x)
+    }
 }
