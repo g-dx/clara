@@ -1,5 +1,9 @@
 (Hopefully these are in the order they should be tackled...)
 
+- support modules
+
+- support a standard library
+
 - support arrays of int, bool, string (all 8 bytes in size)
 
 - support function with same name but different signatures
