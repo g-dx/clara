@@ -3,4 +3,9 @@
 - Ensure built-in functions cannot be overridden. To do this we should "namespace" all function names by prefixing with "clara_"
 - Type check function calls (Maybe also provide a way to disable this as it is handy for experimentation)
 - Type check arithmetic operators (more generally, define operator rules better or more succinctly)
+- Functions which return structs should be able to occupy the left position on a '.' call.
+
+DONE:
+----
+
 - Position information for invalid operands always assume "left" is to blame.
