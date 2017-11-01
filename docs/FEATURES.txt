@@ -4,8 +4,6 @@
 
 - support function with same name but different signatures
 
-- support variables
-
 - dynamic string implementation
 
 - Add utility functions for basic types into some sort of standard library
@@ -24,3 +22,4 @@
 DONE:
 
 - support empty return
+- support variables
