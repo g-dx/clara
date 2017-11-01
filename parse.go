@@ -50,7 +50,7 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 		} else if p.is(lex.Struct) {
 			root.Add(p.parseStructDecl())
 		} else {
-			p.syntaxError(lex.Fn, lex.EOF)
+			p.syntaxError(lex.Fn, lex.Struct, lex.EOF)
 			p.next()
 		}
 	}
