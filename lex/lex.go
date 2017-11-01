@@ -48,6 +48,7 @@ const (
 	EOL
 	EOF
 	Das // Declaration & assignment
+	As  // Assignment
 
 	// -----------------------------------------------------------------------------------------------------------------
 
@@ -170,6 +171,7 @@ var KindValues = map[Kind]string{
 	And:        "and",
 	Eq:         "==",
 	Das:        ":=",
+	As:         "=",
 	Comma:      ",",
 	Colon:      ":",
 	Dot:        ".",
@@ -280,11 +282,12 @@ func lexText(l *Lexer) stateFn {
 		case r == '"':
 			return lexString
 		case r == '=':
-			if l.peek() != '=' {
-				return l.errorf("Unexpected character %#U", r) // TODO: Will be assignment in future
+			if l.peek() == '=' {
+				l.next()
+				l.emit(Eq)
+			} else {
+				l.emit(As)
 			}
-			l.next()
-			l.emit(Eq)
 		case r == '/':
 			if l.peek() == '/' {
 				l.next()

@@ -139,24 +139,27 @@ func genStmtList(write func(s string, a ...interface{}), stmts []*Node, tab *Sym
 		case opIf:
 			genIfElseIfElseStmts(write, stmt, stmt.symtab)
 
-		case opDas:
-			genDeclAndAssign(write, stmt, stmt.symtab)
+		case opDas, opAs:
+			genAssignStmt(write, stmt, stmt.symtab)
 
 		default:
-			genExprWithoutAssignment(write, stmt, stmt.symtab, 0)
+			genExprWithoutAssignment(write, stmt, stmt.symtab, 0, false)
 		}
 	}
 }
 
-func genDeclAndAssign(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
+func genAssignStmt(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
 
-	// Evaluate expression
-	genExprWithoutAssignment(write, n.right, tab, 0)
+	// Evaluate expression & save result to rbx
+	genExprWithoutAssignment(write, n.right, tab, 0, false)
+	write("\tpopq\t%%rcx") // TODO: Stack machine only uses rax & rbx. If changed revisit this!
 
-	// Pop result to rax, calc addr of temp & mov rax there
-	write("\tpopq\t%%rax")                               // stack -> rax
-	write("\tleaq\t-%v(%%rbp), %%rbx", n.left.sym.Addr)  // rbx = [rbp - offset]
-	write("\tmovq\t%%rax, (%%rbx)")                      // [rbx] = rax
+	// Evaluate mem location to store
+	genExprWithoutAssignment(write, n.left, tab, 0, true)
+
+	// Pop location to rax and move rbx there
+	write("\tpopq\t%%rax")           // stack -> rax
+	write("\tmovq\t%%rcx, (%%rax)")  // [rax] = rcx
 }
 
 func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *SymTab) {
@@ -168,7 +171,7 @@ func genIfElseIfElseStmts(write func(s string, a ...interface{}), n *Node, tab *
 	for cur != nil {
 		if cur.left != nil {
 			// Generate condition
-			genExprWithoutAssignment(write, cur.left, tab, 0) // Left stores condition
+			genExprWithoutAssignment(write, cur.left, tab, 0, false) // Left stores condition
 
 			// Create new label
 			next := label("else")
@@ -192,7 +195,7 @@ func genReturnExpression(write func(s string, a ...interface{}), ret *Node, tab 
 
 	// If return has expression evaluate it & pop result to rax
 	if ret.left != nil {
-		genExprWithoutAssignment(write, ret.left, tab, 0)
+		genExprWithoutAssignment(write, ret.left, tab, 0, false)
 		write("\tpopq\t%%rax")
 	}
 
@@ -208,7 +211,7 @@ func genFuncCall(write func(string,...interface{}), args []*Node, fn *FunctionTy
 		if i >= 6 {
 			panic("Calling functions with more than 6 parameters not yet implemented")
 		}
-		genExprWithoutAssignment(write, arg, symtab, i) // Evaluate expression
+		genExprWithoutAssignment(write, arg, symtab, i, false) // Evaluate expression
 		write("\tpopq\t%%%v", regs[i])                  // Pop result from stack into correct reg
 
 		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
@@ -247,14 +250,14 @@ func spill(write func(string, ...interface{}), regPos int) {
 	}
 }
 
-func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, syms *SymTab, regsInUse int) {
+func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, syms *SymTab, regsInUse int, takeAddr bool) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExprWithoutAssignment(write, expr.right, syms, regsInUse)
+		genExprWithoutAssignment(write, expr.right, syms, regsInUse, false)
 	}
 	if expr.left != nil {
-		genExprWithoutAssignment(write, expr.left, syms, regsInUse)
+		genExprWithoutAssignment(write, expr.left, syms, regsInUse, false)
 	}
 
 	// Implements stack machine
@@ -366,9 +369,20 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 		v := expr.sym
 		if v.IsStack {
-			write("\tpushq\t-%v(%%rbp)", v.Addr) // Push stack slot offset onto top of stack
+			if takeAddr {
+				write("\tleaq\t-%v(%%rbp), %%rax", v.Addr) // rax = [rbp - offset]
+				write("\tpushq\t%%rax")                    // stack <- rax
+			} else {
+				write("\tpushq\t-%v(%%rbp)", v.Addr)       // stack <- rbp - offset
+			}
 		} else {
-			write("\tpushq\t$%v", v.Addr) // Push struct field offset onto top of stack
+			if takeAddr {
+				// TODO: We don't have global variables yet which can be written to so this case is never executed!
+				write("\tleaq\t(%v), %%rax", v.Addr) // rax = [addr]
+				write("\tpushq\t%%rax")              // stack <- rax
+			} else {
+				write("\tpushq\t$%v", v.Addr)        // stack <- addr
+			}
 		}
 
 	case opFuncCall:
@@ -382,7 +396,11 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 
 		write("\tpopq\t%%rax")                 // Pop from stack to rax
 		write("\tpopq\t%%rbx")                 // Pop from stack to rbx
-		write("\tmovq\t(%%rax,%%rbx), %%rax")  // rax = load[rax + rbx]
+		if takeAddr {
+			write("\tleaq\t(%%rax,%%rbx), %%rax")  // rax = rax + rbx
+		} else {
+			write("\tmovq\t(%%rax,%%rbx), %%rax")  // rax = [rax + rbx]
+		}
 		write("\tpushq\t%%rax")                // Push result (rax) onto stack
 
 	case opArray:
@@ -396,7 +414,11 @@ func genExprWithoutAssignment(write func(string, ...interface{}), expr *Node, sy
 		write("\tleaq\t8(%%rbx), %%rbx")       // rbx = rbx(*array) + 8
 
 		// TODO: Should take element width into account here!
-		write("\tmovq\t(%%rbx,%%rax), %%rax")  // rax = load[rax(index) + rbx(*array)]
+		if takeAddr {
+			panic("Array assignments are not implemented yet!")
+		} else {
+			write("\tmovq\t(%%rbx,%%rax), %%rax") // rax = load[rax(index) + rbx(*array)]
+		}
 
 		// TODO: This should dynamically create a mask for width < 8
 		if width == 1 {

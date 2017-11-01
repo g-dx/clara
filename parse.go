@@ -145,6 +145,8 @@ func (p *Parser) parseStatement() *Node {
 		expr := p.parseExpr(0)
 		if p.is(lex.Das) {
 			expr = p.parseDeclAssignStmt(expr)
+		} else if p.is(lex.As) {
+			expr = p.parseAssignStmt(expr)
 		}
 		return expr
 	default:
@@ -155,19 +157,23 @@ func (p *Parser) parseStatement() *Node {
 	}
 }
 
-func (p *Parser) parseDeclAssignStmt(id *Node) *Node {
+func (p *Parser) parseDeclAssignStmt(lhs *Node) *Node {
 
-	sym, found := p.symtab.Resolve(id.token.Val)
+	sym, found := p.symtab.Resolve(lhs.token.Val)
 	if !found {
-		sym = &Symbol{ Name: id.token.Val, IsStack: true }
+		sym = &Symbol{ Name: lhs.token.Val, IsStack: true }
 		p.symtab.Define(sym)
 	} else {
-		p.symbolError(errRedeclaredMsg, id.token)
+		p.symbolError(errRedeclaredMsg, lhs.token)
 	}
-	id.sym = sym
-	id.typ = sym.Type
+	lhs.sym = sym
+	lhs.typ = sym.Type
 
-	return &Node{ op: opDas, token: p.need(lex.Das), left: id, right: p.parseExpr(0), symtab: p.symtab }
+	return &Node{ op: opDas, token: p.need(lex.Das), left: lhs, right: p.parseExpr(0), symtab: p.symtab }
+}
+
+func (p *Parser) parseAssignStmt(lhs *Node) *Node {
+	return &Node{ op: opAs, token: p.need(lex.As), left: lhs, right: p.parseExpr(0), symtab: p.symtab }
 }
 
 func (p *Parser) parseIfStmt() *Node {

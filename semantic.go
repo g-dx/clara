@@ -25,6 +25,7 @@ const (
 	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
 	errNonIntegerIndexMsg = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg = "%v:%d:%d: error, left hand side of assignment must be identifier"
+	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
 
 	// Debug messages
 	debugVarTypeMsg = "%v:%d:%d: debug, %v: identifier '%v' assigned type '%v'\n"
@@ -339,6 +340,28 @@ func typeCheck(n *Node) (errs []error) {
 		// Left gets type of right
 		left.sym.Type = right.typ
 		left.typ = right.typ
+
+		// Does not promote type...
+
+	case opAs:
+		errs = append(errs, typeCheck(right)...)
+		errs = append(errs, typeCheck(left)...)
+
+		if !right.hasType() || !left.hasType() {
+			goto end
+		}
+
+		// Check left is addressable
+		if !left.isAddressable() {
+			errs = append(errs, semanticError2(errNotAddressableAssignMsg, left.token))
+			goto end
+		}
+
+		// Check types in assignment
+		if left.typ.Kind != right.typ.Kind {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Kind, left.typ.Kind))
+			goto end
+		}
 
 		// Does not promote type...
 

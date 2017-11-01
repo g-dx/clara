@@ -27,6 +27,18 @@ func (n *Node) hasType() bool {
 	return n.typ != nil
 }
 
+// n should be type checked before call!
+func (n *Node) isAddressable() bool {
+	switch n.op {
+	case opArray: return true
+	case opFuncCall: return n.typ.Is(Struct) || n.typ.Is(Array)
+	case opIdentifier: return true
+	case opDot: return true
+	default:
+		return false
+	}
+}
+
 const (
 	opFuncDcl = iota
 	opFuncCall
@@ -44,6 +56,7 @@ const (
 	opReturn
 	opIf
 	opDas
+	opAs
 	opElseIf
 	opElse
 	opGt
@@ -67,6 +80,7 @@ var nodeTypes = map[int]string{
 	opReturn:     "Return Expr",
 	opIf:         "If Stmt",
 	opDas:        "Decl & Assign Stmt",
+	opAs:         "Assign Stmt",
 	opElseIf:     "ElseIf Stmt",
 	opElse:       "Else Stmt",
 	opGt:         "Comparison Op [>]",
