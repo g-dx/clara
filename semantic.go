@@ -178,7 +178,7 @@ func typeCheck(n *Node) (errs []error) {
 		s, found := n.symtab.Resolve(n.token.Val)
 		if !found {
 			// Undefined
-			errs = append(errs, semanticError2(errUndefinedMsg, n.token))
+			errs = append(errs, semanticError(errUndefinedMsg, n.token))
 			goto end
 		}
 
