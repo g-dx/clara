@@ -113,7 +113,7 @@ func main() {
 	f.Close()
 
 	// Invoke gcc to link files
-	cmd := exec.Command("gcc", "-o", fmt.Sprintf("/%v/%v", *outPath, progName), asmPath, harnessPath)
+	cmd := exec.Command("gcc", "-static", "-o", fmt.Sprintf("/%v/%v", *outPath, progName), asmPath, harnessPath)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
