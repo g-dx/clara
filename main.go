@@ -95,7 +95,8 @@ func main() {
 	}
 
 	// Generate assembly
-	err = codegen(parser.symtab, tree, f, *showAsm)
+	asm := NewGasWriter(f, *showAsm)
+	err = codegen(parser.symtab, tree, asm)
 	if err != nil {
 		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
 		os.Exit(1)
