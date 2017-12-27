@@ -114,17 +114,25 @@ func (p *Parser) parseFnDecl() *Node {
 	p.need(')')
 	// TODO: Decide if return types are optional
 	var retType *lex.Token
-	if p.isNot(lex.LBrace) {
-		retType = p.need(lex.Identifier)
+	if p.is(lex.Identifier) {
+		retType = p.next()
 	}
-	stmts := p.parseStatements()
+
+	// Check for function body
+	var stmts []*Node
+	extern := false
+	if p.is(lex.LBrace) {
+		stmts = p.parseBlock()
+	} else {
+		extern = true
+	}
 
 	// Close symtab
 	syms := p.closeScope()
-	return p.fnDclNode(name, params, stmts, syms, retType)
+	return p.fnDclNode(name, params, stmts, syms, retType, extern)
 }
 
-func (p *Parser) parseStatements() []*Node {
+func (p *Parser) parseBlock() []*Node {
 	p.need('{')
 	var stmts []*Node
 	for p.isNot('}') {
@@ -180,7 +188,7 @@ func (p *Parser) parseIfStmt() *Node {
 	tok := p.need(lex.If)
 	cond := p.parseExpr(0)
 	p.openScope()
-	ifStmt := &Node { op: opIf, token: tok, left: cond, stmts: p.parseStatements(), symtab: p.closeScope() }
+	ifStmt := &Node { op: opIf, token: tok, left: cond, stmts: p.parseBlock(), symtab: p.closeScope() }
 	p.parseElseStmt(p.parseElseIfStmt(ifStmt))
 	return ifStmt
 }
@@ -190,7 +198,7 @@ func (p *Parser) parseElseIfStmt(n *Node) *Node {
 		tok := p.need(lex.ElseIf)
 		cond := p.parseExpr(0)
 		p.openScope()
-		n.right = &Node { op: opElseIf, token: tok, left: cond, stmts: p.parseStatements(), symtab: p.closeScope() }
+		n.right = &Node { op: opElseIf, token: tok, left: cond, stmts: p.parseBlock(), symtab: p.closeScope() }
 		n = n.right
 	}
 	return n
@@ -199,7 +207,7 @@ func (p *Parser) parseElseIfStmt(n *Node) *Node {
 func (p *Parser) parseElseStmt(n *Node) {
 	if p.is(lex.Else) {
 		p.openScope()
-		n.right = &Node { op: opElse, token: p.need(lex.Else), stmts: p.parseStatements(), symtab: p.closeScope() }
+		n.right = &Node { op: opElse, token: p.need(lex.Else), stmts: p.parseBlock(), symtab: p.closeScope() }
 	}
 }
 
@@ -404,7 +412,7 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token, isExternal bool) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(token.Val)
@@ -412,7 +420,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// Define function type
-		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), args: syms,}
+		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), args: syms, IsExternal: isExternal}
 		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
 		p.symtab.Define(sym) // Functions don't take params yet
 

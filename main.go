@@ -162,7 +162,7 @@ func stdlib() []*Node {
 		// malloc (from libc)
 		{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
 			sym:&Symbol{ Name: "malloc", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "malloc", ArgCount: 1, ret: nothingType, IsExternal: true }}}}, // TODO: This _actually_ returns the number of bytes allocated
+				&FunctionType{ Name: "malloc", ArgCount: 1, ret: intType, IsExternal: true }}}}, // TODO: This _actually_ returns the number of bytes allocated
 	}
 }
 
