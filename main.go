@@ -10,12 +10,23 @@ import (
 	"github.com/g-dx/clarac/lex"
 	"github.com/g-dx/clarac/console"
 	"os/exec"
+	"os/user"
 )
 
 func main() {
 
+	// Get user details
+	usr, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	// Default install dir
+	defaultInstall := fmt.Sprintf("%v/.clara", usr.HomeDir)
+
     // Load program path. Default to "examples"
-    path := flag.String("prog", "../examples/hello.clara", "File with Clara program to compile.")
+	installPath := flag.String("install", defaultInstall, "Path to install directory.")
+	path := flag.String("prog", "/examples/hello.clara", "File with Clara program to compile.")
 	showProg := flag.Bool("in", false, "Print the input program.")
 	showLex := flag.Bool("lex", false, "Print the lexical output.")
 	showAst := flag.Bool("ast", false, "Print the generated AST.")
@@ -87,7 +98,7 @@ func main() {
 	// Create assembly file
 	basename := filepath.Base(*path)
 	progName := strings.TrimSuffix(basename, filepath.Ext(basename))
-	asmPath := fmt.Sprintf("/tmp/%v.S", progName)
+	asmPath := fmt.Sprintf("/%v/%v.S", os.TempDir(), progName)
 	os.Remove(asmPath) // Ignore error
 	f, err := os.Create(asmPath)
 	if err != nil {
@@ -103,18 +114,10 @@ func main() {
 	}
 	f.Close()
 
-	// Write out harness
-	harnessPath := "/tmp/harness.c"
-	os.Remove(harnessPath) // Ignore error
-	f, err = os.Create(harnessPath)
-	if err != nil {
-		fmt.Printf(" - %v\n", err)
-	}
-	fmt.Fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\nint clara_main();\nint main(int argc, char** argv) { clara_main(); return 0; }")
-	f.Close()
-
 	// Invoke gcc to link files
-	cmd := exec.Command("gcc", "-static", "-o", fmt.Sprintf("/%v/%v", *outPath, progName), asmPath, harnessPath)
+	bootstrapPath := filepath.Join(*installPath, "/init/bootstrap.c")
+	outputPath := filepath.Join(*outPath, progName)
+	cmd := exec.Command("gcc", "-static", "-o", outputPath, asmPath, bootstrapPath)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
