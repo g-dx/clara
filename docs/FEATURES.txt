@@ -27,3 +27,4 @@ DONE:
 
 - support empty return
 - support variables
+- support "external" functions (i.e. implementation provided at link time)
