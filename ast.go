@@ -134,7 +134,7 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 	fmt.Println("")
 
 	// Handle 0..n-1 children
-	row = "|    "
+	row = "│    "
 	if isTail {
 		row = "     "
 	}
