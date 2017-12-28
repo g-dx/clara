@@ -18,32 +18,29 @@ type Parser struct {
 	errs   []error
 	discard bool // Are we in "discard" mode?
 	symtab *SymTab
-	extra []*Node
 	linker *TypeLinker
 }
 
 var errUnexpectedEof = errors.New("Unexpected EOF")
 
-func NewParser(tokens []*lex.Token, nodes []*Node, syms []*Symbol) *Parser {
+func NewParser() *Parser {
 	// Add any symbols from predefined nodes
-	symtab := NewSymtab()
-	for _, n := range nodes {
-		symtab.Define(n.sym)
-	}
-	// Add any global symbols
-	for _, s := range syms {
-		symtab.Define(s)
-	}
-	return &Parser{tokens : tokens, symtab: symtab, extra : nodes, linker: NewTypeLinker() }
+	return &Parser{ linker: NewTypeLinker() }
 }
 
-func (p *Parser) Parse() (errs []error, root *Node) {
+func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 
 	// Setup handler to recover from unexpected EOF
 	defer p.onUnexpectedEof(&errs)
 
-	// Create root & loop over stream
-	root = &Node{op : opRoot, symtab: p.symtab}
+	// Reset state
+	p.symtab = root.symtab
+	p.pos = 0
+	p.tokens = tokens
+	p.errs = p.errs[:0]
+	p.discard = false
+
+	// loop over tokens
 	for p.isNot(lex.EOF) {
 		if p.is(lex.Fn) {
 			root.Add(p.parseFnDecl())
@@ -54,12 +51,10 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 			p.next()
 		}
 	}
+	return p.errs
+}
 
-	// Add extra nodes
-	// TODO: This really should come before we parse but the code generator requires them to be last
-	for _, n := range p.extra {
-		root.Add(n)
-	}
+func (p *Parser) Finish() (errs []error) {
 
 	// Any unlinked types are undefined
 	for name, _ := range p.linker.types {
@@ -67,7 +62,7 @@ func (p *Parser) Parse() (errs []error, root *Node) {
 			p.symbolError(errUnknownTypeMsg, token)
 		}
 	}
-	return p.errs, root
+	return p.errs
 }
 
 // ==========================================================================================================

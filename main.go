@@ -24,7 +24,7 @@ func main() {
 	// Default install dir
 	defaultInstall := fmt.Sprintf("%v/.clara", usr.HomeDir)
 
-    // Load program path. Default to "examples"
+	// Load program path. Default to "examples"
 	installPath := flag.String("install", defaultInstall, "Path to install directory.")
 	path := flag.String("prog", "/examples/hello.clara", "File with Clara program to compile.")
 	showProg := flag.Bool("in", false, "Print the input program.")
@@ -32,67 +32,105 @@ func main() {
 	showAst := flag.Bool("ast", false, "Print the generated AST.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
 	outPath := flag.String("out", ".", "Path to write program to.")
-    flag.Parse()
+	flag.Parse()
 
-    // Read program file
-    progBytes, err := ioutil.ReadFile(*path)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-	prog := string(progBytes)
+	// Define root AST node
+	rootSymtab := NewSymtab()
+	rootNode := &Node{op: opRoot, symtab: rootSymtab}
+
+	// Add "AST defined" nodes & symbols
+	for _, n := range stdlib() {
+		rootSymtab.Define(n.sym)
+		rootNode.Add(n)
+	}
+
+	// Add any global symbols
+	for _, s := range stdSyms() {
+		rootSymtab.Define(s)
+	}
+
+	// Read all lib files
+	pattern := fmt.Sprintf("%v/lib/*.clara", *installPath) // NOTE: Does NOT traverse all directories!
+	codePaths, err := filepath.Glob(pattern)
+	if err != nil {
+		fmt.Printf("Could not read standard library: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Parser & token storage
+	tokens := make([]*lex.Token, 0, 10)
+	parser := NewParser()
+	var errs []error
+	var prog string
+
+	// Loop over all files & lex + parse
+	codePaths = append(codePaths, *path)
+	for _, codePath := range codePaths {
+
+		// Read program file
+		progBytes, err := ioutil.ReadFile(codePath)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		code := string(progBytes)
+		if codePath == *path {
+			prog = code
+		}
+
+		// Lex
+		lexer := lex.Lex(code, codePath)
+		// TODO: Lexing errors should really appear from parse stage
+		for {
+			token := lexer.NextToken()
+			// TODO: Parser could filter tokens it's not interested in
+			switch token.Kind {
+			case lex.EOL, lex.Space, lex.Comment:
+				continue
+			case lex.Err:
+				printProgram(code)
+				fmt.Printf("\nLexing errors:\n\n %s\n", token)
+				os.Exit(1)
+			default:
+				tokens = append(tokens, token)
+			}
+			// Check for EOF
+			if token.Kind == lex.EOF {
+				break
+			}
+		}
+
+		if *showLex {
+			printLex(tokens)
+		}
+
+		// Parse
+		errs = append(errs, parser.Parse(tokens, rootNode)...)
+		// TODO: If too many errors b
+		tokens = tokens[:0]
+	}
+	parser.Finish()
 
 	if *showProg {
 		printProgram(prog)
 	}
 
-	// Lex
-	tokens := make([]*lex.Token, 0, 10)
-	lexer := lex.Lex(prog, *path)
-	// TODO: Lexing errors should really appear from parse stage
-	for {
-		token := lexer.NextToken()
-		// TODO: Parser could filter tokens it's not interested in
-		switch token.Kind {
-		case lex.EOL, lex.Space, lex.Comment:
-			continue
-		case lex.Err:
-			printProgram(prog)
-			fmt.Printf("\nLexing errors:\n\n %s\n", token)
-			os.Exit(1)
-		default:
-			tokens = append(tokens, token)
-		}
-		// Check for EOF
-		if token.Kind == lex.EOF {
-			break
-		}
-	}
-
-	if *showLex {
-		printLex(tokens)
-	}
-
-	// Parse
-	parser := NewParser(tokens, stdlib(), stdSyms())
-	errs, tree := parser.Parse()
-
 	// Generate constructor functions
-	errs = append(errs, walk(tree, parser.symtab, tree, generateStructConstructors)...)
+	errs = append(errs, walk(rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 
 	// Type check functions
-	for _, topLevel := range tree.stmts {
+	for _, topLevel := range rootNode.stmts {
 		if topLevel.op == opFuncDcl {
 			// Set current function as a global so we can check returns...
 			fn = topLevel.sym.Type.AsFunction()
 			errs = append(errs, typeCheck(topLevel)...)
 		}
 	}
-	exitIfErrors(showAst, tree, errs, prog)
+	exitIfErrors(showAst, rootNode, errs, prog)
 
 	// Show final AST if necessary
 	if *showAst {
-		printTree(tree)
+		printTree(rootNode)
 	}
 
 	// Create assembly file
@@ -107,7 +145,7 @@ func main() {
 
 	// Generate assembly
 	asm := NewGasWriter(f, *showAsm)
-	err = codegen(parser.symtab, tree, asm)
+	err = codegen(rootSymtab, rootNode, asm)
 	if err != nil {
 		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
 		os.Exit(1)
@@ -158,14 +196,6 @@ func stdlib() []*Node {
 		{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
 		sym:&Symbol{ Name: "printf", Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Name: "printf", ArgCount: 1, isVariadic: true, ret: nothingType, IsExternal: true }}}},
-		// memcpy (from libc)
-		{token:&lex.Token{Val : "memcpy"}, op:opFuncDcl,
-			sym:&Symbol{ Name: "memcpy", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "memcpy", ArgCount: 3, ret: nothingType, IsExternal: true }}}},
-		// malloc (from libc)
-		{token:&lex.Token{Val : "malloc"}, op:opFuncDcl,
-			sym:&Symbol{ Name: "malloc", Type: &Type{ Kind: Function, Data:
-				&FunctionType{ Name: "malloc", ArgCount: 1, ret: intType, IsExternal: true }}}}, // TODO: This _actually_ returns the number of bytes allocated
 	}
 }
 
