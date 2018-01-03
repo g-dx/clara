@@ -35,12 +35,12 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 			if !fn.IsExternal {
 				// FN declaration
 				// TODO: Add "clara_" namespacing to all generated functions
-				if (n.token.Val == "main") {
-					n.token.Val = "clara_main" // Rewrite main
+				if fn.Name == "main" {
+					fn.Name = "clara_main" // Rewrite main
 				}
 
 				// Assign stack offsets for temporaries
-				temps := len(n.params)
+				temps := fn.ArgCount
 				walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
 					// Look for symbols which should be on the stack but have no address
 					if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
@@ -51,7 +51,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				})
 
 				// Allocate space for temporaries
-				asm.function(n.token.Val, temps)
+				asm.function(fn.Name, temps)
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
