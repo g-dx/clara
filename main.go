@@ -30,6 +30,7 @@ func main() {
 	showProg := flag.Bool("in", false, "Print the input program.")
 	showLex := flag.Bool("lex", false, "Print the lexical output.")
 	showAst := flag.Bool("ast", false, "Print the generated AST.")
+	showTypes := flag.Bool("types", false, "Print type information as it assigned during semantic analysis.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
 	outPath := flag.String("out", ".", "Path to write program to.")
 	flag.Parse()
@@ -123,7 +124,7 @@ func main() {
 		if topLevel.op == opFuncDcl {
 			// Set current function as a global so we can check returns...
 			fn = topLevel.sym.Type.AsFunction()
-			errs = append(errs, typeCheck(topLevel)...)
+			errs = append(errs, typeCheck(topLevel, *showTypes)...)
 		}
 	}
 	exitIfErrors(showAst, rootNode, errs, prog)

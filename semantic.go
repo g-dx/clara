@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/g-dx/clarac/lex"
 	"strings"
+	"github.com/g-dx/clarac/console"
 )
 
 //
@@ -28,7 +29,7 @@ const (
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
 
 	// Debug messages
-	debugVarTypeMsg = "%v:%d:%d: debug, %v: identifier '%v' assigned type '%v'\n"
+	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"
 )
 
 //---------------------------------------------------------------------------------------------------------------
@@ -62,14 +63,14 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 
 var fn *FunctionType // Function which is currently being type checked
 
-func typeCheck(n *Node) (errs []error) {
+func typeCheck(n *Node, debug bool) (errs []error) {
 
 	left := n.left
 	right := n.right
 
 	switch n.op {
 	case opIf, opElseIf:
-		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(left, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -83,12 +84,12 @@ func typeCheck(n *Node) (errs []error) {
 
 		// Type check body
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt)...)
+			errs = append(errs, typeCheck(stmt, debug)...)
 		}
 
 		// Type check next elseif case (if any)
 		if right != nil {
-			errs = append(errs, typeCheck(right)...)
+			errs = append(errs, typeCheck(right, debug)...)
 		}
 
 		// Does not promote type...
@@ -96,7 +97,7 @@ func typeCheck(n *Node) (errs []error) {
 	case opElse:
 		// Type check body
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt)...)
+			errs = append(errs, typeCheck(stmt, debug)...)
 		}
 
 		// Does not promote type...
@@ -108,7 +109,7 @@ func typeCheck(n *Node) (errs []error) {
 			return errs
 		}
 
-		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(left, debug)...)
 		if !left.hasType() {
 			goto end
 		}
@@ -121,8 +122,8 @@ func typeCheck(n *Node) (errs []error) {
 
 
 	case opAnd, opOr, opAdd, opMul, opMin, opDiv:
-		errs = append(errs, typeCheck(left)...)
-		errs = append(errs, typeCheck(right)...)
+		errs = append(errs, typeCheck(left, debug)...)
+		errs = append(errs, typeCheck(right, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -146,7 +147,7 @@ func typeCheck(n *Node) (errs []error) {
 		n.typ = left.typ
 
 	case opNot:
-		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(left, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -204,7 +205,7 @@ func typeCheck(n *Node) (errs []error) {
 
 		// Type check args
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt)...)
+			errs = append(errs, typeCheck(stmt, debug)...)
 		}
 
 		// TODO: type check args to function signature!
@@ -214,8 +215,8 @@ func typeCheck(n *Node) (errs []error) {
 		n.typ = fn.ret
 
 	case opGt, opLt, opEq:
-		errs = append(errs, typeCheck(left)...)
-		errs = append(errs, typeCheck(right)...)
+		errs = append(errs, typeCheck(left, debug)...)
+		errs = append(errs, typeCheck(right, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -229,18 +230,18 @@ func typeCheck(n *Node) (errs []error) {
 	case opFuncDcl:
 		// Type check params
 		for _, param := range n.params {
-			errs = append(errs, typeCheck(param)...)
+			errs = append(errs, typeCheck(param, debug)...)
 		}
 
 		// Type check stmts
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt)...)
+			errs = append(errs, typeCheck(stmt, debug)...)
 		}
 
 		n.typ = n.sym.Type
 
 	case opDot:
-		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(left, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -258,7 +259,7 @@ func typeCheck(n *Node) (errs []error) {
 			n.right = nil
 
 			// Type check func call
-			errs = append(errs, typeCheck(n)...)
+			errs = append(errs, typeCheck(n, debug)...)
 
 			// Handle field access on right
 		} else if right.op == opIdentifier {
@@ -306,8 +307,8 @@ func typeCheck(n *Node) (errs []error) {
 
 
 	case opArray:
-		errs = append(errs, typeCheck(left)...)
-		errs = append(errs, typeCheck(right)...)
+		errs = append(errs, typeCheck(left, debug)...)
+		errs = append(errs, typeCheck(right, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -325,7 +326,7 @@ func typeCheck(n *Node) (errs []error) {
 		}
 
 	case opDas:
-		errs = append(errs, typeCheck(right)...)
+		errs = append(errs, typeCheck(right, debug)...)
 
 		if !right.hasType() {
 			goto end
@@ -344,8 +345,8 @@ func typeCheck(n *Node) (errs []error) {
 		// Does not promote type...
 
 	case opAs:
-		errs = append(errs, typeCheck(right)...)
-		errs = append(errs, typeCheck(left)...)
+		errs = append(errs, typeCheck(right, debug)...)
+		errs = append(errs, typeCheck(left, debug)...)
 
 		if !right.hasType() || !left.hasType() {
 			goto end
@@ -377,7 +378,9 @@ func typeCheck(n *Node) (errs []error) {
 	}
 
 	// DEBUG
-	printTypeInfo(n)
+	if debug {
+		printTypeInfo(n)
+	}
 
 end:
 	return errs
@@ -390,14 +393,20 @@ func printTypeInfo(n *Node) {
 		calculatedType = n.typ.String()
 	}
 
+	location := fmt.Sprintf("%v:%d:%d", n.token.File, n.token.Line, n.token.Pos)
+	if n.token.File == "" {
+		location = "<AST defined>"
+	}
+	symbolName := strings.Replace(n.token.Val, "%", "%%", -1) // Escape Go format strings
+	if n.op != opLit {
+		symbolName = "\"" + symbolName + "\""
+	}
+
 	// Dump type info
-	fmt.Printf(debugVarTypeMsg,
-		n.token.File,
-		n.token.Line,
-		n.token.Pos,
-		nodeTypes[n.op],
-		strings.Replace(n.token.Val, "%", "%%", -1), // Escape Go format strings
-		calculatedType)
+	fmt.Printf(debugTypeInfoFormat,
+		console.Yellow, location, console.Disable,
+		console.Red, fmt.Sprintf("%s(%s)", nodeTypes[n.op], symbolName), console.Disable,
+		console.Green, calculatedType, console.Disable)
 }
 
 func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
