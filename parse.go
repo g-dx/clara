@@ -407,7 +407,7 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms *SymTab, returnTyp *lex.Token, isExternal bool) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isExternal bool) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(token.Val)
@@ -415,7 +415,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
 		// Define function type
-		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), args: syms, IsExternal: isExternal}
+		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), IsExternal: isExternal}
 		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
 		p.symtab.Define(sym) // Functions don't take params yet
 
@@ -432,7 +432,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, syms
 			}
 		}
 	}
-	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: p.symtab }
+	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: symTab}
 }
 
 func (p *Parser) parseFnCall() *Node {

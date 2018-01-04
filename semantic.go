@@ -416,7 +416,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 
 		// Create & define symbol
 		fnSym := &Symbol{ Name: constructorName, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: n.sym.Type, args: n.symtab, }}}
+			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: n.sym.Type, }}}
 		root.symtab.Define(fnSym)
 
 		// Add AST node

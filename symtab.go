@@ -145,7 +145,6 @@ type FunctionType struct {
 	Name          string
 	ArgCount      int
 	isVariadic    bool
-	args          *SymTab
 	ret           *Type
 	isConstructor bool
 	IsExternal 	  bool  // Provided at linktime - no code gen required
