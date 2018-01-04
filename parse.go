@@ -414,8 +414,14 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
+		// Collect param symbols
+		var args []*Symbol
+		for _, param := range params {
+			args = append(args, param.sym)
+		}
+
 		// Define function type
-		functionType := &FunctionType{Name: token.Val, ArgCount: len(params), IsExternal: isExternal}
+		functionType := &FunctionType{Name: token.Val, Args: args, IsExternal: isExternal}
 		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
 		p.symtab.Define(sym) // Functions don't take params yet
 

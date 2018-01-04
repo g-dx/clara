@@ -40,7 +40,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				}
 
 				// Assign stack offsets for temporaries
-				temps := fn.ArgCount
+				temps := len(fn.Args)
 				walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
 					// Look for symbols which should be on the stack but have no address
 					if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {

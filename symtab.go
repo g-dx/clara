@@ -143,7 +143,7 @@ func (st *StructType) Offset(name string) (*Symbol, int) {
 
 type FunctionType struct {
 	Name          string
-	ArgCount      int
+	Args          []*Symbol
 	isVariadic    bool
 	ret           *Type
 	isConstructor bool

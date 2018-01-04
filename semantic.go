@@ -192,13 +192,13 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 
 		// Check for too few args
 		fn := s.Type.AsFunction()
-		if len(n.stmts) < fn.ArgCount {
+		if len(n.stmts) < len(fn.Args) {
 			errs = append(errs, semanticError(errTooFewArgsMsg, n.token))
 			goto end
 		}
 
 		// Check for too many
-		if len(n.stmts) > fn.ArgCount && !fn.isVariadic {
+		if len(n.stmts) > len(fn.Args) && !fn.isVariadic {
 			errs = append(errs, semanticError(errTooManyArgsMsg, n.token))
 			goto end
 		}
@@ -423,9 +423,15 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		// Create name
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
 
+		// Collect struct field symbols
+		var args []*Symbol
+		for _, field := range n.stmts {
+			args = append(args, field.sym)
+		}
+
 		// Create & define symbol
 		fnSym := &Symbol{ Name: constructorName, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: constructorName, ArgCount: len(n.stmts), isConstructor: true, ret: n.sym.Type, }}}
+			&FunctionType{ Name: constructorName, Args: args, isConstructor: true, ret: n.sym.Type, }}}
 		root.symtab.Define(fnSym)
 
 		// Add AST node
