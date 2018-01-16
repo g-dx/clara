@@ -95,6 +95,87 @@ var nodeTypes = map[int]string{
 	opStruct:     "Struct",
 }
 
+func copyNode(n *Node) *Node {
+
+	x := &Node{token: n.token, typ: n.typ, symtab: n.symtab, op: n.op, sym: n.sym}
+
+	// Visit left and right
+	if n.left != nil {
+		x.left = copyNode(n.left)
+	}
+	if n.right != nil {
+		x.right = copyNode(n.right)
+	}
+
+	// Visit parameters
+	var params []*Node
+	for _, param := range n.params {
+		if param != nil {
+			params = append(params, copyNode(param))
+		}
+	}
+	x.params = params
+
+	// Visit statements
+	var stmts []*Node
+	for _, stmt := range n.stmts {
+		if stmt != nil {
+			stmts = append(stmts, copyNode(stmt))
+		}
+	}
+	x.stmts = stmts
+	return x
+}
+
+func replaceNode(n *Node, replacer func(*Node) *Node) *Node {
+
+	// Depth First Search
+
+	// Visit left and right
+	if n.left != nil {
+		if x := replaceNode(n.left, replacer); x != nil {
+			n.left = x
+		}
+	}
+	if n.right != nil {
+		if x := replaceNode(n.right, replacer); x != nil {
+			n.right = x
+		}
+	}
+
+	// Visit parameters
+	for i := 0; i < len(n.params); i++ {
+		if n.params[i] != nil {
+			if x := replaceNode(n.params[i], replacer); x != nil {
+				n.params[i] = x
+			}
+		}
+	}
+
+	// Visit statement
+	for i := 0; i < len(n.stmts); i++ {
+		if n.stmts[i] != nil {
+			if x := replaceNode(n.stmts[i], replacer); x != nil {
+				n.stmts[i] = x
+			}
+		}
+	}
+
+	// Visit node
+	if x := replacer(n); x != nil {
+		n.op = x.op
+		n.token = x.token
+		n.sym = x.sym
+		n.stmts = x.stmts
+		n.params = x.params
+		n.right = x.right
+		n.left = x.left
+		n.typ = x.typ
+		return n
+	}
+	return nil
+}
+
 func (n * Node) Walk(fn func(*Node)) {
 	fn(n)
 	for _, node := range n.stmts {

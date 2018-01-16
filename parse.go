@@ -265,7 +265,14 @@ func (p *Parser) parseParameter() *Node {
 	} else {
 		p.symtab.Define(idSym)
 	}
-	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab }
+
+	// Check for default value
+	var defValue *Node
+	if p.is(lex.As) {
+		p.next()
+		defValue = p.parseExpr(0)
+	}
+	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab, left: defValue }
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
@@ -414,14 +421,16 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 	if found {
 		p.symbolError(errRedeclaredMsg, token)
 	} else {
-		// Collect param symbols
+		// Collect param symbols & defaults
 		var args []*Symbol
+		var defaults []*Node
 		for _, param := range params {
 			args = append(args, param.sym)
+			defaults = append(defaults, param.left)
 		}
 
 		// Define function type
-		functionType := &FunctionType{Name: token.Val, Args: args, IsExternal: isExternal}
+		functionType := &FunctionType{Name: token.Val, Defaults: defaults, Args: args, IsExternal: isExternal}
 		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
 		p.symtab.Define(sym) // Functions don't take params yet
 

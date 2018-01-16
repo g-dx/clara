@@ -12,20 +12,22 @@ import (
 //
 
 const (
-	errUndefinedMsg = "%v:%d:%d: error, '%v' undefined"
-	errNotFuncMsg = "%v:%d:%d: error, '%v' is not a function"
-	errTooManyArgsMsg = "%v:%d:%d: error, too many arguments to call '%v'"
-	errTooFewArgsMsg = "%v:%d:%d: error, not enough arguments to call '%v'"
-	errUnknownTypeMsg = "%v:%d:%d: error, unknown type '%v'"
-	errUnknownVarMsg = "%v:%d:%d: error, no declaration for identifier '%v' found"
-	errStructNamingLowerMsg = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
-	errNotStructMsg = "%v:%d:%d: error, '%v' is not a struct"
-	errStructHasNoFieldMsg = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
-	errInvalidDotSelectionMsg = "%v:%d:%d: error '%v', expected field or function call"
-	errInvalidOperatorTypeMsg = "%v:%d:%d: type '%v' invalid for operator '%v'"
-	errMismatchedTypesMsg = "%v:%d:%d: mismatched types '%v' and '%v'"
-	errNonIntegerIndexMsg = "%v:%d:%d: error, found type '%v', array index must be integer"
-	errUnexpectedAssignMsg = "%v:%d:%d: error, left hand side of assignment must be identifier"
+	errUndefinedMsg            = "%v:%d:%d: error, '%v' undefined"
+	errNotFuncMsg              = "%v:%d:%d: error, '%v' is not a function"
+	errTooManyArgsMsg          = "%v:%d:%d: error, too many arguments to call '%v'"
+	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
+	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
+	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
+	errNotStructMsg            = "%v:%d:%d: error, '%v' is not a struct"
+	errStructHasNoFieldMsg     = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
+	errInvalidDotSelectionMsg  = "%v:%d:%d: error '%v', expected field or function call"
+	errInvalidOperatorTypeMsg  = "%v:%d:%d: type '%v' invalid for operator '%v'"
+	errMismatchedTypesMsg      = "%v:%d:%d: mismatched types '%v' and '%v'"
+	errMismatchedaArgsMsg      = "%v:%d:%d: got '%v', wanted '%v'"
+	errCannotApplyArgsMsg      = "%v:%d:%d: function '%v' cannot be applied to '(%v)'"
+	errNotEnoughArgsMsg        = "%v:%d:%d: not enough arguments to call function '%v'"
+	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
+	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
 
 	// Debug messages
@@ -190,25 +192,124 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			goto end
 		}
 
-		// Check for too few args
+		// Type check any default parameters
+		// TODO: This is required as forward declarations mean the function itself may not have been type checked yet. The
+		// solution to this is to do two passes over the AST, first type check all top level functions and then type check the bodies.
 		fn := s.Type.AsFunction()
-		if len(n.stmts) < len(fn.Args) {
-			errs = append(errs, semanticError(errTooFewArgsMsg, n.token))
-			goto end
-		}
-
-		// Check for too many
-		if len(n.stmts) > len(fn.Args) && !fn.isVariadic {
-			errs = append(errs, semanticError(errTooManyArgsMsg, n.token))
-			goto end
+		for _, def := range fn.Defaults {
+			if def != nil {
+				errs = append(errs, typeCheck(def, debug)...)
+			}
 		}
 
 		// Type check args
 		for _, stmt := range n.stmts {
 			errs = append(errs, typeCheck(stmt, debug)...)
+			if !stmt.hasType() {
+				goto end
+			}
 		}
 
-		// TODO: type check args to function signature!
+		// Check we have _at least_ enough parameters to call this function
+		if len(n.stmts) < fn.MandatoryParams() {
+			errs = append(errs, semanticError2(errNotEnoughArgsMsg, n.token, n.token.Val))
+			goto end
+		}
+
+		// TODO: Support variadic functions!
+		if !fn.isVariadic {
+
+			// Check for too many arguments supplied
+			if len(n.stmts) > len(fn.Args) {
+				errs = append(errs, semanticError2(errTooManyArgsMsg, n.stmts[0].token, n.token.Val))
+				goto end
+			}
+
+			// 1. Check that supplied parameter type order is compatible with function signature
+			pos := 0
+			paramTypes:
+			for _, param := range n.stmts {
+				for ; pos < len(fn.Args); pos += 1 {
+
+					// 1a. Parameter type matches supplied argument
+					if fn.Args[pos].Type.Name() == param.typ.Name() {
+						pos +=1
+						continue paramTypes
+					}
+
+					// 1b. Supplied argument type doesn't match and no default available
+					if fn.Args[pos].Type.Name() != param.typ.Name() && fn.Defaults[pos] == nil {
+						errs = append(errs, semanticError2(errMismatchedaArgsMsg, param.token, param.typ.Name(), fn.Args[pos].Type.Name()))
+						goto end
+					}
+				}
+
+				// 1c. Matching supplied parameter types to function signature types has failed
+				var types []string = nil
+				for _, p := range n.stmts {
+					types = append(types, p.typ.Name())
+				}
+				errs = append(errs, semanticError2(errCannotApplyArgsMsg, n.stmts[0].token, n.token.Val, strings.Join(types, ", ")))
+				goto end
+			}
+
+			// 2. Copy supplied args across while leaving space for defaults
+			args := make([]*Node, len(fn.Args))
+			pos = 0
+			outer:
+			for i := 0; i < len(n.stmts); i += 1 {
+				for ; pos < len(fn.Args); pos += 1 {
+					if fn.Args[pos].Type.Kind == n.stmts[i].typ.Kind {
+						args[pos] = n.stmts[i]
+						pos +=1
+						continue outer
+					}
+				}
+			}
+
+			// 3. Move supplied args to correct positions & fill in any remaining gaps with default values
+			defaults := make([]*Node, len(fn.Args))
+			argsSyms := make(map[*Symbol]*Node)
+			for i := len(args) - 1; i >= 0; i -= 1 {
+				if args[i] != nil {
+					argsSyms[fn.Args[i]] = args[i]
+				} else {
+					if fn.Defaults[i] != nil {
+						// 3b. If empty and we have a default, use it. Step 4 will rewrite any variable references.
+						args[i] = copyNode(fn.Defaults[i])
+						defaults[i] = args[i]
+					} else {
+						// 3b. If empty and no default, "pull" nearest parameter of correct type up to this position
+						var p *Node
+						for j := i - 1; j >= 0; j -= 1 {
+							if args[j] != nil {
+								p = args[j]
+								args[j] = nil
+								break
+							}
+						}
+						args[i] = p
+						argsSyms[fn.Args[i]] = args[i]
+					}
+				}
+			}
+
+			// 4. Rewrite all parameter references in any default expressions to use supplied argument AST nodes
+			for i := 0; i < len(defaults); i += 1 {
+				if defaults[i] != nil {
+					replaceNode(defaults[i], func (x *Node) *Node {
+						if expr, ok := argsSyms[x.sym]; ok {
+							return expr
+						}
+						return nil
+					})
+					argsSyms[fn.Args[i]] = defaults[i] // Make visible for further default rewrites...
+				}
+			}
+
+			// 5. Set all arguments
+			n.stmts = args
+		}
 
 		// Finally set symbol on node
 		n.sym = s
@@ -228,9 +329,12 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		n.typ = boolType
 
 	case opFuncDcl:
-		// Type check params
+		// Type check params & default values
 		for _, param := range n.params {
 			errs = append(errs, typeCheck(param, debug)...)
+			if param.left != nil {
+				errs = append(errs, typeCheck(param.left, debug)...)
+			}
 		}
 
 		// Type check stmts
