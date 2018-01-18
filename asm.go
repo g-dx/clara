@@ -18,10 +18,15 @@ type operand interface {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type memOp struct {
-	base       reg
-	offset     reg
-	displace   int16
-	multiplier int16
+	base     reg
+	offset   reg
+	displace int16
+	mult     int16
+}
+
+func (mo memOp) multiplier(m int) memOp {
+	mo.mult = int16(m)
+	return mo
 }
 
 func (mo memOp) Print() string  {
@@ -35,9 +40,9 @@ func (mo memOp) Print() string  {
 	if mo.offset != 0 {
 		buf.WriteString(",")
 		buf.WriteString(regNames[mo.offset])
-		if mo.multiplier != 0 {
+		if mo.mult != 0 {
 			buf.WriteString(",")
-			buf.WriteString(strconv.Itoa(int(mo.multiplier)))
+			buf.WriteString(strconv.Itoa(int(mo.mult)))
 		}
 	}
 	buf.WriteString(")")
