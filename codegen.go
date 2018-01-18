@@ -137,7 +137,7 @@ func genAssignStmt(asm assembler, n *Node, tab *SymTab) {
 
 	// Pop location to rax and move rbx there
 	asm.op(popq, rax)              // stack -> rax
-	asm.op(movq, rcx, rax.deref()) // [rax] = rcx
+	asm.op(movq, rcx, rax.deref()) // [rax] = rcx // TODO: When byteArrays added this should be movb!
 }
 
 func genIfElseIfElseStmts(asm assembler, n *Node, tab *SymTab) {
@@ -386,22 +386,27 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 
 		// TODO: Bounds check!
 
-		asm.op(popq, rax)                  // stack(index) -> rax
-		asm.op(popq, rbx)                  // stack(*array) -> rbx
-		asm.op(leaq, rbx.displace(8), rbx) // rbx = rbx(*array) + 8
+		asm.op(popq, rax)                  // stack(*array) -> rax
+		asm.op(popq, rbx)                  // stack(index) -> rbx
+		asm.op(leaq, rax.displace(8), rax) // rbx = rbx(*array) + 8
 
 		// TODO: Should take element width into account here!
 		if takeAddr {
-			panic("Array assignments are not implemented yet!")
+			// TODO: The LEAQ from above can be folded into this instruction using displacement
+			asm.op(leaq, rax.offset(rbx).multiplier(width), rax) // rax = [rax + rbx * width]
 		} else {
-			asm.op(movq, rbx.offset(rax), rax) // rax = load[rax(index) + rbx(*array)]
-		}
+			asm.op(movq, rax.offset(rbx).multiplier(width), rax) // rax = load[rax(*array) + (rbx(index) * width)]
 
-		// TODO: This should dynamically create a mask for width < 8
-		if width == 1 {
-			asm.op(andq, intOp(0xFF), rax) // rax = rax & FF
-		} else {
-			panic(fmt.Sprintf("Array access for element of 1 < width < 8 not yet implemented"))
+			// Handle masking other bytes out
+			switch width {
+			case 1:
+				// TODO: Should really be 'movb' above to not require masking!
+				asm.op(andq, intOp(0xFF), rax) // rax = rax & FF
+			case 8:
+				// Nothing to do...
+			default:
+				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
+			}
 		}
 
 		asm.op(pushq, rax) // rax(int/byte/...) -> stack

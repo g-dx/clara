@@ -155,8 +155,9 @@ func main() {
 
 	// Invoke gcc to link files
 	bootstrapPath := filepath.Join(*installPath, "/init/bootstrap.c")
+	runtimePath := filepath.Join(*installPath, "/init/runtime.c")
 	outputPath := filepath.Join(*outPath, progName)
-	cmd := exec.Command("gcc", "-static", "-o", outputPath, asmPath, bootstrapPath)
+	cmd := exec.Command("gcc", "-static", "-o", outputPath, asmPath, bootstrapPath, runtimePath)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {

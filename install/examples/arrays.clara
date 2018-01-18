@@ -1,0 +1,19 @@
+// Entry point
+fn main() {
+    i := intArray(5)
+    i[0] = 100
+    i[1] = 200
+    i[2] = 300
+    i[3] = 400
+    i[4] = 500
+    print(i, 0)
+}
+
+fn print(i: []int, pos: int) {
+    if pos == i.length {
+        printf("i.length = %d\n", i.length)
+        return
+    }
+    printf("[%d] = %d\n", pos, i[pos])
+    print(i, pos+1)
+}

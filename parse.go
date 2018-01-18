@@ -109,6 +109,15 @@ func (p *Parser) parseFnDecl() *Node {
 	p.need(')')
 	// TODO: Decide if return types are optional
 	var retType *lex.Token
+	isArray := false
+	if p.is(lex.LBrack) {
+		p.next()
+		p.need(lex.RBrack)
+		isArray = true
+		if p.isNot(lex.Identifier) {
+			p.syntaxError(lex.Identifier)
+		}
+	}
 	if p.is(lex.Identifier) {
 		retType = p.next()
 	}
@@ -124,7 +133,7 @@ func (p *Parser) parseFnDecl() *Node {
 
 	// Close symtab
 	syms := p.closeScope()
-	return p.fnDclNode(name, params, stmts, syms, retType, extern)
+	return p.fnDclNode(name, params, stmts, syms, retType, isArray, extern)
 }
 
 func (p *Parser) parseBlock() []*Node {
@@ -414,7 +423,7 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isExternal bool) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isArray bool, isExternal bool) *Node {
 
 	// Check symtab for redeclare
 	sym, found := p.symtab.Resolve(token.Val)
@@ -438,12 +447,22 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		if returnTyp == nil {
 			functionType.ret = nothingType
 		} else {
+			if isArray {
+				functionType.ret = &Type{ Kind: Array, Data: &ArrayType{} }
+			}
 			retSym, found := p.symtab.Resolve(returnTyp.Val)
 			if !found {
-				// Register to be updated when/if type becomes available
-				p.linker.Add(returnTyp, &functionType.ret)
+				typ := &functionType.ret
+				if isArray {
+					typ = &functionType.ret.AsArray().Elem
+				}
+				p.linker.Add(returnTyp, typ) // Register to be updated when/if type becomes available
 			} else {
-				functionType.ret = retSym.Type
+				if isArray {
+					functionType.ret.AsArray().Elem = retSym.Type
+				} else {
+					functionType.ret = retSym.Type
+				}
 			}
 		}
 	}

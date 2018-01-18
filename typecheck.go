@@ -315,7 +315,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 
 			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
 			// TODO: Add arrays here too when required
-			if left.sym.Type.Is(String) && right.token.Val == "length" {
+			if (left.sym.Type.Is(Array) || left.sym.Type.Is(String)) && right.token.Val == "length" {
 				right.sym = &Symbol{Name: "length", Addr: 0, Type: intType}
 				right.typ = right.sym.Type
 				n.typ = right.typ
@@ -408,7 +408,11 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		// Check types in assignment
-		if left.typ.Kind != right.typ.Kind {
+		leftType := left.typ
+		if leftType.Is(Array) {
+			leftType = leftType.AsArray().Elem
+		}
+		if leftType.Kind != right.typ.Kind {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Kind, left.typ.Kind))
 			goto end
 		}
