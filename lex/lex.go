@@ -376,7 +376,7 @@ func (l *Lexer) atTerminator() bool {
 	r := l.peek()
 	// TODO: Extract some helpers to ask isOperator(), isNewline(), etc...
 	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n' ||
-		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>' || r == '[' || r == ']'
+		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>' || r == '[' || r == ']' || r == eof
 }
 
 func (l *Lexer) peek() rune {
