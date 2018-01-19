@@ -25,7 +25,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 
 		if !left.typ.Is(Boolean) {
 			// TODO: More specific message for if statement?
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind))
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), boolType.Name()))
 			goto end
 		}
 
@@ -61,8 +61,8 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			goto end
 		}
 
-		if !fn.ret.Is(left.typ.Kind) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, fn.ret.Kind))
+		if !fn.ret.Matches(left.typ) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), fn.ret.Name()))
 			goto end
 		}
 		n.typ = left.typ
@@ -86,7 +86,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			errs = append(errs, semanticError2(errInvalidOperatorTypeMsg, right.token, right.typ.Name(), n.token.Val))
 			goto end
 		}
-		if left.typ.Kind != right.typ.Kind {
+		if !left.typ.Matches(right.typ) {
 			// Mismatched types
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
 		}
@@ -102,7 +102,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 
 		if !left.typ.Is(Boolean) {
 			// TODO: More specific message for if statement?
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, boolType.Kind))
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), boolType.Name()))
 			goto end
 		}
 		n.typ = left.typ
@@ -184,7 +184,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 
 					// 1b. Supplied argument type doesn't match and no default available
 					if fn.Args[pos].Type.Name() != param.typ.Name() && fn.Defaults[pos] == nil {
-						errs = append(errs, semanticError2(errMismatchedaArgsMsg, param.token, param.typ.Name(), fn.Args[pos].Type.Name()))
+						errs = append(errs, semanticError2(errMismatchedTypesMsg, param.token, param.typ.Name(), fn.Args[pos].Type.Name()))
 						goto end
 					}
 				}
@@ -204,7 +204,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		outer:
 			for i := 0; i < len(n.stmts); i += 1 {
 				for ; pos < len(fn.Args); pos += 1 {
-					if fn.Args[pos].Type.Kind == n.stmts[i].typ.Kind {
+					if fn.Args[pos].Type.Matches(n.stmts[i].typ) {
 						args[pos] = n.stmts[i]
 						pos +=1
 						continue outer
@@ -267,8 +267,8 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		if !left.hasType() || !right.hasType() {
 			goto end
 		}
-		if left.typ.Kind != right.typ.Kind {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Kind, right.typ.Kind))
+		if !left.typ.Matches(right.typ) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
 			goto end
 		}
 		n.typ = boolType
@@ -364,7 +364,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		if !right.typ.Is(Integer) {
-			errs = append(errs, semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Kind))
+			errs = append(errs, semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Name()))
 			goto end
 		}
 		n.typ = left.typ
@@ -412,8 +412,8 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		if leftType.Is(Array) {
 			leftType = leftType.AsArray().Elem
 		}
-		if leftType.Kind != right.typ.Kind {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Kind, left.typ.Kind))
+		if !leftType.Matches(right.typ) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Name(), leftType.Name()))
 			goto end
 		}
 

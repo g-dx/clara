@@ -32,7 +32,7 @@ var typeKindNames = map[TypeKind]string {
 	Boolean:  "bool",
 	String:   "string",
 	Array:    "[]",
-	Nothing:   "Nothing",
+	Nothing:   "nothing",
 }
 
 func (tk TypeKind) String() string {
@@ -48,6 +48,22 @@ func (tk TypeKind) String() string {
 type Type struct {
 	Kind TypeKind
 	Data interface{}
+}
+
+func (t *Type) Matches(x *Type) bool {
+	switch t.Kind {
+	case Struct:
+		return x.Kind == Struct && t.AsStruct().Name == x.AsStruct().Name
+	case Boolean, Integer, String, Nothing:
+		return t.Kind == x.Kind
+	case Array:
+		return x.Kind == Array && t.AsArray().Elem.Matches(x.AsArray().Elem)
+	case Function:
+		// Not yet required...
+		fallthrough
+	default:
+		panic("Unknown or unexpected type comparison!")
+	}
 }
 
 func (t *Type) Is(kind TypeKind) bool {

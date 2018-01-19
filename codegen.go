@@ -19,7 +19,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
 	// Output strings
 	symtab.Walk(func(s *Symbol) {
-		if s.Type.Kind == String && s.IsLiteral {
+		if s.Type.Is(String) && s.IsLiteral {
 			stringOps[s.Name] = asm.stringLit(s.Name)
 		}
 	})
