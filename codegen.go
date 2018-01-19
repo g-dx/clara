@@ -388,14 +388,12 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 
 		asm.op(popq, rax)                  // stack(*array) -> rax
 		asm.op(popq, rbx)                  // stack(index) -> rbx
-		asm.op(leaq, rax.displace(8), rax) // rbx = rbx(*array) + 8
 
-		// TODO: Should take element width into account here!
+		// Displace + 8 to skip over length
 		if takeAddr {
-			// TODO: The LEAQ from above can be folded into this instruction using displacement
-			asm.op(leaq, rax.offset(rbx).multiplier(width), rax) // rax = [rax + rbx * width]
+			asm.op(leaq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = [rax + rbx * width + 8]
 		} else {
-			asm.op(movq, rax.offset(rbx).multiplier(width), rax) // rax = load[rax(*array) + (rbx(index) * width)]
+			asm.op(movq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 
 			// Handle masking other bytes out
 			switch width {

@@ -18,10 +18,10 @@ type operand interface {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type memOp struct {
-	base     reg
-	offset   reg
-	displace int16
-	mult     int16
+	base   reg
+	offset reg
+	disp   int16
+	mult   int16
 }
 
 func (mo memOp) multiplier(m int) memOp {
@@ -29,11 +29,16 @@ func (mo memOp) multiplier(m int) memOp {
 	return mo
 }
 
+func (mo memOp) displace(m int) memOp {
+	mo.disp = int16(m)
+	return mo
+}
+
 func (mo memOp) Print() string  {
 
 	var buf bytes.Buffer
-	if mo.displace != 0 {
-		buf.WriteString(strconv.Itoa(int(mo.displace)))
+	if mo.disp != 0 {
+		buf.WriteString(strconv.Itoa(int(mo.disp)))
 	}
 	buf.WriteString("(")
 	buf.WriteString(regNames[mo.base]) // TODO: Base is not actually required. Future work may need to omit it
@@ -132,7 +137,7 @@ func (r reg) displace(i int) memOp {
 	if i > math.MaxInt16 || i < math.MinInt16 {
 		panic(fmt.Sprintf("Cannot represent displacement: %v", i))
 	}
-	return memOp{ base: r, displace: int16(i) }
+	return memOp{ base: r, disp: int16(i) }
 }
 
 func (r reg) deref() memOp {
