@@ -384,10 +384,12 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 
 		width := expr.typ.Width()
 
-		// TODO: Bounds check!
-
 		asm.op(popq, rax)                  // stack(*array) -> rax
 		asm.op(popq, rbx)                  // stack(index) -> rbx
+
+		// Bounds check
+		asm.op(cmpq, rax.deref(), rbx)           // index - array.length
+		asm.op(jae, labelOp("indexOutOfBounds")) // Defined in runtime.c
 
 		// Displace + 8 to skip over length
 		if takeAddr {

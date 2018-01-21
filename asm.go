@@ -172,6 +172,7 @@ const (
 	// Looping instructions
 	jmp
 	jne
+	jae
 
 	// Function support
 	leave
@@ -197,6 +198,7 @@ var instNames = map[inst]string{
 	idivq: "idivq",
 	jmp:   "jmp",
 	jne:   "jne",
+	jae:   "jae",
 	leave: "leave",
 	ret:   "ret",
 	call:  "call",
