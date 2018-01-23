@@ -177,13 +177,13 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 				for ; pos < len(fn.Args); pos += 1 {
 
 					// 1a. Parameter type matches supplied argument
-					if fn.Args[pos].Type.Name() == param.typ.Name() {
+					if fn.Args[pos].Type.Matches(param.typ) {
 						pos +=1
 						continue paramTypes
 					}
 
 					// 1b. Supplied argument type doesn't match and no default available
-					if fn.Args[pos].Type.Name() != param.typ.Name() && fn.Defaults[pos] == nil {
+					if !fn.Args[pos].Type.Matches(param.typ) && fn.Defaults[pos] == nil {
 						errs = append(errs, semanticError2(errMismatchedTypesMsg, param.token, param.typ.Name(), fn.Args[pos].Type.Name()))
 						goto end
 					}
