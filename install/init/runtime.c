@@ -10,9 +10,11 @@
 
 void indexOutOfBounds()
 {
+    register int64_t i asm("rbx"); // NOTE: Keep in sync with codegen.go!
+    printf("\n// -------------------------------------------------------------------------------------------\n");
+    printf("// Crash: Index (%ld) is out of bounds!\n", i);
     printf("// -------------------------------------------------------------------------------------------\n");
-    printf("Crash: Index out of bounds!\n\nBacktrace:\n");
-    printf("// -------------------------------------------------------------------------------------------\n");
+    printf("\nBacktrace:\nTODO!\n\n");
     // TODO: Output stacktrace
     abort();
 }
