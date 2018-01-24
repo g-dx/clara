@@ -24,7 +24,6 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		if !left.typ.Is(Boolean) {
-			// TODO: More specific message for if statement?
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), boolType.Name()))
 			goto end
 		}
@@ -91,7 +90,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
 		}
 
-		n.typ = intType // Arithmetic always produces int
+		n.typ = intType // All arithmetic operations produces int
 
 	case opNot:
 		errs = append(errs, typeCheck(left, debug)...)
@@ -101,11 +100,10 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		if !left.typ.Is(Boolean) {
-			// TODO: More specific message for if statement?
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), boolType.Name()))
 			goto end
 		}
-		n.typ = left.typ
+		n.typ = boolType
 
 	case opLit:
 		n.typ = n.sym.Type
@@ -314,7 +312,6 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		} else if right.op == opIdentifier {
 
 			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
-			// TODO: Add arrays here too when required
 			if (left.sym.Type.Is(Array) || left.sym.Type.Is(String)) && right.token.Val == "length" {
 				right.sym = &Symbol{Name: "length", Addr: 0, Type: intType}
 				right.typ = right.sym.Type
