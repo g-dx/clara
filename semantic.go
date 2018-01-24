@@ -37,10 +37,10 @@ const (
 type OperatorTypes map[int][]TypeKind
 
 var operatorTypes = OperatorTypes {
-	opAdd: { Integer, String, Array },
-	opMin: { Integer },
-	opMul: { Integer },
-	opDiv: { Integer },
+	opAdd: { Integer, Byte },
+	opMin: { Integer, Byte },
+	opMul: { Integer, Byte },
+	opDiv: { Integer, Byte },
 	opOr:  { Boolean },
 	opAnd: { Boolean },
 	// TODO: What about unary operators? Operators which return a different type?

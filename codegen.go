@@ -68,7 +68,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 					genConstructor(asm, fn, n.params)
 				} else {
 					// Generate code for all statements
-					genStmtList(asm, n.stmts, n.symtab)
+					genStmtList(asm, n.stmts, fn, n.symtab)
 				}
 
 				// TODO: If last statement was a ReturnExpression - no need for this epilogue...
@@ -104,7 +104,7 @@ func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 	// Pointer is already in rax so nothing to do...
 }
 
-func genStmtList(asm assembler, stmts []*Node, tab *SymTab) {
+func genStmtList(asm assembler, stmts []*Node, fn *FunctionType, tab *SymTab) {
 	for _, stmt := range stmts {
 
 		switch stmt.op {
@@ -112,10 +112,10 @@ func genStmtList(asm assembler, stmts []*Node, tab *SymTab) {
 			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.symtab)
 
 		case opReturn:
-			genReturnExpression(asm, stmt, stmt.symtab)
+			genReturnExpression(asm, stmt, fn, stmt.symtab)
 
 		case opIf:
-			genIfElseIfElseStmts(asm, stmt, stmt.symtab)
+			genIfElseIfElseStmts(asm, stmt, fn, stmt.symtab)
 
 		case opDas, opAs:
 			genAssignStmt(asm, stmt, stmt.symtab)
@@ -137,10 +137,15 @@ func genAssignStmt(asm assembler, n *Node, tab *SymTab) {
 
 	// Pop location to rax and move rbx there
 	asm.op(popq, rax)              // stack -> rax
-	asm.op(movq, rcx, rax.deref()) // [rax] = rcx // TODO: When byteArrays added this should be movb!
+
+	// Check if int -> byte cast required
+	if n.right.typ.Is(Integer) && n.left.typ.Is(Byte) {
+		asm.op(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
+	}
+	asm.op(movq, rcx, rax.deref()) // [rax] = rcx
 }
 
-func genIfElseIfElseStmts(asm assembler, n *Node, tab *SymTab) {
+func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType, tab *SymTab) {
 
 	// Generate exit label
 	exit := asm.newLabel("if_end")
@@ -158,23 +163,28 @@ func genIfElseIfElseStmts(asm assembler, n *Node, tab *SymTab) {
 			asm.op(cmpq, _true, rax)   // Compare (true) to rax
 			asm.op(jne, labelOp(next)) // Jump over block if not equal
 
-			genStmtList(asm, cur.stmts, cur.symtab) // Generate if (true) stmt block
-			asm.op(jmp, labelOp(exit))              // Exit if/elseif/else block completely
-			asm.label(next)                         // Label to jump if false
+			genStmtList(asm, cur.stmts, fn, cur.symtab) // Generate if (true) stmt block
+			asm.op(jmp, labelOp(exit))                  // Exit if/elseif/else block completely
+			asm.label(next)                             // Label to jump if false
 		} else {
-			genStmtList(asm, cur.stmts, cur.symtab) // Generate block without condition (else block)
+			genStmtList(asm, cur.stmts, fn, cur.symtab) // Generate block without condition (else block)
 		}
 		cur = cur.right // Move down tree
 	}
 	asm.label(exit) // Declare exit point
 }
 
-func genReturnExpression(asm assembler, retrn *Node, tab *SymTab) {
+func genReturnExpression(asm assembler, retn *Node, fn *FunctionType, tab *SymTab) {
 
 	// If return has expression evaluate it & pop result to rax
-	if retrn.left != nil {
-		genExprWithoutAssignment(asm, retrn.left, tab, 0, false)
+	if retn.left != nil {
+		genExprWithoutAssignment(asm, retn.left, tab, 0, false)
 		asm.op(popq, rax)
+
+		// Check if int -> byte cast required
+		if retn.left.typ.Is(Integer) && fn.ret.Is(Byte) {
+			asm.op(movsbq, rax._8bit(), rax)
+		}
 	}
 
 	// Clean stack & return
@@ -196,6 +206,11 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, symtab *SymTab) 
 		// so we can modify the pointer value to point "past" the length to the actual data
 		if arg.typ.Is(String) && fn.IsExternal && fn.Name == "printf" {
 			asm.op(leaq, regs[i].displace(8), regs[i])
+		}
+
+		// Check if int -> byte cast required
+		if i < len(fn.Args) && arg.typ.Is(Integer) && fn.Args[i].Type.Is(Byte) {
+			asm.op(movsbq, regs[i]._8bit(), regs[i])
 		}
 	}
 
@@ -247,7 +262,7 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 		case String:
 			asm.op(pushq, stringOps[expr.sym.Name])
 
-		case Integer:
+		case Byte, Integer:
 			asm.op(pushq, strOp(expr.sym.Name)) // Push onto top of stack
 
 		case Boolean:

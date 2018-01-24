@@ -108,9 +108,20 @@ const (
 	r13
 	r14
 	r15
+
+	// 8-bit
+	dil  // rdi
+	sil  // rsi
+	dl   // rdx
+	cl   // rcx
+	r8l  // r8
+	r9l  // r9
+	al   // rax
 )
 
-var regNames = map[reg]string {
+var regNames = map[reg]string{
+
+	// 64-bit
 	rax: "%rax",
 	rbx: "%rbx",
 	rcx: "%rcx",
@@ -127,6 +138,15 @@ var regNames = map[reg]string {
 	r13: "%r13",
 	r14: "%r14",
 	r15: "%r15",
+
+	// 8-bit
+	dil: "%dil",
+	sil: "%sil",
+	dl:  "%dl",
+	cl:  "%cl",
+	r8l: "%r8l",
+	r9l: "%r9l",
+	al:  "%al",
 }
 
 func (r reg) offset(offset reg) memOp {
@@ -144,10 +164,32 @@ func (r reg) deref() memOp {
 	return memOp{ base: r }
 }
 
+func (r reg) _8bit() reg {
+	switch r {
+	case rax:
+		return al
+	case rdi:
+		return dil
+	case rsi:
+		return sil
+	case rdx:
+		return dl
+	case rcx:
+		return cl
+	case r8:
+		return r8l
+	case r9:
+		return r9l
+	default:
+		panic("No 8-bit version defined for: " + regNames[r])
+	}
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 type inst byte
 const (
 	movq = iota
+	movsbq
 	popq
 	pushq
 
@@ -182,6 +224,7 @@ const (
 
 var instNames = map[inst]string{
 	movq:  "movq",
+	movsbq: "movsbq",
 	popq:  "popq",
 	pushq: "pushq",
 	leaq:  "leaq",

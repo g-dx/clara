@@ -91,7 +91,7 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
 		}
 
-		n.typ = left.typ
+		n.typ = intType // Arithmetic always produces int
 
 	case opNot:
 		errs = append(errs, typeCheck(left, debug)...)

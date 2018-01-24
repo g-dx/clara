@@ -6,7 +6,7 @@ import (
 
 //----------------------------------------------------------------------------------------------------------------------
 
-var byteType = &Type{ Kind: Integer, Data: &IntType{ Width: 1 } } // TODO: Possibly introduce this globally
+var byteType = &Type{ Kind: Byte, Data: &IntType{ Width: 1 } }
 var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
 var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
 var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
@@ -19,6 +19,7 @@ const (
 	Struct = TypeKind(iota)
 	Function
 	Integer
+	Byte
 	Boolean
 	String
 	Array
@@ -29,6 +30,7 @@ var typeKindNames = map[TypeKind]string {
 	Struct:   "struct",
 	Function: "function",
 	Integer:  "int",
+	Byte:     "byte",
 	Boolean:  "bool",
 	String:   "string",
 	Array:    "[]",
@@ -54,7 +56,9 @@ func (t *Type) Matches(x *Type) bool {
 	switch t.Kind {
 	case Struct:
 		return x.Kind == Struct && t.AsStruct().Name == x.AsStruct().Name
-	case Boolean, Integer, String, Nothing:
+	case Integer, Byte:
+		return x.Kind == Integer || x.Kind == Byte // Int & bytes can be used interchangeably...
+	case Boolean, String, Nothing:
 		return t.Kind == x.Kind
 	case Array:
 		return x.Kind == Array && t.AsArray().Elem.Matches(x.AsArray().Elem)

@@ -187,6 +187,8 @@ func stdSyms() []*Symbol {
 		{ Name: "string", Type: stringType },
 		// int type
 		{ Name: "int", Type: intType },
+		// byte type
+		{ Name: "byte", Type: byteType },
 		// bool type
 		{ Name: "bool", Type: boolType },
 	}

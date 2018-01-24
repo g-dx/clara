@@ -1,0 +1,33 @@
+// Entry point
+fn main()
+{
+    // b has type byte, 8-byte slot is declared on stack for storage
+    b := byteVal()
+    printByte(b)
+
+    // All arithmetic produces int values (even byte +/-* byte)
+    b = b + 126  // Automatic cast to byte
+    printByte(b)
+    b = b + 1
+    printByte(b)
+
+    // i has int type
+    i := 245
+    printByte(i) // Automatic cast to byte before call
+    i = i + 11
+    printByte(i)
+
+    printByte(x())
+}
+
+fn byteVal() byte {
+    return 1
+}
+
+fn x() byte {
+    return 2 * 90 // Automatic cast to byte before return
+}
+
+fn printByte(b: byte) {
+    printf("printByte(%d)\n", b)
+}
