@@ -2,3 +2,5 @@
 // External Functions
 
 fn intArray(size: int) []int
+
+fn byteArray(size: int) []byte

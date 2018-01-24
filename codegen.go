@@ -139,10 +139,16 @@ func genAssignStmt(asm assembler, n *Node, tab *SymTab) {
 	asm.op(popq, rax)              // stack -> rax
 
 	// Check if int -> byte cast required
-	if n.right.typ.Is(Integer) && n.left.typ.Is(Byte) {
+	if (n.left.typ.IsArray(Byte) || n.left.typ.Is(Byte)) && n.right.typ.Is(Integer) {
 		asm.op(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
 	}
-	asm.op(movq, rcx, rax.deref()) // [rax] = rcx
+
+	// SPECIAL CASE: Stack & struct byte values are stored in 8-byte slots but in byte arrays they occupy a single byte - hence only move a single byte
+	if n.left.typ.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
+		asm.op(movb, cl, rax.deref()) // [rax] = cl
+	} else {
+		asm.op(movq, rcx, rax.deref()) // [rax] = rcx
+	}
 }
 
 func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType, tab *SymTab) {
@@ -410,15 +416,13 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 		if takeAddr {
 			asm.op(leaq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = [rax + rbx * width + 8]
 		} else {
-			asm.op(movq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 
-			// Handle masking other bytes out
+			// Read value according to width
 			switch width {
 			case 1:
-				// TODO: Should really be 'movb' above to not require masking!
-				asm.op(andq, intOp(0xFF), rax) // rax = rax & FF
+				asm.op(movsbq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			case 8:
-				// Nothing to do...
+				asm.op(movq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			default:
 				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
 			}

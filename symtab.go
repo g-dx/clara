@@ -74,6 +74,10 @@ func (t *Type) Is(kind TypeKind) bool {
 	return t.Kind == kind
 }
 
+func (t *Type) IsArray(kind TypeKind) bool {
+	return t.Is(Array) && t.AsArray().Elem.Is(kind)
+}
+
 func (t *Type) AsStruct() *StructType {
 	return t.Data.(*StructType)
 }

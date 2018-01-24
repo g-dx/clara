@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Runtime functions
+// C Runtime functions
 // ---------------------------------------------------------------------------------------------------------------------
 
 void indexOutOfBounds()
@@ -24,7 +24,18 @@ void indexOutOfBounds()
 // ---------------------------------------------------------------------------------------------------------------------
 uint64_t intArray(int size)
 {
-    uint64_t *array = (uint64_t *) malloc(sizeof(uint64_t) * (size + 1));
+    int n = sizeof(uint64_t) * size;
+    uint64_t *array = (uint64_t *) malloc(n + 8); // + 8 for length
+    array[0] = size;
+    return (uint64_t) array;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+uint64_t byteArray(int size)
+{
+    int n = (8 - (size % sizeof(uint8_t)) + size); // Round up to nearest multiple of 8
+    uint64_t *array = (uint64_t *) malloc(n + 8);  // + 8 for length
     array[0] = size;
     return (uint64_t) array;
 }

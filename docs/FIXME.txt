@@ -1,3 +1,4 @@
+- Maybe allow functions to have same name as builtin types such as byte, int
 - Ensure functions which return something terminate properly.
 - Ensure struct constructors cannot be overridden.
 - Ensure built-in functions cannot be overridden. To do this we could "namespace" all function names by prefixing with "clara_"

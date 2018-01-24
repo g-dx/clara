@@ -189,6 +189,7 @@ func (r reg) _8bit() reg {
 type inst byte
 const (
 	movq = iota
+	movb
 	movsbq
 	popq
 	pushq
@@ -223,28 +224,29 @@ const (
 )
 
 var instNames = map[inst]string{
-	movq:  "movq",
+	movq:   "movq",
+	movb:   "movb",
 	movsbq: "movsbq",
-	popq:  "popq",
-	pushq: "pushq",
-	leaq:  "leaq",
-	notq:  "notq",
-	orq:   "orq",
-	andq:  "andq",
-	cmpq:  "cmpq",
-	cmovg: "cmovg",
-	cmovl: "cmovl",
-	cmove: "cmove",
-	addq:  "addq",
-	subq:  "subq",
-	imulq: "imulq",
-	idivq: "idivq",
-	jmp:   "jmp",
-	jne:   "jne",
-	jae:   "jae",
-	leave: "leave",
-	ret:   "ret",
-	call:  "call",
+	popq:   "popq",
+	pushq:  "pushq",
+	leaq:   "leaq",
+	notq:   "notq",
+	orq:    "orq",
+	andq:   "andq",
+	cmpq:   "cmpq",
+	cmovg:  "cmovg",
+	cmovl:  "cmovl",
+	cmove:  "cmove",
+	addq:   "addq",
+	subq:   "subq",
+	imulq:  "imulq",
+	idivq:  "idivq",
+	jmp:    "jmp",
+	jne:    "jne",
+	jae:    "jae",
+	leave:  "leave",
+	ret:    "ret",
+	call:   "call",
 }
 
 type assembler interface {
