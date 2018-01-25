@@ -91,14 +91,13 @@ func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 	asm.op(call, labelOp("malloc"))
 
 	// Copy stack values into fields
-	offset := 0
+	off := 0
 	for _, param := range params {
 		id := param.sym
 		// Can't move mem -> mem. Must go through a register.
-		// TODO: These values are in registers (rdi, rsi, etc) so mov from there to mem
 		asm.op(movq, rbp.displace(-id.Addr), rbx)
-		asm.op(movq, rbx, rax.displace(offset))
-		offset += id.Type.Width()
+		asm.op(movq, rbx, rax.displace(off))
+		off += id.Type.Width()
 	}
 
 	// Pointer is already in rax so nothing to do...
