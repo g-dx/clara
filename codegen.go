@@ -7,7 +7,22 @@ import (
 )
 
 var stringOps = make(map[string]operand)
-var regs = []reg{rdi, rsi, rdx, rcx, r8, r9} // SysV calling convention
+
+/*
+
+ System V AMD64 ABI:
+ -------------------
+ - Parameters passed RTL in RDI, RSI, RDX, RCX, R8, R9 followed by stack
+ - Caller cleans up
+ - Callee must restore RBX, RBP, and R12–R15 if used otherwise all other registers are available for use.
+ - Stack should be aligned on 16-byte boundary
+ - 128 byte red zone below stack
+
+  https://en.wikipedia.org/wiki/X86_calling_conventions#System_V_AMD64_ABI
+
+ */
+
+var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
 func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
@@ -219,10 +234,9 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, symtab *SymTab) 
 		}
 	}
 
-	// If function is variadic - must set rax to number of parameters as part if SysV x64 calling convention
+	// Variadic functions must set rax to number of floating point parameters
 	if fn.isVariadic {
-		// TODO: If this is not set to zero we get a core dump for some reason?
-		asm.op(movq, intOp(0), rax /*len(args) - fn.fnArgCount*/)
+		asm.op(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
 	asm.op(call, labelOp(fn.Name))
