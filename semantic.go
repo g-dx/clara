@@ -27,6 +27,7 @@ const (
 	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
+	errMissingReturnMsg 	   = "%v:%d:%d: error, missing return for function '%v'"
 
 	// Debug messages
 	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"

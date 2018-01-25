@@ -49,22 +49,26 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		// Does not promote type...
 
 	case opReturn:
-		// "Empty" return
-		if left == nil {
-			n.typ = nothingType
-			return errs
+
+		// Default to empty return
+		rType := nothingType
+		rToken := n.token
+
+		// Check expression if any
+		if left != nil {
+			errs = append(errs, typeCheck(left, debug)...)
+			if !left.hasType() {
+				goto end
+			}
+			rType = left.typ
+			rToken = left.token
 		}
 
-		errs = append(errs, typeCheck(left, debug)...)
-		if !left.hasType() {
+		if !fn.ret.Matches(rType) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, rToken, rType.Name(), fn.ret.Name()))
 			goto end
 		}
-
-		if !fn.ret.Matches(left.typ) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), fn.ret.Name()))
-			goto end
-		}
-		n.typ = left.typ
+		n.typ = rType
 
 
 	case opAnd, opOr, opAdd, opMul, opMin, opDiv:
@@ -286,6 +290,11 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		n.typ = n.sym.Type
+
+		// Check for termination
+		if !fn.ret.Is(Nothing) && !fn.IsExternal && !fn.isConstructor && !n.isTerminating() {
+			errs = append(errs, semanticError(errMissingReturnMsg, n.token))
+		}
 
 	case opDot:
 		errs = append(errs, typeCheck(left, debug)...)

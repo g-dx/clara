@@ -39,6 +39,22 @@ func (n *Node) isAddressable() bool {
 	}
 }
 
+func (n *Node) isTerminating() bool {
+
+	x := []*Node { n }
+	for i := 0; i < len(x); i++ {
+		switch x[i].op {
+		case opFuncDcl, opElse, opElseIf, opIf:
+			for _, stmt := range x[i].stmts {
+				x = append(x, stmt)
+			}
+		case opReturn:
+			return true
+		}
+	}
+	return false
+}
+
 const (
 	opFuncDcl = iota
 	opFuncCall
