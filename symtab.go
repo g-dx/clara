@@ -78,6 +78,10 @@ func (t *Type) IsArray(kind TypeKind) bool {
 	return t.Is(Array) && t.AsArray().Elem.Is(kind)
 }
 
+func (t *Type) IsFunction(kind TypeKind) bool {
+	return t.Is(Function) && t.AsFunction().ret.Is(kind)
+}
+
 func (t *Type) AsStruct() *StructType {
 	return t.Data.(*StructType)
 }

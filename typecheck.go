@@ -329,13 +329,17 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			}
 
 			// Check we have a struct
-			if !left.sym.Type.Is(Struct) {
+			var strct *StructType
+			if left.sym.Type.Is(Struct) {
+				strct = left.sym.Type.AsStruct()
+			} else if left.sym.Type.IsFunction(Struct) {
+				strct = left.sym.Type.AsFunction().ret.AsStruct()
+			} else {
 				errs = append(errs, semanticError(errNotStructMsg, left.token))
 				goto end
 			}
 
 			// Check field exists in struct
-			strct := left.sym.Type.AsStruct()
 			sym, offset := strct.Offset(right.token.Val)
 			if sym == nil {
 				errs = append(errs, semanticError(errStructHasNoFieldMsg, right.token, strct.Name))

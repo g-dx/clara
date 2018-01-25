@@ -8,6 +8,7 @@ struct object {
 // Entry point
 fn main() {
   print(Object(1234567890, true, "Hello from a struct!", Colour("#00FF00", 0, 255, 0)))
+  printf("String = %s\n", Text("Hello").s)
 }
 
 fn print(obj: object) colour {
@@ -20,6 +21,10 @@ fn toString(b: bool) string {
         return "true"
     }
     return "false"
+}
+
+struct text {
+    s: string
 }
 
 struct colour {
