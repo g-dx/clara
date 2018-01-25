@@ -50,11 +50,6 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 			// Ensure we only generate code for "our" functions
 			fn := n.sym.Type.AsFunction()
 			if !fn.IsExternal {
-				// FN declaration
-				// TODO: Add "clara_" namespacing to all generated functions
-				if fn.Name == "main" {
-					fn.Name = "clara_main" // Rewrite main
-				}
 
 				// Assign stack offsets for temporaries
 				temps := len(fn.Args)
@@ -68,7 +63,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				})
 
 				// Allocate space for temporaries
-				asm.function(fn.Name, temps)
+				asm.function(fn.AsmName(), temps)
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
@@ -241,7 +236,7 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, symtab *SymTab) 
 		asm.op(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
-	asm.op(call, labelOp(fn.Name))
+	asm.op(call, labelOp(fn.AsmName()))
 }
 
 func restore(asm assembler, regPos int) {

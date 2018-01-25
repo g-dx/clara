@@ -189,6 +189,14 @@ func (ft *FunctionType) MandatoryParams() int {
 	return i
 }
 
+// Used during codegen to avoid clashes with shared library functions
+func (ft *FunctionType) AsmName() string {
+	if ft.IsExternal {
+		return ft.Name
+	}
+	return "clara_" + ft.Name
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type ArrayType struct {
