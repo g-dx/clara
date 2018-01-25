@@ -86,9 +86,11 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 					genStmtList(asm, n.stmts, fn, n.symtab)
 				}
 
-				// TODO: If last statement was a ReturnExpression - no need for this epilogue...
-				asm.op(leave)
-				asm.op(ret)
+				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
+				if !n.isTerminating() {
+					asm.op(leave)
+					asm.op(ret)
+				}
 				asm.spacer()
 			}
 		default:
