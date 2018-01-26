@@ -17,6 +17,7 @@ const (
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
+	errConstructorOverrideMsg  = "%v:%d:%d: error, function name '%v' is reserved for struct constructor"
 	errNotStructMsg            = "%v:%d:%d: error, '%v' is not a struct"
 	errStructHasNoFieldMsg     = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
 	errInvalidDotSelectionMsg  = "%v:%d:%d: error '%v', expected field or function call"
@@ -73,6 +74,18 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 
 		// Create name
 		constructorName := strings.ToUpper(firstLetter) + name[1:]
+
+		// Ensure there are no other function definitions with this name
+		if _, found := root.symtab.Resolve(constructorName); found {
+			var n *Node
+			for _, x := range root.stmts {
+				if x.op == opFuncDcl && x.token.Val == constructorName {
+					n = x
+					break
+				}
+			}
+			return semanticError(errConstructorOverrideMsg, n.token)
+		}
 
 		// Collect struct field symbols
 		var args []*Symbol

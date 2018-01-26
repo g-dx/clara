@@ -1,10 +1,10 @@
 - Type check parameter expressions with respect to the parameter type
 - Maybe allow functions to have same name as builtin types such as byte, int
-- Ensure struct constructors cannot be overridden.
 - Type check arithmetic operators (more generally, define operator rules better or more succinctly)
 - Type check variadic function calls
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
+- Allow full function overloading
 
 DONE:
 ----
@@ -14,3 +14,4 @@ DONE:
 - Ensure functions which return something terminate properly.
 - Functions which return structs should be able to occupy the left position on a '.' call.
 - Ensure built-in functions cannot be overridden. To do this we could "namespace" all function names by prefixing with "clara_"
+- Ensure struct constructors cannot be overridden.
