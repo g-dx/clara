@@ -5,7 +5,7 @@
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
 - Allow full function overloading
-
+- Provide a mechanism for escaping double quotes in string literals.
 DONE:
 ----
 
