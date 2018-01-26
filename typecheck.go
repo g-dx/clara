@@ -377,11 +377,12 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 			errs = append(errs, semanticError2(errNonIntegerIndexMsg, right.token, right.typ.Name()))
 			goto end
 		}
-		n.typ = left.typ
 
 		// SPECIAL CASE: If the left type is a string, array access yields a byte
 		if left.typ.Is(String) {
 			n.typ = byteType
+		} else {
+			n.typ = left.typ.AsArray().Elem
 		}
 
 	case opDas:
@@ -418,12 +419,8 @@ func typeCheck(n *Node, debug bool) (errs []error) {
 		}
 
 		// Check types in assignment
-		leftType := left.typ
-		if leftType.Is(Array) {
-			leftType = leftType.AsArray().Elem
-		}
-		if !leftType.Matches(right.typ) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Name(), leftType.Name()))
+		if !left.typ.Matches(right.typ) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ.Name(), left.typ.Name()))
 			goto end
 		}
 
