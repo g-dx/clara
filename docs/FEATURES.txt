@@ -4,8 +4,6 @@
 
 - support a standard library
 
-- support arrays of int, bool, string (all 8 bytes in size)
-
 - Add utility functions for basic types into some sort of standard library
 
 - support passing functions as parameters
@@ -26,3 +24,4 @@ DONE:
 - support "external" functions (i.e. implementation provided at link time)
 - support function with same name but different signatures
 - dynamic string implementation
+- support arrays of int & string (all 8 bytes in size)
