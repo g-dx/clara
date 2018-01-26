@@ -55,6 +55,22 @@ func (n *Node) isTerminating() bool {
 	return false
 }
 
+func (n *Node) IsReturnLastStmt() bool {
+
+	x := []*Node { n }
+	for i := 0; i < len(x); i++ {
+		switch x[i].op {
+		case opFuncDcl, opElse, opElseIf, opIf:
+			if len(x[i].stmts) > 0 {
+				x = append(x, x[i].stmts[len(x[i].stmts)-1])
+			}
+		case opReturn:
+			return true
+		}
+	}
+	return false
+}
+
 const (
 	opFuncDcl = iota
 	opFuncCall

@@ -82,7 +82,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				}
 
 				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
-				if !n.isTerminating() {
+				if !n.IsReturnLastStmt() {
 					asm.op(leave)
 					asm.op(ret)
 				}
