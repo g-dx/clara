@@ -1,9 +1,20 @@
 // Entry point
 fn main() {
-  "Clara & Gary!".printChars(0)
+
+  // Manual string construction
+  b := byteArray(5)
+  b[0] = 67   // C
+  b[1] = 108  // l
+  b[2] = 97   // a
+  b[3] = 114  // r
+  b[4] = 97   // a
+  clara := toString(b)
+
+  // Append & print
+  clara.append(" & ").append("Gary!").printChars()
 }
 
-fn printChars(s: string, pos: int) {
+fn printChars(s: string, pos: int = 0) {
     if pos == s.length {
         printf("\n")
         return
@@ -12,6 +23,6 @@ fn printChars(s: string, pos: int) {
     } else {
         printf(", ")
     }
-    printf("'%c'", s[pos])
+    printf("%c", s[pos])
     printChars(s, pos + 1)
 }

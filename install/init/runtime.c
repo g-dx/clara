@@ -1,8 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <execinfo.h>
-#include <unistd.h>
+#include <string.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
 // C Runtime functions
@@ -38,4 +37,17 @@ uint64_t byteArray(int size)
     uint64_t *array = (uint64_t *) malloc(n + 8);  // + 8 for length
     array[0] = size;
     return (uint64_t) array;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// lib/strings.clara
+// ---------------------------------------------------------------------------------------------------------------------
+
+intptr_t toString(intptr_t bytes)
+{
+    // Copy bytes into new array
+    uint64_t size = ((uint64_t *) bytes)[0] + 8; // + 8 for length
+    intptr_t *s = malloc(size + 1); // + 1 for NUL byte
+    memcpy(s, (void *) bytes, size);
+    return (intptr_t) s;
 }

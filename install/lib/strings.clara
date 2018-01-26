@@ -1,0 +1,21 @@
+fn append(s1: string, s2: string) string {
+    s := byteArray(s1.length + s2.length)
+    copyString(s1, 0, s, 0)
+    copyString(s2, 0, s, s1.length)
+    return toString(s)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
+    if src.length == srcPos {
+        return
+    }
+    dest[destPos] = src[srcPos]
+    copyString(src, srcPos+1, dest, destPos+1)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// External Functions
+
+fn toString(b: []byte) string // Copies array & returns new string
