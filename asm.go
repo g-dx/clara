@@ -306,7 +306,11 @@ func (gw *gasWriter) stringLit(s string) operand {
 
 	// Encode length in little endian format
 	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(len(s)-2)) // Trim double quotes
+	raw, err := strconv.Unquote(s)
+	if err != nil {
+		panic(err)
+	}
+	binary.LittleEndian.PutUint64(b, uint64(len(raw)))
 
 	// Generate escaped Go string of raw hex values
 	size := fmt.Sprintf("\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x",
