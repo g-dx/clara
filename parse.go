@@ -487,8 +487,7 @@ func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars
 		p.symbolError(errRedeclaredMsg, id)
 	} else {
 		// Define struct symbol
-		// TODO: This width calc shouldn't happen here
-		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Width: len(fields) * 8, Fields: vars }}}
+		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Fields: vars }}}
 		p.symtab.Define(sym)
 
 		// Update any other nodes waiting on this type

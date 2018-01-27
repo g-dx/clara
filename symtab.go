@@ -6,6 +6,10 @@ import (
 
 //----------------------------------------------------------------------------------------------------------------------
 
+const ptrSize = 8 // 64-bit pointer size in bytes
+
+//----------------------------------------------------------------------------------------------------------------------
+
 var byteType = &Type{ Kind: Byte, Data: &IntType{ Width: 1 } }
 var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
 var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
@@ -114,11 +118,9 @@ func (t *Type) String() string {
 
 func (t *Type) Width() int {
 	switch x := t.Data.(type) {
-	case *StructType: return x.Width
 	case *IntType: return x.Width
 	case *BoolType: return x.Width
-	case *StringType: return x.Width
-	case *ArrayType: return x.Width()
+	case *StructType, *StringType, *ArrayType: return ptrSize
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
@@ -153,7 +155,6 @@ func (tl *TypeLinker) Link(token *lex.Token, t *Type) {
 type StructType struct {
 	Name string
 	Fields []*Symbol
-	Width int
 }
 
 func (st *StructType) Offset(name string) (*Symbol, int) {
@@ -162,9 +163,13 @@ func (st *StructType) Offset(name string) (*Symbol, int) {
 		if field.Name == name {
 			return field, off
 		}
-		off += 8 // field.Type.width TODO: Fix this width calculation!
+		off += ptrSize
 	}
 	return nil, -1 // Not found
+}
+
+func (st *StructType) Size() int {
+	return len(st.Fields) * ptrSize
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -201,10 +206,6 @@ func (ft *FunctionType) AsmName() string {
 
 type ArrayType struct {
 	Elem *Type
-}
-
-func (at *ArrayType) Width() int {
-	return at.Elem.Width()
 }
 
 //----------------------------------------------------------------------------------------------------------------------

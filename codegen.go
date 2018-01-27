@@ -56,7 +56,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
 					// Look for symbols which should be on the stack but have no address
 					if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
-						n.sym.Addr = 8 * (temps + 1) // Assign a stack slot for temporary
+						n.sym.Addr = ptrSize * (temps + 1) // Assign a stack slot for temporary
 						temps++
 					}
 					return nil
@@ -67,7 +67,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
-					addr := 8 * (i + 1) // Assign a stack slot for var
+					addr := ptrSize * (i + 1) // Assign a stack slot for var
 					param.sym.Addr = addr
 					param.sym.IsStack = true
 					asm.op(movq, regs[i], rbp.displace(-addr))
@@ -99,7 +99,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 
 	// Malloc memory of appropriate size
-	asm.op(movq, intOp(fn.ret.Width()), rdi)
+	asm.op(movq, intOp(fn.ret.AsStruct().Size()), rdi)
 	asm.op(call, labelOp("malloc"))
 
 	// Copy stack values into fields
@@ -109,7 +109,7 @@ func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 		// Can't move mem -> mem. Must go through a register.
 		asm.op(movq, rbp.displace(-id.Addr), rbx)
 		asm.op(movq, rbx, rax.displace(off))
-		off += id.Type.Width()
+		off += ptrSize
 	}
 
 	// Pointer is already in rax so nothing to do...
