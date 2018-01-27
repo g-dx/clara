@@ -8,7 +8,7 @@ fn main() {
     i[4] = 500
     printIntArray(i)
 
-    b := byteArray(4)
+    b := byteArray(5)
     b[0] = 127
     b[1] = 128
     b[2] = 255
