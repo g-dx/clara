@@ -12,6 +12,16 @@ fn main() {
 
   // Append & print
   clara.append(" & ").append("Gary!").printChars()
+
+  // StringBuffer
+  buf := NewStringBuffer()
+  buf.add("Clara")
+  buf.add(" & ")
+  buf.add("Susanna")
+  buf.add(" & ")
+  buf.add("Gary ")
+  buf.add("!!\n")
+  buf.asString().printf()
 }
 
 fn printChars(s: string, pos: int = 0) {

@@ -1,3 +1,49 @@
+// ---------------------------------------------------------------------------------------------------------------------
+
+struct stringBuffer {
+    data: []byte
+    size: int
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn NewStringBuffer(cap: int = 16) stringBuffer {
+    return StringBuffer(byteArray(cap), 0)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn add(buf: stringBuffer, s: string) {
+    newSize := buf.size + s.length
+    if newSize > buf.data.length {
+        buf.grow()
+    }
+    copyString(s, 0, buf.data, buf.size)
+    buf.size = newSize
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn size(buf: stringBuffer) int {
+    return buf.size
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// TODO: Should be "private"
+fn grow(buf: stringBuffer) {
+    data := byteArray(buf.data.length * 2)
+    copyByteArray(buf.data, 0, data, 0)
+    buf.data = data
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn asString(buf: stringBuffer) string {
+    return toString(buf.data)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 fn append(s1: string, s2: string) string {
     s := byteArray(s1.length + s2.length)
     copyString(s1, 0, s, 0)

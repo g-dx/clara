@@ -1,4 +1,14 @@
 // ---------------------------------------------------------------------------------------------------------------------
+
+fn copyByteArray(src: []byte, srcPos: int, dest: []byte, destPos: int) {
+    if src.length == srcPos {
+        return
+    }
+    dest[destPos] = src[srcPos]
+    copyByteArray(src, srcPos+1, dest, destPos+1)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 
 fn intArray(size: int) []int
