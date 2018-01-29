@@ -119,12 +119,20 @@ func main() {
 	// Generate constructor functions
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 
-	// Type check functions
+	// Type check function signatures
+	for _, topLevel := range rootNode.stmts {
+		if topLevel.op == opFuncDcl {
+			errs = append(errs, typeCheck(topLevel, false, *showTypes)...)
+		}
+	}
+	exitIfErrors(showAst, rootNode, errs, prog)
+
+	// Type check function bodies
 	for _, topLevel := range rootNode.stmts {
 		if topLevel.op == opFuncDcl {
 			// Set current function as a global so we can check returns...
 			fn = topLevel.sym.Type.AsFunction()
-			errs = append(errs, typeCheck(topLevel, *showTypes)...)
+			errs = append(errs, typeCheck(topLevel, true, *showTypes)...)
 		}
 	}
 	exitIfErrors(showAst, rootNode, errs, prog)
