@@ -11,9 +11,6 @@ import (
 //
 
 const (
-	errUndefinedMsg            = "%v:%d:%d: error, '%v' undefined"
-	errNotFuncMsg              = "%v:%d:%d: error, '%v' is not a function"
-	errTooManyArgsMsg          = "%v:%d:%d: error, too many arguments to call '%v'"
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
@@ -23,8 +20,7 @@ const (
 	errInvalidDotSelectionMsg  = "%v:%d:%d: error '%v', expected field or function call"
 	errInvalidOperatorTypeMsg  = "%v:%d:%d: type '%v' invalid for operator '%v'"
 	errMismatchedTypesMsg      = "%v:%d:%d: mismatched types, got '%v', wanted '%v'"
-	errCannotApplyArgsMsg      = "%v:%d:%d: function '%v' cannot be applied to '(%v)'"
-	errNotEnoughArgsMsg        = "%v:%d:%d: not enough arguments to call function '%v'"
+	errResolveFunctionMsg      = "%v:%d:%d: Cannot resolve function '%v'"
 	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"

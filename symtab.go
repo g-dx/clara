@@ -177,21 +177,10 @@ func (st *StructType) Size() int {
 type FunctionType struct {
 	Name          string
 	Args          []*Symbol
-	Defaults 	  []*Node
 	isVariadic    bool
 	ret           *Type
 	isConstructor bool
 	IsExternal 	  bool  // Provided at linktime - no code gen required
-}
-
-func (ft *FunctionType) MandatoryParams() int {
-	i := 0
-	for _, def := range ft.Defaults {
-		if def == nil {
-			i += 1
-		}
-	}
-	return i
 }
 
 // Used during codegen to avoid clashes with shared library functions

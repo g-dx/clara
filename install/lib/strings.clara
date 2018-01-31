@@ -7,7 +7,7 @@ struct stringBuffer {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn NewStringBuffer(cap: int = 16) stringBuffer {
+fn NewStringBuffer(cap: int) stringBuffer {
     return StringBuffer(byteArray(cap), 0)
 }
 

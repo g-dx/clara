@@ -6,7 +6,7 @@ fn main() {
     i[2] = 300
     i[3] = 400
     i[4] = 500
-    printIntArray(i)
+    printIntArray(i, 0)
 
     b := byteArray(5)
     b[0] = 127
@@ -14,14 +14,14 @@ fn main() {
     b[2] = 255
     b[3] = 256
     b[4] = 257
-    printByteArray(b)
+    printByteArray(b, 0)
 }
 
 fn byteValue(i: int) byte {
     return i // Automatically cast
 }
 
-fn printIntArray(i: []int, pos: int = 0) {
+fn printIntArray(i: []int, pos: int) {
     if pos == i.length {
         printf("i.length = %d\n", i.length)
         return
@@ -30,7 +30,7 @@ fn printIntArray(i: []int, pos: int = 0) {
     printIntArray(i, pos+1)
 }
 
-fn printByteArray(b: []byte, pos: int = 0) {
+fn printByteArray(b: []byte, pos: int) {
     if pos == b.length {
         printf("b.length = %d\n", b.length)
         return

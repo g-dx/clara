@@ -11,10 +11,10 @@ fn main() {
   clara := toString(b)
 
   // Append & print
-  clara.append(" & ").append("Gary!").printChars()
+  clara.append(" & ").append("Gary!").printChars(0)
 
   // StringBuffer
-  buf := NewStringBuffer()
+  buf := NewStringBuffer(16)
   buf.add("Clara")
   buf.add(" & ")
   buf.add("Susanna")
@@ -24,7 +24,7 @@ fn main() {
   buf.asString().printf()
 }
 
-fn printChars(s: string, pos: int = 0) {
+fn printChars(s: string, pos: int) {
     if pos == s.length {
         printf("\n")
         return
