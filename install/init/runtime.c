@@ -7,11 +7,10 @@
 // C Runtime functions
 // ---------------------------------------------------------------------------------------------------------------------
 
-void indexOutOfBounds()
+void indexOutOfBounds(int index)
 {
-    register int64_t i asm("rbx"); // NOTE: Keep in sync with codegen.go!
     printf("\n// -------------------------------------------------------------------------------------------\n");
-    printf("// Crash: Index (%ld) is out of bounds!\n", i);
+    printf("// Crash: Index (%d) is out of bounds!\n", index);
     printf("// -------------------------------------------------------------------------------------------\n");
     printf("\nBacktrace:\nTODO!\n\n");
     // TODO: Output stacktrace

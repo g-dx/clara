@@ -93,7 +93,15 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 		}
 	})
 
+	genIoobHandler(asm);
 	return nil
+}
+
+func genIoobHandler(asm assembler) {
+
+	asm.label("ioob")
+	asm.op(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
+	asm.op(call, labelOp("indexOutOfBounds"))
 }
 
 func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
@@ -419,8 +427,8 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 		asm.op(popq, rbx)                  // stack(index) -> rbx
 
 		// Bounds check
-		asm.op(cmpq, rax.deref(), rbx)           // index - array.length
-		asm.op(jae, labelOp("indexOutOfBounds")) // Defined in runtime.c
+		asm.op(cmpq, rax.deref(), rbx) // index - array.length
+		asm.op(jae, labelOp("ioob"))   // Defined in runtime.c
 
 		// Displace + 8 to skip over length
 		if takeAddr {
