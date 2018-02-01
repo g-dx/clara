@@ -270,7 +270,12 @@ func lexText(l *Lexer) stateFn {
 		case r == '+':
 			l.emit(Plus)
 		case r == '-':
-			l.emit(Min)
+			if isNumeric(l.peek()) {
+				l.next()
+				return lexInteger
+			} else {
+				l.emit(Min)
+			}
 		case r == '*':
 			l.emit(Mul)
 		case r == '>':
@@ -332,7 +337,7 @@ func lexString(l *Lexer) stateFn {
 	return lexText
 }
 
-// Opening digit has already been consumed
+// Opening digit or negation sign has already been consumed
 func lexInteger(l *Lexer) stateFn {
 	for l.peek() != eof && isNumeric(l.peek()) {
 		l.next()

@@ -6,7 +6,6 @@
 - Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
 - Allow full function overloading
 - Provide a mechanism for escaping double quotes in string literals.
-- Support negative numbers.
 
 DONE:
 ----
@@ -17,3 +16,4 @@ DONE:
 - Functions which return structs should be able to occupy the left position on a '.' call.
 - Ensure built-in functions cannot be overridden. To do this we could "namespace" all function names by prefixing with "clara_"
 - Ensure struct constructors cannot be overridden.
+- Support negative numbers.
