@@ -74,7 +74,7 @@ func (p *Parser) Finish() (errs []error) {
 func (p *Parser) parseStructDecl() *Node {
 
 	// Open new symtab
-	p.symtab = p.symtab.Child()
+	p.openScope()
 
 	p.need(lex.Struct)
 	id := p.need(lex.Identifier)
@@ -94,8 +94,7 @@ func (p *Parser) parseStructDecl() *Node {
 	}
 
 	// Close symtab
-	syms := p.symtab
-	p.symtab = p.symtab.Parent()
+	syms := p.closeScope()
 	return p.structDclNode(id, syms, fields, vars)
 }
 
