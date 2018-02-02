@@ -1,8 +1,10 @@
 // Entry point
 fn main() {
-  fn1()
+  fn1(10)
+  fn1(Hello())
   printf("Fib(25) = %d\n", fib(25))
   printf("5! = %d\n", fact(5))
+  printf("append() = %s\n", append("Test - ", true))
 }
 
 fn fn2() {
@@ -12,6 +14,23 @@ fn fn2() {
 fn fn1() {
     printf("Executing function 1\n")
     fn2()
+}
+
+fn fn1(i: int) {
+    printf("Executing function 1 (with int: %d)\n", i)
+    fn1()
+}
+
+fn fn1(b: bool) {
+
+}
+
+fn fn1(h: hello) {
+
+}
+
+fn append(s: string, b: bool) string {
+    return append(s, b.toString())
 }
 
 fn fib(n : int) int {
@@ -29,4 +48,15 @@ fn fact(n: int) int {
         return 1
     }
     return n * fact(n - 1)
+}
+
+fn toString(b: bool) string {
+    if b == true {
+        return "true"
+    }
+    return "false"
+}
+
+struct hello {
+
 }

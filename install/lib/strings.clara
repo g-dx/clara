@@ -13,7 +13,7 @@ fn NewStringBuffer(cap: int) stringBuffer {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn add(buf: stringBuffer, s: string) {
+fn append(buf: stringBuffer, s: string) {
     newSize := buf.size + s.length
     if newSize > buf.data.length {
         buf.grow()
@@ -32,23 +32,23 @@ fn size(buf: stringBuffer) int {
 // TODO: Should be "private"
 fn grow(buf: stringBuffer) {
     data := byteArray(buf.data.length * 2)
-    copyByteArray(buf.data, 0, data, 0)
+    copyArray(buf.data, 0, data, 0)
     buf.data = data
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn asString(buf: stringBuffer) string {
-    return toString(buf.data)
+fn toString(buf: stringBuffer) string {
+    return buf.data.toString()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn append(s1: string, s2: string) string {
-    s := byteArray(s1.length + s2.length)
-    copyString(s1, 0, s, 0)
-    copyString(s2, 0, s, s1.length)
-    return toString(s)
+    bytes := byteArray(s1.length + s2.length)
+    copyString(s1, 0, bytes, 0)
+    copyString(s2, 0, bytes, s1.length)
+    return bytes.toString()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

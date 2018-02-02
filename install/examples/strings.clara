@@ -15,13 +15,13 @@ fn main() {
 
   // StringBuffer
   buf := NewStringBuffer(16)
-  buf.add("Clara")
-  buf.add(" & ")
-  buf.add("Susanna")
-  buf.add(" & ")
-  buf.add("Gary ")
-  buf.add("!!\n")
-  buf.asString().printf()
+  buf.append("Clara")
+  buf.append(" & ")
+  buf.append("Susanna")
+  buf.append(" & ")
+  buf.append("Gary ")
+  buf.append("!!\n")
+  buf.toString().printf()
 }
 
 fn printChars(s: string, pos: int) {

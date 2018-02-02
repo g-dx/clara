@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"github.com/g-dx/clarac/lex"
+	"io"
+	"io/ioutil"
+	"bytes"
 )
 
 const (
@@ -80,7 +83,7 @@ func (p *Parser) parseStructDecl() *Node {
 	// Parse fields
 	var fields []*Node
 	for p.isNot(lex.RBrace) {
-		fields = append(fields, p.parseParameter())
+		fields = append(fields, p.parseParameter(ioutil.Discard))
 	}
 	p.need(lex.RBrace)
 
@@ -104,10 +107,14 @@ func (p *Parser) parseFnDecl() *Node {
 	// Match declaration
 	p.need(lex.Fn)
 	name := p.need(lex.Identifier)
-	p.need('(')
-	params := p.parseParameters()
-	p.need(')')
-	// TODO: Decide if return types are optional
+
+	// Create fn description
+	w := bytes.NewBufferString(name.Val)
+	w.WriteString(p.need('(').Val)
+	params := p.parseParameters(w)
+	w.WriteString(p.need(')').Val)
+
+	// Parse return types (if any)
 	var retType *lex.Token
 	isArray := false
 	if p.is(lex.LBrack) {
@@ -133,7 +140,7 @@ func (p *Parser) parseFnDecl() *Node {
 
 	// Close symtab
 	syms := p.closeScope()
-	return p.fnDclNode(name, params, stmts, syms, retType, isArray, extern)
+	return p.fnDclNode(name, params, stmts, syms, retType, isArray, extern, w.String())
 }
 
 func (p *Parser) parseBlock() []*Node {
@@ -225,18 +232,19 @@ func (p *Parser) parseReturnExpr() *Node {
 	return &Node{op:opReturn, token: ret, left: expr, symtab: p.symtab}
 }
 
-func (p *Parser) parseParameters() []*Node {
+func (p *Parser) parseParameters(w io.Writer) []*Node {
 	var params []*Node = nil
 	for p.isNot(lex.EOF, ')') {
-		params = append(params, p.parseParameter())
+		params = append(params, p.parseParameter(w))
 		for p.match(',') {
-			params = append(params, p.parseParameter())
+			io.WriteString(w, ", ")
+			params = append(params, p.parseParameter(w))
 		}
 	}
 	return params
 }
 
-func (p *Parser) parseParameter() *Node {
+func (p *Parser) parseParameter(w io.Writer) *Node {
 	idTok := p.need(lex.Identifier)
 	p.need(lex.Colon)
 	isArray := false
@@ -244,8 +252,10 @@ func (p *Parser) parseParameter() *Node {
 		p.next()
 		p.need(lex.RBrack)
 		isArray = true
+		io.WriteString(w, "[]")
 	}
 	typeTok := p.need(lex.Identifier)
+	io.WriteString(w, typeTok.Val)
 
 	// Attempt to resolve type
 	sym, _ := p.symtab.Resolve(typeTok.Val)
@@ -417,13 +427,16 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isArray bool, isExternal bool) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isArray bool, isExternal bool, typedFn string) *Node {
 
 	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(token.Val)
+	sym, found := p.symtab.Resolve(typedFn)
 	if found {
-		p.symbolError(errRedeclaredMsg, token)
+		p.symbolError(errRedeclaredMsg, lex.WithVal(token, typedFn))
 	} else {
+		// Define marker symbol
+		p.symtab.Define(&Symbol{Name: typedFn, Type: nothingType})
+
 		// Collect param symbols & defaults
 		var args []*Symbol
 		for _, param := range params {
@@ -432,8 +445,18 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 
 		// Define function type
 		functionType := &FunctionType{Name: token.Val, Args: args, IsExternal: isExternal}
-		sym = &Symbol{ Name: token.Val, Type: &Type{ Kind: Function, Data: functionType}}
-		p.symtab.Define(sym) // Functions don't take params yet
+		fnSym := &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
+
+		// Check symtab; define if necessary or link to existing symbol
+		sym, found = p.symtab.Resolve(token.Val)
+		if !found {
+			p.symtab.Define(fnSym)
+		} else {
+			prev := sym
+			for ; prev.Next != nil; prev = prev.Next { /* ... */ }
+			prev.Next = fnSym
+		}
+		sym = fnSym
 
 		// Resolve return type
 		if returnTyp == nil {
@@ -466,9 +489,7 @@ func (p *Parser) parseFnCall() *Node {
 }
 
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
-	// TODO: TEMPORARY WORKAROUND!
-	sym, _ := p.symtab.Resolve(token.Val)
-	return &Node{token : token, stmts: args, op : opFuncCall, sym : sym, symtab: p.symtab}
+	return &Node{token : token, stmts: args, op : opFuncCall, symtab: p.symtab}
 }
 
 func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars []*Symbol) *Node {

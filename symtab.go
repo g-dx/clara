@@ -2,6 +2,7 @@ package main
 import (
 	"fmt"
 	"github.com/g-dx/clarac/lex"
+	"bytes"
 )
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -116,6 +117,15 @@ func (t *Type) String() string {
 	}
 }
 
+func (t *Type) AsmName() string {
+	switch t.Kind {
+	case Array: return "array$" + t.AsArray().Elem.String()
+	case Struct: return t.AsStruct().Name
+	default:
+		return t.Kind.String()
+	}
+}
+
 func (t *Type) Width() int {
 	switch x := t.Data.(type) {
 	case *IntType: return x.Width
@@ -188,7 +198,18 @@ func (ft *FunctionType) AsmName() string {
 	if ft.IsExternal {
 		return ft.Name
 	}
-	return "clara_" + ft.Name
+	if ft.Name == "main" {
+		return "clara_main"
+	}
+
+	// Build name safe for usage in ASM
+	buf := bytes.NewBufferString("clara·")
+	buf.WriteString(ft.Name)
+	for _, arg := range ft.Args {
+		buf.WriteString(".")
+		buf.WriteString(arg.Type.AsmName())
+	}
+	return buf.String()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -228,6 +249,7 @@ type Symbol struct {
 	IsStack   bool
 	IsLiteral bool
 	Type      *Type
+	Next 	  *Symbol // Only valid for function symbols!
 }
 
 //----------------------------------------------------------------------------------------------------------------------

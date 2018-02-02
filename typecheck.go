@@ -143,31 +143,31 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 		// Attempt to resolve symbol
 		var match *Symbol
-		s, _ := n.symtab.Resolve(n.token.Val)
-		if s != nil {
+	loop:
+		for s, _ := n.symtab.Resolve(n.token.Val); s != nil; s = s.Next {
 
 			// Check is a function
 			if !s.Type.Is(Function) {
-				goto fail
+				continue
 			}
 
 			// Check correct number of args
 			fn := s.Type.AsFunction()
 			if len(n.stmts) != len(fn.Args) {
-				goto fail
+				continue
 			}
 
 			// Check all types match
 			for i, arg := range fn.Args {
 				if !n.stmts[i].typ.Matches(arg.Type) {
-					goto fail
+					continue loop
 				}
 			}
 
 			// Match found
 			match = s
+			break
 		}
-		fail:
 
 		// Couldn't resolve function
 		if match == nil {

@@ -189,6 +189,10 @@ type Token struct {
 	File string
 }
 
+func WithVal(token *Token, val string) *Token {
+	return &Token{token.Kind, val, token.Pos, token.Line, token.File}
+}
+
 func (t Token) String() string {
 	val := ""
 	switch {
