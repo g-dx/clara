@@ -94,7 +94,13 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ.Name(), right.typ.Name()))
 		}
 
-		n.typ = intType // All arithmetic operations produces int
+		// Promote appropriate type
+		switch n.op {
+		case opAnd, opOr:
+			n.typ = boolType
+		default:
+			n.typ = intType // All arithmetic operations produces int
+		}
 
 	case opNot:
 		errs = append(errs, typeCheck(left, body, debug)...)
