@@ -83,10 +83,10 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 			return semanticError(errConstructorOverrideMsg, n.token)
 		}
 
-		// Collect struct field symbols
-		var args []*Symbol
+		// Collect struct field types
+		var args []*Type
 		for _, field := range n.stmts {
-			args = append(args, field.sym)
+			args = append(args, field.sym.Type)
 		}
 
 		// Create & define symbol

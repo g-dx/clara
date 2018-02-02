@@ -165,7 +165,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 			// Check all types match
 			for i, arg := range fn.Args {
-				if !n.stmts[i].typ.Matches(arg.Type) {
+				if !n.stmts[i].typ.Matches(arg) {
 					continue loop
 				}
 			}
@@ -203,9 +203,24 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		n.typ = boolType
 
 	case opFuncDcl:
-		// Type check params
-		for _, param := range n.params {
-			errs = append(errs, typeCheck(param, body, debug)...)
+
+		if !body {
+
+			// Check if we need to configure function types
+			// TODO: Seriously consider disallowing use before declaration of types. It would simplify things a lot...
+			fn := n.sym.Type.AsFunction()
+			addArgs := len(fn.Args) == 0
+
+			// Type check params
+			for _, param := range n.params {
+				errs = append(errs, typeCheck(param, body, debug)...)
+				if !param.hasType() {
+					goto end
+				}
+				if addArgs {
+					fn.Args = append(fn.Args, param.typ)
+				}
+			}
 		}
 
 		if body {

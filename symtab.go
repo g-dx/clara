@@ -185,9 +185,9 @@ func (st *StructType) Size() int {
 //----------------------------------------------------------------------------------------------------------------------
 
 type FunctionType struct {
-	Args          []*Symbol
-	isVariadic    bool
+	Args          []*Type
 	ret           *Type
+	isVariadic    bool
 	isConstructor bool
 	IsExternal 	  bool  // Provided at linktime - no code gen required
 }
@@ -206,7 +206,7 @@ func (ft *FunctionType) AsmName(name string) string {
 	buf.WriteString(name)
 	for _, arg := range ft.Args {
 		buf.WriteString(".")
-		buf.WriteString(arg.Type.AsmName())
+		buf.WriteString(arg.AsmName())
 	}
 	return buf.String()
 }

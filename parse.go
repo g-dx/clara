@@ -427,14 +427,8 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		// Define marker symbol
 		p.symtab.Define(&Symbol{Name: typedFn, Type: nothingType})
 
-		// Collect param symbols & defaults
-		var args []*Symbol
-		for _, param := range params {
-			args = append(args, param.sym)
-		}
-
 		// Define function type
-		functionType := &FunctionType{Args: args, IsExternal: isExternal}
+		functionType := &FunctionType{IsExternal: isExternal}
 		sym = &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
 
 		// Check symtab; define and link to existing symbol if already present

@@ -234,7 +234,7 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, fnName string) {
 		}
 
 		// Check if int -> byte cast required
-		if i < len(fn.Args) && arg.typ.Is(Integer) && fn.Args[i].Type.Is(Byte) {
+		if i < len(fn.Args) && arg.typ.Is(Integer) && fn.Args[i].Is(Byte) {
 			asm.op(movsbq, regs[i]._8bit(), regs[i])
 		}
 	}
