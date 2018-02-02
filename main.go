@@ -207,7 +207,7 @@ func stdlib() []*Node {
 		// printf (from libc)
 		{token:&lex.Token{Val : "printf"}, op:opFuncDcl,
 		sym:&Symbol{ Name: "printf", Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Name: "printf",
+			&FunctionType{
 			Args: []*Symbol{ { Name: "format", Type: stringType} },
 			isVariadic: true, ret: nothingType, IsExternal: true }}}},
 	}

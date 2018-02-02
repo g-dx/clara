@@ -63,7 +63,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				})
 
 				// Allocate space for temporaries
-				asm.function(fn.AsmName(), temps)
+				asm.function(fn.AsmName(n.sym.Name), temps)
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
@@ -128,7 +128,7 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 
 		switch stmt.op {
 		case opFuncCall:
-			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction())
+			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.sym.Name)
 
 		case opReturn:
 			genReturnExpression(asm, stmt, fn)
@@ -217,7 +217,7 @@ func genReturnExpression(asm assembler, retn *Node, fn *FunctionType) {
 	asm.op(ret)
 }
 
-func genFuncCall(asm assembler, args []*Node, fn *FunctionType) {
+func genFuncCall(asm assembler, args []*Node, fn *FunctionType, fnName string) {
 
 	// Generate arg code
 	for i, arg := range args {
@@ -229,7 +229,7 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType) {
 
 		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
 		// so we can modify the pointer value to point "past" the length to the actual data
-		if arg.typ.Is(String) && fn.IsExternal && fn.Name == "printf" {
+		if arg.typ.Is(String) && fn.IsExternal && fnName == "printf" {
 			asm.op(leaq, regs[i].displace(8), regs[i])
 		}
 
@@ -244,7 +244,7 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType) {
 		asm.op(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
-	asm.op(call, labelOp(fn.AsmName()))
+	asm.op(call, labelOp(fn.AsmName(fnName)))
 }
 
 func restore(asm assembler, regPos int) {
@@ -404,7 +404,7 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 	case opFuncCall:
 
 		spill(asm, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(asm, expr.stmts, expr.sym.Type.AsFunction())
+		genFuncCall(asm, expr.stmts, expr.sym.Type.AsFunction(), expr.sym.Name)
 		restore(asm, regsInUse) // Restore registers previously in use
 		asm.op(pushq, rax)      // Push result (rax) onto stack
 

@@ -185,7 +185,6 @@ func (st *StructType) Size() int {
 //----------------------------------------------------------------------------------------------------------------------
 
 type FunctionType struct {
-	Name          string
 	Args          []*Symbol
 	isVariadic    bool
 	ret           *Type
@@ -194,17 +193,17 @@ type FunctionType struct {
 }
 
 // Used during codegen to avoid clashes with shared library functions
-func (ft *FunctionType) AsmName() string {
+func (ft *FunctionType) AsmName(name string) string {
 	if ft.IsExternal {
-		return ft.Name
+		return name
 	}
-	if ft.Name == "main" {
+	if name == "main" {
 		return "clara_main"
 	}
 
 	// Build name safe for usage in ASM
 	buf := bytes.NewBufferString("clara·")
-	buf.WriteString(ft.Name)
+	buf.WriteString(name)
 	for _, arg := range ft.Args {
 		buf.WriteString(".")
 		buf.WriteString(arg.Type.AsmName())

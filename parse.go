@@ -434,7 +434,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		}
 
 		// Define function type
-		functionType := &FunctionType{Name: token.Val, Args: args, IsExternal: isExternal}
+		functionType := &FunctionType{Args: args, IsExternal: isExternal}
 		sym = &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
 
 		// Check symtab; define and link to existing symbol if already present
