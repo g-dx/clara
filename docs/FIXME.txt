@@ -1,10 +1,7 @@
-- Type check parameter expressions with respect to the parameter type
-- Maybe allow functions to have same name as builtin types such as byte, int
 - Type check arithmetic operators (more generally, define operator rules better or more succinctly)
 - Type check variadic function calls
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
-- Allow full function overloading
 - Provide a mechanism for escaping double quotes in string literals.
 
 DONE:
@@ -17,3 +14,9 @@ DONE:
 - Ensure built-in functions cannot be overridden. To do this we could "namespace" all function names by prefixing with "clara_"
 - Ensure struct constructors cannot be overridden.
 - Support negative numbers.
+- Allow functions to have same name as builtin types such as byte, int
+- Allow full function overloading
+
+N/A
+---
+- Type check parameter expressions with respect to the parameter type (default parameters current removed)

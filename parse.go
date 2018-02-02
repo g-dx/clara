@@ -178,11 +178,8 @@ func (p *Parser) parseStatement() *Node {
 
 func (p *Parser) parseDeclAssignStmt(lhs *Node) *Node {
 
-	sym, found := p.symtab.Resolve(lhs.token.Val)
-	if !found {
-		sym = &Symbol{ Name: lhs.token.Val, IsStack: true }
-		p.symtab.Define(sym)
-	} else {
+	sym, ok := p.symtab.Define(&Symbol{ Name: lhs.token.Val, IsStack: true })
+	if ok {
 		p.symbolError(errRedeclaredMsg, lhs.token)
 	}
 	lhs.sym = sym
@@ -258,31 +255,29 @@ func (p *Parser) parseParameter(w io.Writer) *Node {
 	io.WriteString(w, typeTok.Val)
 
 	// Attempt to resolve type
-	sym, _ := p.symtab.Resolve(typeTok.Val)
+	typeSym, _ := p.symtab.Resolve(typeTok.Val)
 	idSym := &Symbol{ Name: idTok.Val }
 	if isArray {
-		arrayType := &ArrayType{Elem: sym.Type}
-		if sym != nil {
-			arrayType.Elem = sym.Type
+		arrayType := &ArrayType{Elem: typeSym.Type}
+		if typeSym != nil {
+			arrayType.Elem = typeSym.Type
 		} else {
 			p.linker.Add(typeTok, &arrayType.Elem)
 		}
 		idSym.Type = &Type{ Kind: Array, Data: arrayType }
 	} else {
 
-		if sym != nil {
-			idSym.Type = sym.Type
+		if typeSym != nil {
+			idSym.Type = typeSym.Type
 		} else {
 			p.linker.Add(typeTok, &idSym.Type)
 		}
 	}
 
 	// Check for unique parameter names
-	_, found := p.symtab.Resolve(idSym.Name)
-	if found {
+	idSym, ok := p.symtab.Define(idSym)
+	if ok {
 		p.symbolError(errRedeclaredMsg, idTok)
-	} else {
-		p.symtab.Define(idSym)
 	}
 
 	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab }
@@ -415,11 +410,7 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 
 func (p *Parser) parseLit(t *Type) (*Node) {
 	token := p.next()
-	sym, found := p.symtab.Resolve(token.Val)
-	if !found {
-		sym = &Symbol{ Name: token.Val, Type: t, IsLiteral: true  }
-		p.symtab.Define(sym)
-	}
+	sym, _ := p.symtab.Define(&Symbol{ Name: token.Val, Type: t, IsLiteral: true })
 	return &Node{token : token, op : opLit, symtab: p.symtab, sym: sym }
 }
 
@@ -430,8 +421,8 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isArray bool, isExternal bool, typedFn string) *Node {
 
 	// Check symtab for redeclare
-	sym, found := p.symtab.Resolve(typedFn)
-	if found {
+	sym, ok := p.symtab.Resolve(typedFn)
+	if ok {
 		p.symbolError(errRedeclaredMsg, lex.WithVal(token, typedFn))
 	} else {
 		// Define marker symbol
@@ -445,18 +436,13 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 
 		// Define function type
 		functionType := &FunctionType{Name: token.Val, Args: args, IsExternal: isExternal}
-		fnSym := &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
+		sym = &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
 
-		// Check symtab; define if necessary or link to existing symbol
-		sym, found = p.symtab.Resolve(token.Val)
-		if !found {
-			p.symtab.Define(fnSym)
-		} else {
-			prev := sym
-			for ; prev.Next != nil; prev = prev.Next { /* ... */ }
-			prev.Next = fnSym
+		// Check symtab; define and link to existing symbol if already present
+		if s, ok := p.symtab.Define(sym); ok {
+			for ; s.Next != nil; s = s.Next { /* ... */ }
+			s.Next = sym
 		}
-		sym = fnSym
 
 		// Resolve return type
 		if returnTyp == nil {
@@ -465,8 +451,8 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 			if isArray {
 				functionType.ret = &Type{ Kind: Array, Data: &ArrayType{} }
 			}
-			retSym, found := p.symtab.Resolve(returnTyp.Val)
-			if !found {
+			retSym, ok := p.symtab.Resolve(returnTyp.Val)
+			if !ok {
 				typ := &functionType.ret
 				if isArray {
 					typ = &functionType.ret.AsArray().Elem
@@ -495,14 +481,10 @@ func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
 func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars []*Symbol) *Node {
 
 	// Declare new type symbol
-	sym, found := p.symtab.Resolve(id.Val)
-	if found {
+	sym, ok := p.symtab.Define(&Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Fields: vars }}})
+	if ok {
 		p.symbolError(errRedeclaredMsg, id)
 	} else {
-		// Define struct symbol
-		sym = &Symbol{Name: id.Val, Type: &Type{ Kind: Struct, Data: &StructType{ Name: id.Val, Fields: vars }}}
-		p.symtab.Define(sym)
-
 		// Update any other nodes waiting on this type
 		p.linker.Link(id, sym.Type)
 	}

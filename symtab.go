@@ -266,35 +266,39 @@ func NewSymtab() *SymTab {
 	return &SymTab{nil, nil, make(map[string]*Symbol)}
 }
 
-func (s *SymTab) Define(sym *Symbol) {
-	s.symbols[sym.Name] = sym
-}
-
-func (s *SymTab) Resolve(name string) (*Symbol, bool) {
-	sym, ok := s.symbols[name]
-	if !ok && s.parent != nil {
-		sym, ok = s.parent.Resolve(name)
+func (st *SymTab) Define(s *Symbol) (*Symbol, bool) {
+	if s, ok := st.symbols[s.Name]; ok {
+		return s, true
 	}
-	return sym, ok
+	st.symbols[s.Name] = s
+	return s, false
 }
 
-func (s *SymTab) Parent() *SymTab {
-	return s.parent
+func (st *SymTab) Resolve(name string) (*Symbol, bool) {
+	s, ok := st.symbols[name]
+	if !ok && st.parent != nil {
+		s, ok = st.parent.Resolve(name)
+	}
+	return s, ok
 }
 
-func (s *SymTab) Child() *SymTab {
+func (st *SymTab) Parent() *SymTab {
+	return st.parent
+}
+
+func (st *SymTab) Child() *SymTab {
 	child := NewSymtab()
-	child.parent = s
-	s.children = append(s.children, child)
+	child.parent = st
+	st.children = append(st.children, child)
 	return child
 }
 
-func (s *SymTab) Walk(f func(*Symbol)) {
+func (st *SymTab) Walk(f func(*Symbol)) {
 	// Walk children first then this node
-	for _, child := range s.children {
+	for _, child := range st.children {
 		child.Walk(f)
 	}
-	for _, s := range s.symbols {
+	for _, s := range st.symbols {
 		f(s)
 	}
 }
