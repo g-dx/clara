@@ -78,7 +78,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 					genConstructor(asm, fn, n.params)
 				} else {
 					// Generate code for all statements
-					genStmtList(asm, n.stmts, fn, n.symtab)
+					genStmtList(asm, n.stmts, fn)
 				}
 
 				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
@@ -123,36 +123,36 @@ func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 	// Pointer is already in rax so nothing to do...
 }
 
-func genStmtList(asm assembler, stmts []*Node, fn *FunctionType, tab *SymTab) {
+func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 	for _, stmt := range stmts {
 
 		switch stmt.op {
 		case opFuncCall:
-			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.symtab)
+			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction())
 
 		case opReturn:
-			genReturnExpression(asm, stmt, fn, stmt.symtab)
+			genReturnExpression(asm, stmt, fn)
 
 		case opIf:
-			genIfElseIfElseStmts(asm, stmt, fn, stmt.symtab)
+			genIfElseIfElseStmts(asm, stmt, fn)
 
 		case opDas, opAs:
-			genAssignStmt(asm, stmt, stmt.symtab)
+			genAssignStmt(asm, stmt)
 
 		default:
-			genExprWithoutAssignment(asm, stmt, stmt.symtab, 0, false)
+			genExprWithoutAssignment(asm, stmt, 0, false)
 		}
 	}
 }
 
-func genAssignStmt(asm assembler, n *Node, tab *SymTab) {
+func genAssignStmt(asm assembler, n *Node) {
 
 	// Evaluate expression & save result to rbx
-	genExprWithoutAssignment(asm, n.right, tab, 0, false)
+	genExprWithoutAssignment(asm, n.right, 0, false)
 	asm.op(popq, rcx) // TODO: Stack machine only uses rax & rbx. If changed revisit this!
 
 	// Evaluate mem location to store
-	genExprWithoutAssignment(asm, n.left, tab, 0, true)
+	genExprWithoutAssignment(asm, n.left, 0, true)
 
 	// Pop location to rax and move rbx there
 	asm.op(popq, rax)              // stack -> rax
@@ -170,7 +170,7 @@ func genAssignStmt(asm assembler, n *Node, tab *SymTab) {
 	}
 }
 
-func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType, tab *SymTab) {
+func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType) {
 
 	// Generate exit label
 	exit := asm.newLabel("if_end")
@@ -179,7 +179,7 @@ func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType, tab *SymTab)
 	for cur != nil {
 		if cur.left != nil {
 			// Generate condition
-			genExprWithoutAssignment(asm, cur.left, tab, 0, false) // Left stores condition
+			genExprWithoutAssignment(asm, cur.left, 0, false) // Left stores condition
 
 			// Create new label
 			next := asm.newLabel("else")
@@ -188,22 +188,22 @@ func genIfElseIfElseStmts(asm assembler, n *Node, fn *FunctionType, tab *SymTab)
 			asm.op(cmpq, _true, rax)   // Compare (true) to rax
 			asm.op(jne, labelOp(next)) // Jump over block if not equal
 
-			genStmtList(asm, cur.stmts, fn, cur.symtab) // Generate if (true) stmt block
-			asm.op(jmp, labelOp(exit))                  // Exit if/elseif/else block completely
-			asm.label(next)                             // Label to jump if false
+			genStmtList(asm, cur.stmts, fn) // Generate if (true) stmt block
+			asm.op(jmp, labelOp(exit))      // Exit if/elseif/else block completely
+			asm.label(next)                 // Label to jump if false
 		} else {
-			genStmtList(asm, cur.stmts, fn, cur.symtab) // Generate block without condition (else block)
+			genStmtList(asm, cur.stmts, fn) // Generate block without condition (else block)
 		}
 		cur = cur.right // Move down tree
 	}
 	asm.label(exit) // Declare exit point
 }
 
-func genReturnExpression(asm assembler, retn *Node, fn *FunctionType, tab *SymTab) {
+func genReturnExpression(asm assembler, retn *Node, fn *FunctionType) {
 
 	// If return has expression evaluate it & pop result to rax
 	if retn.left != nil {
-		genExprWithoutAssignment(asm, retn.left, tab, 0, false)
+		genExprWithoutAssignment(asm, retn.left, 0, false)
 		asm.op(popq, rax)
 
 		// Check if int -> byte cast required
@@ -217,15 +217,15 @@ func genReturnExpression(asm assembler, retn *Node, fn *FunctionType, tab *SymTa
 	asm.op(ret)
 }
 
-func genFuncCall(asm assembler, args []*Node, fn *FunctionType, symtab *SymTab) {
+func genFuncCall(asm assembler, args []*Node, fn *FunctionType) {
 
 	// Generate arg code
 	for i, arg := range args {
 		if i >= 6 {
 			panic("Calling functions with more than 6 parameters not yet implemented")
 		}
-		genExprWithoutAssignment(asm, arg, symtab, i, false) // Evaluate expression
-		asm.op(popq, regs[i])                                // Pop result from stack into correct reg
+		genExprWithoutAssignment(asm, arg, i, false) // Evaluate expression
+		asm.op(popq, regs[i])                                  // Pop result from stack into correct reg
 
 		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
 		// so we can modify the pointer value to point "past" the length to the actual data
@@ -267,14 +267,14 @@ func spill(asm assembler, regPos int) {
 	}
 }
 
-func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse int, takeAddr bool) {
+func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr bool) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExprWithoutAssignment(asm, expr.right, syms, regsInUse, false)
+		genExprWithoutAssignment(asm, expr.right, regsInUse, false)
 	}
 	if expr.left != nil {
-		genExprWithoutAssignment(asm, expr.left, syms, regsInUse, false)
+		genExprWithoutAssignment(asm, expr.left, regsInUse, false)
 	}
 
 	// Implements stack machine
@@ -404,7 +404,7 @@ func genExprWithoutAssignment(asm assembler, expr *Node, syms *SymTab, regsInUse
 	case opFuncCall:
 
 		spill(asm, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(asm, expr.stmts, expr.sym.Type.AsFunction(), syms)
+		genFuncCall(asm, expr.stmts, expr.sym.Type.AsFunction())
 		restore(asm, regsInUse) // Restore registers previously in use
 		asm.op(pushq, rax)      // Push result (rax) onto stack
 
