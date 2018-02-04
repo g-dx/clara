@@ -119,7 +119,7 @@ func (t *Type) String() string {
 
 func (t *Type) AsmName() string {
 	switch t.Kind {
-	case Array: return "array$" + t.AsArray().Elem.String()
+	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
 	case Struct: return t.AsStruct().Name
 	default:
 		return t.Kind.String()
