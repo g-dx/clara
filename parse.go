@@ -113,33 +113,27 @@ func (p *Parser) parseFnDecl() *Node {
 	params := p.parseParameters(w)
 	w.WriteString(p.need(')').Val)
 
+	fnType := &FunctionType{} // NOTE: Parameter types are added during type check!
+
 	// Parse return types (if any)
-	var retType *lex.Token
-	isArray := false
-	if p.is(lex.LBrack) {
-		p.next()
-		p.need(lex.RBrack)
-		isArray = true
-		if p.isNot(lex.Identifier) {
-			p.syntaxError(lex.Identifier)
-		}
-	}
-	if p.is(lex.Identifier) {
-		retType = p.next()
+	if p.is(lex.LBrack, lex.Fn, lex.Identifier) {
+		w.WriteString(" ")
+		p.parseType(&fnType.ret, w)
+	} else {
+		fnType.ret = nothingType
 	}
 
 	// Check for function body
 	var stmts []*Node
-	extern := false
 	if p.is(lex.LBrace) {
 		stmts = p.parseBlock()
 	} else {
-		extern = true
+		fnType.IsExternal = true
 	}
 
 	// Close symtab
 	syms := p.closeScope()
-	return p.fnDclNode(name, params, stmts, syms, retType, isArray, extern, w.String())
+	return p.fnDclNode(name, params, stmts, syms, &Type{ Kind: Function, Data: fnType }, w.String())
 }
 
 func (p *Parser) parseBlock() []*Node {
@@ -241,45 +235,47 @@ func (p *Parser) parseParameters(w io.Writer) []*Node {
 }
 
 func (p *Parser) parseParameter(w io.Writer) *Node {
-	idTok := p.need(lex.Identifier)
+
+	// Handle identifier and create symbol
+	name := p.need(lex.Identifier)
+	s := &Symbol{ Name: name.Val }
+
+	// Handle type
 	p.need(lex.Colon)
-	isArray := false
-	if p.is(lex.LBrack) {
-		p.next()
-		p.need(lex.RBrack)
-		isArray = true
-		io.WriteString(w, "[]")
-	}
-	typeTok := p.need(lex.Identifier)
-	io.WriteString(w, typeTok.Val)
-
-	// Attempt to resolve type
-	typeSym, _ := p.symtab.Resolve(typeTok.Val)
-	idSym := &Symbol{ Name: idTok.Val }
-	if isArray {
-		arrayType := &ArrayType{Elem: typeSym.Type}
-		if typeSym != nil {
-			arrayType.Elem = typeSym.Type
-		} else {
-			p.linker.Add(typeTok, &arrayType.Elem)
-		}
-		idSym.Type = &Type{ Kind: Array, Data: arrayType }
-	} else {
-
-		if typeSym != nil {
-			idSym.Type = typeSym.Type
-		} else {
-			p.linker.Add(typeTok, &idSym.Type)
-		}
-	}
+	p.parseType(&s.Type, w)
 
 	// Check for unique parameter names
-	idSym, ok := p.symtab.Define(idSym)
+	s, ok := p.symtab.Define(s)
 	if ok {
-		p.symbolError(errRedeclaredMsg, idTok)
+		p.symbolError(errRedeclaredMsg, name)
 	}
 
-	return &Node{token: idTok, op: opIdentifier, sym: idSym, symtab: p.symtab }
+	return &Node{token: name, op: opIdentifier, sym: s, symtab: p.symtab }
+}
+
+func (p *Parser) parseType(t **Type, w io.Writer) {
+
+	switch p.Kind() {
+	case lex.LBrack:
+		io.WriteString(w, p.next().Val)
+		io.WriteString(w, p.need(lex.RBrack).Val)
+
+		arrayType := &ArrayType{}
+		p.parseType(&arrayType.Elem, w)
+		*t = &Type{ Kind: Array, Data: arrayType }
+
+	case lex.Identifier:
+		token := p.next()
+		io.WriteString(w, token.Val)
+		if s, ok := p.symtab.Resolve(token.Val); ok {
+			*t = s.Type
+		} else {
+			p.linker.Add(token, t)
+		}
+
+	default:
+		p.syntaxError(lex.Identifier, lex.LBrack)
+	}
 }
 
 func (p *Parser) parseArgs() (n []*Node) {
@@ -417,47 +413,23 @@ func (p *Parser) parseLit(t *Type) (*Node) {
 // ==========================================================================================================
 // AST Node functions
 
-func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, returnTyp *lex.Token, isArray bool, isExternal bool, typedFn string) *Node {
+func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symTab *SymTab, fnType *Type, typedFn string) *Node {
 
 	// Check symtab for redeclare
 	sym, ok := p.symtab.Resolve(typedFn)
 	if ok {
 		p.symbolError(errRedeclaredMsg, lex.WithVal(token, typedFn))
 	} else {
-		// Define marker symbol
-		p.symtab.Define(&Symbol{Name: typedFn, Type: nothingType})
+		// Define "marker" symbol
+		p.symtab.Define(&Symbol{Name: typedFn, Type: fnType})
 
 		// Define function type
-		functionType := &FunctionType{IsExternal: isExternal}
-		sym = &Symbol{Name: token.Val, Type: &Type{Kind: Function, Data: functionType}}
+		sym = &Symbol{Name: token.Val, Type: fnType}
 
 		// Check symtab; define and link to existing symbol if already present
 		if s, ok := p.symtab.Define(sym); ok {
 			for ; s.Next != nil; s = s.Next { /* ... */ }
 			s.Next = sym
-		}
-
-		// Resolve return type
-		if returnTyp == nil {
-			functionType.ret = nothingType
-		} else {
-			if isArray {
-				functionType.ret = &Type{ Kind: Array, Data: &ArrayType{} }
-			}
-			retSym, ok := p.symtab.Resolve(returnTyp.Val)
-			if !ok {
-				typ := &functionType.ret
-				if isArray {
-					typ = &functionType.ret.AsArray().Elem
-				}
-				p.linker.Add(returnTyp, typ) // Register to be updated when/if type becomes available
-			} else {
-				if isArray {
-					functionType.ret.AsArray().Elem = retSym.Type
-				} else {
-					functionType.ret = retSym.Type
-				}
-			}
 		}
 	}
 	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: symTab}
