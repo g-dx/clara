@@ -99,19 +99,10 @@ func (t *Type) AsArray() *ArrayType {
 	return t.Data.(*ArrayType)
 }
 
-func (t *Type) Name() string {
-	switch t.Kind {
-	case Array: return t.Kind.String() + t.AsArray().Elem.String()
-	case Struct: return t.AsStruct().Name
-	default:
-		return t.Kind.String()
-	}
-}
-
 func (t *Type) String() string {
 	switch t.Kind {
 	case Array: return t.Kind.String() + t.AsArray().Elem.String()
-	case Struct: return fmt.Sprintf("struct:%v", t.AsStruct().Name)
+	case Struct: return t.AsStruct().Name
 	default:
 		return t.Kind.String()
 	}
