@@ -351,7 +351,6 @@ func (p *Parser) parseOperand() *Node {
 }
 
 func (p *Parser) parseIdentifierOrFnCallOrArrayAccess() *Node {
-	// TODO: All logic from parseIdentifier() & parseFnCall() has been duplicated here!
 	tok := p.need(lex.Identifier)
 	switch p.Kind() {
 	case lex.LParen:
@@ -433,10 +432,6 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		}
 	}
 	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: symTab}
-}
-
-func (p *Parser) parseFnCall() *Node {
-	return p.fnCallNode(p.need(lex.Identifier), p.parseArgs())
 }
 
 func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
