@@ -323,8 +323,11 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		// SPECIAL CASE: If the left type is a string, array access yields a byte
 		if left.typ.Is(String) {
 			n.typ = byteType
-		} else {
+		} else if left.typ.Is(Array) {
 			n.typ = left.typ.AsArray().Elem
+		} else {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, "string or array type"))
+			goto end
 		}
 
 	case opDas:

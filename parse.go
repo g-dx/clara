@@ -278,8 +278,8 @@ func (p *Parser) parseType(t **Type, w io.Writer) {
 	}
 }
 
-func (p *Parser) parseArgs() (n []*Node) {
-	p.need('(')
+func (p *Parser) parseArgs() (n []*Node, lparen *lex.Token) {
+	lparen = p.need('(')
 	if p.isNot(lex.EOF, ')') {
 		n = append(n, p.parseArg())
 		for p.match(',') {
@@ -287,7 +287,7 @@ func (p *Parser) parseArgs() (n []*Node) {
 		}
 	}
 	p.need(')')
-	return n
+	return n, lparen
 }
 
 func (p *Parser) parseArg() (*Node) {
@@ -339,7 +339,7 @@ func (p *Parser) parseOperand() *Node {
 		return p.parseLit(boolType)
 
 	case next == lex.Identifier:
-		return p.parseIdentifierOrFnCallOrArrayAccess()
+		return p.parseIdentifier()
 
 	default:
 		// Error
@@ -350,25 +350,41 @@ func (p *Parser) parseOperand() *Node {
 	}
 }
 
-func (p *Parser) parseIdentifierOrFnCallOrArrayAccess() *Node {
-	tok := p.need(lex.Identifier)
+func (p *Parser) parseIdentifier() *Node {
+
+	id := p.need(lex.Identifier)
+	var left *Node
 	switch p.Kind() {
 	case lex.LParen:
-		return p.fnCallNode(tok, p.parseArgs())
+		args, _ := p.parseArgs()
+		left = &Node { op : opFuncCall, token: id, left: left, stmts: args, symtab: p.symtab }
 	case lex.LBrack:
-		return p.arrayNode(tok)
+		idx, _ := p.parseIndex()
+		array := &Node { op: opIdentifier, token: id, symtab: p.symtab }
+		left = &Node { op: opArray, token: id, left: array, right: idx, symtab: p.symtab }
 	default:
-		return &Node { op: opIdentifier, token: tok, symtab: p.symtab }
+		left = &Node { op: opIdentifier, token: id, symtab: p.symtab }
 	}
+
+	// Check for further calls or index operators
+	for p.is(lex.LParen, lex.LBrack) {
+		switch p.Kind() {
+			case lex.LParen:
+				args, lparen := p.parseArgs()
+				left = &Node { op : opFuncCall, token: lparen, left: left, stmts: args, symtab: p.symtab }
+			case lex.LBrack:
+				index, lbrack := p.parseIndex()
+				left = &Node { op: opArray, token: lbrack, left: left, right: index, symtab: p.symtab }
+		}
+	}
+	return left
 }
 
-func (p *Parser) arrayNode(token *lex.Token) *Node {
-	p.need(lex.LBrack)
+func (p *Parser) parseIndex() (*Node, *lex.Token) {
+	lbrack := p.need(lex.LBrack)
 	idx := p.parseExpr(0)
 	p.need(lex.RBrack)
-	id := &Node { op: opIdentifier, token: token, symtab: p.symtab }
-	// TODO: Should try and resolve type now?
-	return &Node { op: opArray, token: token, left: id, right: idx, symtab: p.symtab }
+	return idx, lbrack
 }
 
 func (p *Parser) parseOperator() (int, *lex.Token) {
@@ -432,10 +448,6 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		}
 	}
 	return &Node{ token : token, params: params, stmts: stmts, op : opFuncDcl, sym : sym, symtab: symTab}
-}
-
-func (p *Parser) fnCallNode(token *lex.Token, args []*Node) *Node {
-	return &Node{token : token, stmts: args, op : opFuncCall, symtab: p.symtab}
 }
 
 func (p *Parser) structDclNode(id *lex.Token, syms *SymTab, fields []*Node, vars []*Symbol) *Node {
