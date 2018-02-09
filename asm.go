@@ -19,9 +19,16 @@ type operand interface {
 
 type memOp struct {
 	base   reg
-	offset reg
+	off    reg
 	disp   int16
 	mult   int16
+	indir  bool
+	deref  bool
+}
+
+func (mo memOp) offset(r reg) memOp {
+	mo.off = r
+	return mo
 }
 
 func (mo memOp) multiplier(m int) memOp {
@@ -34,23 +41,35 @@ func (mo memOp) displace(m int) memOp {
 	return mo
 }
 
+func (mo memOp) indirect() memOp {
+	mo.indir = true
+	return mo
+}
+
 func (mo memOp) Print() string  {
 
 	var buf bytes.Buffer
+	if mo.indir {
+		buf.WriteString("*")
+	}
 	if mo.disp != 0 {
 		buf.WriteString(strconv.Itoa(int(mo.disp)))
 	}
-	buf.WriteString("(")
+	if mo.deref {
+		buf.WriteString("(")
+	}
 	buf.WriteString(regNames[mo.base]) // TODO: Base is not actually required. Future work may need to omit it
-	if mo.offset != 0 {
+	if mo.off != 0 {
 		buf.WriteString(",")
-		buf.WriteString(regNames[mo.offset])
+		buf.WriteString(regNames[mo.off])
 		if mo.mult != 0 {
 			buf.WriteString(",")
 			buf.WriteString(strconv.Itoa(int(mo.mult)))
 		}
 	}
-	buf.WriteString(")")
+	if mo.deref {
+		buf.WriteString(")")
+	}
 	return buf.String()
 }
 
@@ -149,19 +168,23 @@ var regNames = map[reg]string{
 	al:  "%al",
 }
 
-func (r reg) offset(offset reg) memOp {
-	return memOp{ base: r, offset: offset }
+func (r reg) offset(off reg) memOp {
+	return r.deref().offset(off)
+}
+
+func (r reg) indirect() memOp {
+	return memOp{ base: r, indir: true }
 }
 
 func (r reg) displace(i int) memOp {
 	if i > math.MaxInt16 || i < math.MinInt16 {
 		panic(fmt.Sprintf("Cannot represent displacement: %v", i))
 	}
-	return memOp{ base: r, disp: int16(i) }
+	return r.deref().displace(i)
 }
 
 func (r reg) deref() memOp {
-	return memOp{ base: r }
+	return memOp{ base: r, deref: true }
 }
 
 func (r reg) _8bit() reg {

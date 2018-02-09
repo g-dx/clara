@@ -13,6 +13,7 @@ import (
 const (
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
+	errAmbiguousVarMsg         = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
 	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
 	errConstructorOverrideMsg  = "%v:%d:%d: error, function name '%v' is reserved for struct constructor"
 	errNotStructMsg            = "%v:%d:%d: error, '%v' is not a struct"
@@ -20,6 +21,7 @@ const (
 	errInvalidDotSelectionMsg  = "%v:%d:%d: error '%v', expected field or function call"
 	errInvalidOperatorTypeMsg  = "%v:%d:%d: type '%v' invalid for operator '%v'"
 	errMismatchedTypesMsg      = "%v:%d:%d: mismatched types, got '%v', wanted '%v'"
+	errInvalidNumberArgsMsg    = "%v:%d:%d: invalid number of arguments, got '%v', wanted '%v'"
 	errResolveFunctionMsg      = "%v:%d:%d: Cannot resolve function '%v'"
 	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"

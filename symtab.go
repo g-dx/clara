@@ -3,6 +3,7 @@ import (
 	"fmt"
 	"github.com/g-dx/clarac/lex"
 	"bytes"
+	"strings"
 )
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -68,8 +69,20 @@ func (t *Type) Matches(x *Type) bool {
 	case Array:
 		return x.Kind == Array && t.AsArray().Elem.Matches(x.AsArray().Elem)
 	case Function:
-		// Not yet required...
-		fallthrough
+		if x.Kind != Function  {
+			return false
+		}
+		xf := x.AsFunction()
+		tf := t.AsFunction()
+		if len(xf.Args) != len(tf.Args) {
+			return false
+		}
+		for i, arg := range xf.Args {
+			if !arg.Matches(tf.Args[i]) {
+				return false
+			}
+		}
+		return tf.ret.Matches(xf.ret)
 	default:
 		panic("Unknown or unexpected type comparison!")
 	}
@@ -103,6 +116,13 @@ func (t *Type) String() string {
 	switch t.Kind {
 	case Array: return t.Kind.String() + t.AsArray().Elem.String()
 	case Struct: return t.AsStruct().Name
+	case Function:
+		var types []string
+		fn := t.AsFunction()
+		for _, t := range fn.Args {
+			types = append(types, t.String())
+		}
+		return fmt.Sprintf("fn(%v) %v", strings.Join(types, ","), fn.ret.String())
 	default:
 		return t.Kind.String()
 	}
@@ -112,6 +132,17 @@ func (t *Type) AsmName() string {
 	switch t.Kind {
 	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
 	case Struct: return t.AsStruct().Name
+	case Function:
+		fn := t.AsFunction()
+		buf := bytes.NewBufferString("fn")
+		if len(fn.Args) > 0 {
+			buf.WriteString(fmt.Sprintf("$%v", fn.Args[0].AsmName()))
+			for i := 1; i < len(fn.Args); i += 1 {
+				buf.WriteString(fmt.Sprintf(".%v", fn.Args[i].AsmName))
+			}
+			buf.WriteString("$")
+		}
+		return buf.String()
 	default:
 		return t.Kind.String()
 	}

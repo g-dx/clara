@@ -128,7 +128,7 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 
 		switch stmt.op {
 		case opFuncCall:
-			genFuncCall(asm, stmt.stmts, stmt.sym.Type.AsFunction(), stmt.sym.Name)
+			genFuncCall(asm, stmt)
 
 		case opReturn:
 			genReturnExpression(asm, stmt, fn)
@@ -217,10 +217,20 @@ func genReturnExpression(asm assembler, retn *Node, fn *FunctionType) {
 	asm.op(ret)
 }
 
-func genFuncCall(asm assembler, args []*Node, fn *FunctionType, fnName string) {
+func genFuncCall(asm assembler, n *Node) {
+
+	// Determine how function is referenced
+	var s *Symbol
+	var fn *FunctionType
+	if n.sym != nil {
+		s = n.sym
+		fn = s.Type.AsFunction()
+	} else {
+		fn = n.left.typ.AsFunction() // Func is returned from subexpression
+	}
 
 	// Generate arg code
-	for i, arg := range args {
+	for i, arg := range n.stmts {
 		if i >= 6 {
 			panic("Calling functions with more than 6 parameters not yet implemented")
 		}
@@ -229,7 +239,7 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, fnName string) {
 
 		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
 		// so we can modify the pointer value to point "past" the length to the actual data
-		if arg.typ.Is(String) && fn.IsExternal && fnName == "printf" {
+		if arg.typ.Is(String) && fn.IsExternal && s.Name == "printf" {
 			asm.op(leaq, regs[i].displace(8), regs[i])
 		}
 
@@ -244,7 +254,14 @@ func genFuncCall(asm assembler, args []*Node, fn *FunctionType, fnName string) {
 		asm.op(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
-	asm.op(call, labelOp(fn.AsmName(fnName)))
+	// Call function
+	if s == nil {
+		asm.op(call, rax.indirect()) // anonymous func call: register indirect
+	} else if s.IsStack {
+		asm.op(call, rbp.displace(-s.Addr).indirect()) // Parameter func call: memory indirect
+	} else {
+		asm.op(call, labelOp(fn.AsmName(s.Name))) // Named func call
+	}
 }
 
 func restore(asm assembler, regPos int) {
@@ -397,14 +414,18 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 				//asm.op(leaq, intOp(v.Addr).mem(), rax)   // rax = [addr]
 				asm.op(pushq, rax) // stack <- rax
 			} else {
-				asm.op(pushq, intOp(v.Addr)) // stack <- addr
+				if v.Type.Is(Function) {
+					asm.op(pushq, strOp(v.Type.AsFunction().AsmName(v.Name))) // Push address of function
+				} else {
+					asm.op(pushq, intOp(v.Addr)) // stack <- addr
+				}
 			}
 		}
 
 	case opFuncCall:
 
 		spill(asm, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(asm, expr.stmts, expr.sym.Type.AsFunction(), expr.sym.Name)
+		genFuncCall(asm, expr)
 		restore(asm, regsInUse) // Restore registers previously in use
 		asm.op(pushq, rax)      // Push result (rax) onto stack
 

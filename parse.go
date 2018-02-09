@@ -273,8 +273,33 @@ func (p *Parser) parseType(t **Type, w io.Writer) {
 			p.linker.Add(token, t)
 		}
 
+	case lex.Fn:
+		io.WriteString(w, p.next().Val)
+		io.WriteString(w, p.need('(').Val)
+
+		funcType := &FunctionType{Args: make([]*Type, 20) } // TODO: Max of 20 parameters here!
+		args := 0
+		for p.isNot(lex.EOF, ')') {
+			p.parseType(&funcType.Args[args], w)
+			for args += 1; p.match(','); args += 1 {
+				p.parseType(&funcType.Args[args], w)
+				io.WriteString(w, ", ")
+			}
+		}
+		funcType.Args = funcType.Args[:args] // Trim empty slots
+		io.WriteString(w, p.need(')').Val)
+
+		// Check for return type
+		if p.is(lex.Fn, lex.Identifier, lex.LBrack) {
+			p.parseType(&funcType.ret, w)
+		} else {
+			funcType.ret = nothingType
+		}
+
+		*t = &Type{ Kind: Function, Data: funcType}
+
 	default:
-		p.syntaxError(lex.Identifier, lex.LBrack)
+		p.syntaxError(lex.Fn, lex.Identifier, lex.LBrack)
 	}
 }
 

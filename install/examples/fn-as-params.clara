@@ -1,0 +1,34 @@
+// Entry point
+fn main() {
+  printf("10.apply(square) = %d\n", 10.apply(square))
+  printf("15.apply(cube) = %d\n", 15.apply(cube))
+  printf("retFn(square)(5) = %d\n", returnFn(square)(5))
+  f := square
+  printf("f := square\nf(4) = %d\n", f(4))
+  f = cube
+  printf("f := cube\nf(4) = %d\n", f(4))
+//  s := S1(cube)
+//  printf("s.f(2) = %d\n", s.f(4)) TODO: Fix the AST rewrite to make this work!
+//  cube := square // TODO: Uncommenting this line will cause line 4 to resolve the symbol on this line rather that the global function
+//  printf("cube := square\ncube(2) = %d\n", cube(2))
+}
+
+fn apply(i: int, f: fn(int) int) int {
+  return f(i)
+}
+
+fn square(i: int) int {
+  return i * i
+}
+
+fn cube(i: int) int {
+  return i * i * i
+}
+
+fn returnFn(f: fn(int) int) fn(int) int {
+  return f
+}
+
+struct s1 {
+  f: fn(int) int
+}

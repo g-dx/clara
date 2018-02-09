@@ -126,6 +126,14 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 				errs = append(errs, semanticError(errUnknownVarMsg, n.token))
 				goto end
 			}
+			if sym.Next != nil {
+				var types []string
+				for s := sym; s != nil; s = s.Next {
+					types = append(types, s.Type.String())
+				}
+				errs = append(errs, semanticError2(errAmbiguousVarMsg, n.token, n.token.Val, strings.Join(types, "\n\t* ")))
+				goto end
+			}
 			n.sym = sym
 		}
 		n.typ = n.sym.Type
@@ -147,10 +155,60 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 			return
 		}
 
+		// =============================================================================================================
+		// Handle "anonymous" func call f(1, true)("<string>")() ... etc ...
+		// =============================================================================================================
+
+		// TODO: Unify the logic for anonymous and named functions
+		if left != nil {
+
+			// Subexpression will yield a function
+			errs = append(errs, typeCheck(left, body, debug)...)
+			if !left.hasType() {
+				goto end
+			}
+
+			// Check we have a function
+			if !left.typ.Is(Function) {
+				var types []string
+				for _, arg := range n.stmts {
+					types = append(types, arg.typ.String())
+				}
+				errs = append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, fmt.Sprintf("fn(%v)", strings.Join(types, ","))))
+				goto end
+			}
+
+			// Check correct number of args
+			fn := left.typ.AsFunction()
+			if len(n.stmts) != len(fn.Args) {
+				errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Args)))
+				goto end
+			}
+
+			// Check all types match
+			for i, arg := range fn.Args {
+				if !n.stmts[i].typ.Matches(arg) {
+					errs = append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[i].token, n.stmts[i].typ, arg))
+					goto end
+				}
+			}
+			n.typ = fn.ret
+			return
+		}
+
+		// =============================================================================================================
+		// Handle "named" function call x().y().z() ... etc ...
+		// =============================================================================================================
+
 		// Attempt to resolve symbol
 		var match *Symbol
 	loop:
 		for s, _ := n.symtab.Resolve(n.token.Val); s != nil; s = s.Next {
+
+			// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
+			if s.Type == nil {
+				goto end
+			}
 
 			// Check is a function
 			if !s.Type.Is(Function) {
