@@ -44,9 +44,9 @@ uint64_t byteArray(int size)
 
 intptr_t toString(intptr_t bytes)
 {
-    // Copy bytes into new array
-    uint64_t size = ((uint64_t *) bytes)[0] + 8; // + 8 for length
+    intptr_t array = bytes - 8; // Length of array is *behind* the pointer!
+    uint64_t size = ((uint64_t *) array)[0] + 8; // + 8 for total length
     intptr_t *s = malloc(size + 1); // + 1 for NUL byte
-    memcpy(s, (void *) bytes, size);
+    memcpy(s, (void *) array, size);
     return (intptr_t) s;
 }

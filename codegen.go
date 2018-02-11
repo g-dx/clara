@@ -237,9 +237,9 @@ func genFuncCall(asm assembler, n *Node) {
 		genExprWithoutAssignment(asm, arg, i, false) // Evaluate expression
 		asm.op(popq, regs[i])                                  // Pop result from stack into correct reg
 
-		// SPECIAL CASE: We need to know when we are calling libc printf with strings. This is
-		// so we can modify the pointer value to point "past" the length to the actual data
-		if arg.typ.Is(String) && fn.IsExternal && s.Name == "printf" {
+		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
+		// means the value can be directly supplied to other libc functions without modification.
+		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal {
 			asm.op(leaq, regs[i].displace(8), regs[i])
 		}
 
