@@ -41,18 +41,43 @@ func (n *Node) isAddressable() bool {
 
 func (n *Node) isTerminating() bool {
 
-	x := []*Node { n }
-	for i := 0; i < len(x); i++ {
-		switch x[i].op {
-		case opFuncDcl, opElse, opElseIf, opIf:
-			for _, stmt := range x[i].stmts {
-				x = append(x, stmt)
+	switch n.op {
+	case opReturn:
+		return true
+
+	case opIf:
+
+		// Walk all right nodes to gather if/elseif/else structure
+		x := []*Node { n }
+		for i := 0; i < len(x); i++ {
+			if x[i].right != nil {
+				x = append(x, x[i].right)
 			}
-		case opReturn:
-			return true
 		}
+		// Check last element is else
+		if x[len(x)-1].op != opElse {
+			return false
+		}
+		// Check each block terminates
+		for _, n := range x {
+			if len(n.stmts) == 0 {
+				return false
+			}
+			if !n.stmts[len(n.stmts)-1].isTerminating() {
+				return false
+			}
+		}
+		return true
+
+	case opFuncDcl:
+		if len(n.stmts) == 0 {
+			return false
+		}
+		return n.stmts[len(n.stmts)-1].isTerminating()
+
+	default:
+		return false
 	}
-	return false
 }
 
 func (n *Node) IsReturnLastStmt() bool {
