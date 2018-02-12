@@ -222,6 +222,7 @@ const (
 
 	// Comparisons
 	notq
+	negq
 	orq
 	andq
 	cmpq
@@ -254,6 +255,7 @@ var instNames = map[inst]string{
 	pushq:  "pushq",
 	leaq:   "leaq",
 	notq:   "notq",
+	negq:   "negq",
 	orq:    "orq",
 	andq:   "andq",
 	cmpq:   "cmpq",

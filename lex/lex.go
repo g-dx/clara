@@ -29,6 +29,10 @@ const (
 	Integer
 
 	// -----------------------------------------------------------------------------------------------------------------
+	// Unary Operators
+	Neg // NOTE: Lexer does not emit these. The parser rewrites `Min` tokens to `Neg` when appropriate
+
+	// -----------------------------------------------------------------------------------------------------------------
 	// Binary Operators
 
 	Plus
@@ -79,7 +83,7 @@ func (k Kind) IsBinaryOperator() bool {
 
 func (k Kind) IsUnaryOperator() bool {
 	switch k {
-	case Not:
+	case Not, Min, Neg:
 		return true
 	default:
 		return false
@@ -92,7 +96,7 @@ func (k Kind) Precedence() int {
 	switch k {
 	case Dot:
 		return 8
-	case Not:
+	case Not, Neg:
 		return 7
 	case Mul, Div:
 		return 6
@@ -120,7 +124,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot:
+	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot, Neg:
 		return Left
 	case Not:
 		return Right
@@ -277,12 +281,7 @@ func lexText(l *Lexer) stateFn {
 		case r == '+':
 			l.emit(Plus)
 		case r == '-':
-			if isNumeric(l.peek()) {
-				l.next()
-				return lexInteger
-			} else {
-				l.emit(Min)
-			}
+			l.emit(Min)
 		case r == '*':
 			l.emit(Mul)
 		case r == '>':

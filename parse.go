@@ -336,7 +336,7 @@ func (p *Parser) parseExpr(prec int) (*Node) {
 
 	t := p.parseOperand()
 	for next := p.Kind(); next.IsBinaryOperator() && next.Precedence() >= prec; next = p.Kind() {
-		op, tok := p.parseOperator()
+		op, tok := p.parseOperator(false)
 		q := next.Precedence()
 		if next.Associativity() == lex.Left {
 			q += 1
@@ -352,8 +352,8 @@ func (p *Parser) parseOperand() *Node {
 	next := p.Kind()
 	switch {
 	case next.IsUnaryOperator():
-		op, tok := p.parseOperator()
-		t := p.parseExpr(next.Precedence())
+		op, tok := p.parseOperator(true)
+		t := p.parseExpr(tok.Kind.Precedence()) // NOTE: must use kind defined in token as may be different from next
 		return &Node{ op: op, token: tok, left: t, symtab: p.symtab} // Unary operators store expr in left
 
 	case next == lex.LParen:
@@ -421,7 +421,7 @@ func (p *Parser) parseIndex() (*Node, *lex.Token) {
 	return idx, lbrack
 }
 
-func (p *Parser) parseOperator() (int, *lex.Token) {
+func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 	switch p.Kind() {
 	case lex.Not:
 		return opNot, p.next()
@@ -436,6 +436,12 @@ func (p *Parser) parseOperator() (int, *lex.Token) {
 	case lex.Eq:
 		return opEq, p.next()
 	case lex.Min:
+		// Rewrite token to differentiate binary minus from unary minus
+		if isUnary {
+			t := p.next()
+			t.Kind = lex.Neg
+			return opNeg, t
+		}
 		return opMin, p.next()
 	case lex.And:
 		return opAnd, p.next()

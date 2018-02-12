@@ -106,6 +106,7 @@ const (
 	opDiv
 	opEq
 	opNot
+	opNeg
 	opDot
 	opAnd
 	opIdentifier
@@ -143,7 +144,8 @@ var nodeTypes = map[int]string{
 	opElse:       "Else Stmt",
 	opGt:         "Comparison Op [>]",
 	opLt:         "Comparison Op [<]",
-	opNot:        "Negation [not]",
+	opNot:        "Bool Negation [not]",
+	opNeg:        "Numeric Negation [not]",
 	opDot:        "Dot Select",
 	opEq:         "Equality [eq]",
 	opAnd:        "Logical [and]",

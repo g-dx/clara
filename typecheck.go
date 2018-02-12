@@ -132,6 +132,20 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		}
 		n.typ = boolType
 
+
+	case opNeg:
+		errs = append(errs, typeCheck(left, body, debug)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		if !(left.typ.Is(Integer) || left.typ.Is(Byte)) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, fmt.Sprintf("%v or %v", Integer, Byte)))
+			goto end
+		}
+		n.typ = left.typ
+
 	case opLit:
 		n.typ = n.sym.Type
 

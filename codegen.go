@@ -373,6 +373,11 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 		asm.op(andq, _true, rax) // rax = rax & 0x01
 		asm.op(pushq, rax)       // Push result onto stack
 
+	case opNeg:
+		asm.op(popq, rax)             // Pop from stack to rax
+		asm.op(negq, rax)             // rax = -rax
+		asm.op(pushq, rax)            // Push result onto stack
+
 	case opGt: // TODO: Other comparisons can get added here as they all share the same code!
 
 		// NOTE: The order we pop from the stack here important
