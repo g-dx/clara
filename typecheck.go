@@ -16,6 +16,23 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 	right := n.right
 
 	switch n.op {
+	case opWhile:
+		errs = append(errs, typeCheck(left, body, debug)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		if !left.typ.Is(Boolean) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, boolType))
+			goto end
+		}
+
+		// Type check body
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt, body, debug)...)
+		}
+
 	case opIf, opElseIf:
 		errs = append(errs, typeCheck(left, body, debug)...)
 

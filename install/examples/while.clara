@@ -1,0 +1,19 @@
+// Entry point
+fn main() {
+    i := intArray(5)
+    x := 0
+    while x < i.length {
+        i[x] = x * 10
+        x = x + 1
+    }
+    i.printArray()
+}
+
+fn printArray(i: []int) {
+    x := 0
+    while x < i.length {
+        printf("[%d] = %d\n", x, i[x])
+        x = x + 1
+    }
+    printf("i.length = %d\n", i.length)
+}

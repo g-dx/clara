@@ -161,12 +161,21 @@ func (p *Parser) parseStatement() *Node {
 			expr = p.parseAssignStmt(expr)
 		}
 		return expr
+	case lex.While:
+		return p.parseWhileStmt()
 	default:
 		// TODO: Maybe a better message would be "keyword or expression" expected
 		p.syntaxError(lex.Identifier, lex.Return, lex.If, lex.Integer, lex.String, lex.Identifier, lex.True,
 			lex.False, lex.Not, lex.LParen)
 		return &Node{op: opError, token: p.next()} // TODO: Bad statement node?
 	}
+}
+
+func (p *Parser) parseWhileStmt() *Node {
+	tok := p.need(lex.While)
+	cond := p.parseExpr(0)
+	p.openScope()
+	return &Node { op: opWhile, token: tok, left: cond, stmts: p.parseBlock(), symtab: p.closeScope() }
 }
 
 func (p *Parser) parseDeclAssignStmt(lhs *Node) *Node {

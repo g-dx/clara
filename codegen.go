@@ -139,10 +139,31 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 		case opDas, opAs:
 			genAssignStmt(asm, stmt)
 
+		case opWhile:
+			genWhileStmt(asm, stmt)
+
 		default:
 			genExprWithoutAssignment(asm, stmt, 0, false)
 		}
 	}
+}
+
+func genWhileStmt(asm assembler, n *Node) {
+
+	// Create new labels
+	exit := asm.newLabel("while_end")
+	start := asm.newLabel("while_start")
+	asm.label(start)
+
+	// Generate condition
+	genExprWithoutAssignment(asm, n.left, 0, false) // Left stores condition
+
+	asm.op(popq, rax)          // Pop result from stack to rax
+	asm.op(cmpq, _true, rax)   // Compare (true) to rax
+	asm.op(jne, labelOp(exit)) // Jump over block if not true
+	genStmtList(asm, n.stmts, fn) // Generate stmts block
+	asm.op(jmp, labelOp(start))   // Jump to start of loop
+	asm.label(exit)               // Declare exit point
 }
 
 func genAssignStmt(asm assembler, n *Node) {

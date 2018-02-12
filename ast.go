@@ -112,6 +112,7 @@ const (
 	opArray
 	opReturn
 	opIf
+	opWhile
 	opDas
 	opAs
 	opElseIf
@@ -150,6 +151,7 @@ var nodeTypes = map[int]string{
 	opError:      "(error)",
 	opRoot:       "<none>",
 	opStruct:     "Struct",
+	opWhile:      "While",
 }
 
 func (n * Node) Walk(fn func(*Node)) {
