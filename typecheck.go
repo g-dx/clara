@@ -8,16 +8,14 @@ import (
 
 //---------------------------------------------------------------------------------------------------------------
 
-var fn *FunctionType // Function which is currently being type checked
-
-func typeCheck(n *Node, body bool, debug bool) (errs []error) {
+func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) {
 
 	left := n.left
 	right := n.right
 
 	switch n.op {
 	case opWhile:
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -30,11 +28,11 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 		// Type check body
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, debug)...)
+			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
 		}
 
 	case opIf, opElseIf:
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -47,12 +45,12 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 		// Type check body
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, debug)...)
+			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
 		}
 
 		// Type check next elseif case (if any)
 		if right != nil {
-			errs = append(errs, typeCheck(right, body, debug)...)
+			errs = append(errs, typeCheck(right, body, fn, debug)...)
 		}
 
 		// Does not promote type...
@@ -60,7 +58,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 	case opElse:
 		// Type check body
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, debug)...)
+			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
 		}
 
 		// Does not promote type...
@@ -73,7 +71,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 		// Check expression if any
 		if left != nil {
-			errs = append(errs, typeCheck(left, body, debug)...)
+			errs = append(errs, typeCheck(left, body, fn, debug)...)
 			if !left.hasType() {
 				goto end
 			}
@@ -89,8 +87,8 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 
 	case opAnd, opOr, opAdd, opMul, opMin, opDiv:
-		errs = append(errs, typeCheck(left, body, debug)...)
-		errs = append(errs, typeCheck(right, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(right, body, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -120,7 +118,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		}
 
 	case opNot:
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -134,7 +132,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 
 	case opNeg:
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -172,7 +170,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 	case opFuncCall:
 		// Type check args
 		for _, arg := range n.stmts {
-			errs = append(errs, typeCheck(arg, body, debug)...)
+			errs = append(errs, typeCheck(arg, body, fn, debug)...)
 			if !arg.hasType() {
 				goto end
 			}
@@ -194,7 +192,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		if left != nil {
 
 			// Subexpression will yield a function
-			errs = append(errs, typeCheck(left, body, debug)...)
+			errs = append(errs, typeCheck(left, body, fn, debug)...)
 			if !left.hasType() {
 				goto end
 			}
@@ -279,8 +277,8 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		n.typ = match.Type.AsFunction().ret
 
 	case opGt, opLt, opEq:
-		errs = append(errs, typeCheck(left, body, debug)...)
-		errs = append(errs, typeCheck(right, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(right, body, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -293,16 +291,16 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 	case opFuncDcl:
 
+		fn := n.sym.Type.AsFunction()
 		if !body {
 
 			// Check if we need to configure function types
 			// TODO: Seriously consider disallowing use before declaration of types. It would simplify things a lot...
-			fn := n.sym.Type.AsFunction()
 			addArgs := len(fn.Args) == 0
 
 			// Type check params
 			for _, param := range n.params {
-				errs = append(errs, typeCheck(param, body, debug)...)
+				errs = append(errs, typeCheck(param, body, fn, debug)...)
 				if !param.hasType() {
 					goto end
 				}
@@ -316,7 +314,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 			// Type check stmts
 			for _, stmt := range n.stmts {
-				errs = append(errs, typeCheck(stmt, body, debug)...)
+				errs = append(errs, typeCheck(stmt, body, fn, debug)...)
 			}
 
 			n.typ = n.sym.Type
@@ -328,7 +326,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		}
 
 	case opDot:
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -346,7 +344,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 			n.right = nil
 
 			// Type check func call
-			errs = append(errs, typeCheck(n, body, debug)...)
+			errs = append(errs, typeCheck(n, body, fn, debug)...)
 
 			// Handle field access on right
 		} else if right.op == opIdentifier {
@@ -397,8 +395,8 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 
 
 	case opArray:
-		errs = append(errs, typeCheck(left, body, debug)...)
-		errs = append(errs, typeCheck(right, body, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(right, body, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -420,7 +418,7 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		}
 
 	case opDas:
-		errs = append(errs, typeCheck(right, body, debug)...)
+		errs = append(errs, typeCheck(right, body, fn, debug)...)
 
 		if !right.hasType() {
 			goto end
@@ -439,8 +437,8 @@ func typeCheck(n *Node, body bool, debug bool) (errs []error) {
 		// Does not promote type...
 
 	case opAs:
-		errs = append(errs, typeCheck(right, body, debug)...)
-		errs = append(errs, typeCheck(left, body, debug)...)
+		errs = append(errs, typeCheck(right, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, body, fn, debug)...)
 
 		if !right.hasType() || !left.hasType() {
 			goto end

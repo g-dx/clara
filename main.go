@@ -122,7 +122,7 @@ func main() {
 	// Type check function signatures
 	for _, topLevel := range rootNode.stmts {
 		if topLevel.op == opFuncDcl {
-			errs = append(errs, typeCheck(topLevel, false, *showTypes)...)
+			errs = append(errs, typeCheck(topLevel, false, nil, *showTypes)...)
 		}
 	}
 	exitIfErrors(showAst, rootNode, errs, prog)
@@ -130,9 +130,7 @@ func main() {
 	// Type check function bodies
 	for _, topLevel := range rootNode.stmts {
 		if topLevel.op == opFuncDcl {
-			// Set current function as a global so we can check returns...
-			fn = topLevel.sym.Type.AsFunction()
-			errs = append(errs, typeCheck(topLevel, true, *showTypes)...)
+			errs = append(errs, typeCheck(topLevel, true, nil, *showTypes)...)
 		}
 	}
 	exitIfErrors(showAst, rootNode, errs, prog)
