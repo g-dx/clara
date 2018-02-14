@@ -140,7 +140,7 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 			genAssignStmt(asm, stmt)
 
 		case opWhile:
-			genWhileStmt(asm, stmt)
+			genWhileStmt(asm, stmt, fn)
 
 		default:
 			genExprWithoutAssignment(asm, stmt, 0, false)
@@ -148,7 +148,7 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 	}
 }
 
-func genWhileStmt(asm assembler, n *Node) {
+func genWhileStmt(asm assembler, n *Node, fn *FunctionType) {
 
 	// Create new labels
 	exit := asm.newLabel("while_end")
