@@ -243,6 +243,7 @@ const (
 
 	// Function support
 	leave
+	enter
 	ret
 	call
 )
@@ -270,6 +271,7 @@ var instNames = map[inst]string{
 	jne:    "jne",
 	jae:    "jae",
 	leave:  "leave",
+	enter:  "enter",
 	ret:    "ret",
 	call:   "call",
 }
@@ -321,7 +323,10 @@ func (gw *gasWriter) spacer() {
 }
 
 func (gw *gasWriter) function(name string, temps int) {
-	gw.write("\t.globl\t%s\n\t.type\t%s, @function\n%s:\n\tenter\t$(8 * %v), $0\n", name, name, name, temps)
+	gw.tab(".globl", name)
+	gw.tab(".type", fmt.Sprintf("%v, @function", name))
+	gw.raw(fmt.Sprintf("%v:", name))
+	gw.op(enter, intOp(temps*8), intOp(0))
 }
 
 func (gw *gasWriter) stringLit(s string) operand {
