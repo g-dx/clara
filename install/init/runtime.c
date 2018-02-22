@@ -20,33 +20,17 @@ void indexOutOfBounds(int index)
 // ---------------------------------------------------------------------------------------------------------------------
 // lib/arrays.clara
 // ---------------------------------------------------------------------------------------------------------------------
-uint64_t intArray(int size)
-{
-    int n = sizeof(uint64_t) * size;
-    uint64_t *array = (uint64_t *) malloc(n + 8); // + 8 for length
-    array[0] = size;
-    return (uint64_t) array;
-}
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-uint64_t byteArray(int size)
-{
-    int n = (8 - (size % sizeof(uint8_t)) + size); // Round up to nearest multiple of 8
-    uint64_t *array = (uint64_t *) malloc(n + 8);  // + 8 for length
-    array[0] = size;
-    return (uint64_t) array;
-}
+// Casting support
+intptr_t toIntArray(intptr_t arrayHeader) { return arrayHeader; }
+intptr_t toByteArray(intptr_t arrayHeader) { return arrayHeader; }
+intptr_t toHeader(intptr_t pointer) { return pointer; }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // lib/strings.clara
 // ---------------------------------------------------------------------------------------------------------------------
 
-intptr_t toString(intptr_t bytes)
-{
-    intptr_t array = bytes - 8; // Length of array is *behind* the pointer!
-    uint64_t size = ((uint64_t *) array)[0] + 8; // + 8 for total length
-    intptr_t *s = malloc(size + 1); // + 1 for NUL byte
-    memcpy(s, (void *) array, size);
-    return (intptr_t) s;
-}
+// Casting support
+// NOTE: codegen always increments the pointer by 8 when passing an array or string to an external function. This allows
+// printf to work. As such reverse that when returning the same pointer!
+intptr_t asString(intptr_t byteArray) { return byteArray - 8; }

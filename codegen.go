@@ -22,6 +22,8 @@ var stringOps = make(map[string]operand)
 
  */
 
+var claralloc = "clara·claralloc.int" // NOTE: keep in sync with ASM name generation!
+
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
 func codegen(symtab *SymTab, tree *Node, asm assembler) error {
@@ -108,7 +110,7 @@ func genConstructor(asm assembler, fn *FunctionType, params []*Node) {
 
 	// Malloc memory of appropriate size
 	asm.op(movq, intOp(fn.ret.AsStruct().Size()), rdi)
-	asm.op(call, labelOp("malloc"))
+	asm.op(call, labelOp(claralloc)) // Implemented in lib/mem.clara
 
 	// Copy stack values into fields
 	off := 0

@@ -45,10 +45,11 @@ fn toString(buf: stringBuffer) string {
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn append(s1: string, s2: string) string {
-    bytes := byteArray(s1.length + s2.length)
+    length := s1.length + s2.length
+    bytes := byteArray(length + 1 + 8, length) // + 1 for NUL byte, FIXME: + 8 due to mem corruption bug!
     copyString(s1, 0, bytes, 0)
     copyString(s2, 0, bytes, s1.length)
-    return bytes.toString()
+    return bytes.asString()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -62,6 +63,15 @@ fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+fn toString(b: []byte) string {
+    s := byteArray(b.length + 1, b.length) // + 1 for NUL byte
+    copyArray(b, 0, s, 0)
+    return s.asString()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 
-fn toString(b: []byte) string // Copies array & returns new string
+// TODO: Should be private!
+fn asString(b: []byte) string // Does not copy array!

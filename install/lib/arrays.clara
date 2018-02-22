@@ -9,8 +9,33 @@ fn copyArray(src: []byte, srcPos: int, dest: []byte, destPos: int) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+struct arrayHeader {
+    length: int
+}
+
+fn intArray(length: int) []int {
+    h := claralloc((length * 8) + 8).toHeader() // int == 8 bytes, + 8 for length
+    h.length = length
+    return h.toIntArray()
+}
+
+fn byteArray(length: int) []byte {
+    return byteArray(length, length)
+}
+
+// TODO: Should be private!
+fn byteArray(size: int, length: int) []byte {
+    if length > size {
+        // TODO: PANIC!
+    }
+    h := claralloc(size + 8).toHeader() // + 8 for length
+    h.length = length
+    return h.toByteArray()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // External Functions
-
-fn intArray(size: int) []int
-
-fn byteArray(size: int) []byte
+fn toIntArray(header: arrayHeader) []int
+fn toByteArray(header: arrayHeader) []byte
+fn toHeader(p: pointer) arrayHeader
