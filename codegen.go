@@ -95,7 +95,16 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 	})
 
 	genIoobHandler(asm);
+	asm.spacer()
+	genFramePointerAccess(asm)
 	return nil
+}
+
+func genFramePointerAccess(asm assembler) {
+	// Requires non-standard entry & exit!
+	asm.function("getFramePointer")
+	asm.op(movq, rbp, rax)
+	asm.op(ret)
 }
 
 func genFnEntry(asm assembler, fn *FunctionType, astName string, temps int) {

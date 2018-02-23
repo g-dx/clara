@@ -1,5 +1,18 @@
-// Inserted by compiler to be called at start of `main()` before any other code
-fn init() {
-    // ...
+// Linked List of all stack frames up to stack base
+struct frame {
+    next: frame
+    // TODO: add activation record, return address, etc
 }
 
+// Inserted by compiler to be called at start of `main()` before any other code
+fn init() {
+    setStackBase(getFramePointer().next) // Capture frame pointer of C 'main'
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// External Functions
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn getFramePointer() frame // Implemented in assembly by codegen.go
+fn hasNextFrame(f: frame) bool
+fn setStackBase(f: frame) nothing
