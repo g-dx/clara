@@ -1,0 +1,5 @@
+// Inserted by compiler to be called at start of `main()` before any other code
+fn init() {
+    // ...
+}
+

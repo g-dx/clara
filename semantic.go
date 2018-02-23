@@ -59,6 +59,13 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 	return false
 }
 
+func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opFuncDcl && n.token.Val == "main" {
+		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab} }, n.stmts...) // Insert runtime init
+	}
+	return nil
+}
+
 func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opStruct {
 

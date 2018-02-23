@@ -118,6 +118,7 @@ func main() {
 
 	// Generate constructor functions
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, generateStructConstructors)...)
+	errs = append(errs, walk(rootNode, rootSymtab, rootNode, addRuntimeInit)...)
 
 	// Type check function signatures
 	for _, topLevel := range rootNode.stmts {
