@@ -286,7 +286,7 @@ type assembler interface {
 	newLabel(s string) string
 	raw(s string) // Remove me!
 
-	function(name string, temps int)
+	function(name string)
 
 	op(i inst, ops ... operand)
 }
@@ -322,11 +322,10 @@ func (gw *gasWriter) spacer() {
 	gw.write(fmt.Sprintf("\n%s\n\n", strings.Repeat(";", 120)))
 }
 
-func (gw *gasWriter) function(name string, temps int) {
+func (gw *gasWriter) function(name string) {
 	gw.tab(".globl", name)
 	gw.tab(".type", fmt.Sprintf("%v, @function", name))
 	gw.raw(fmt.Sprintf("%v:", name))
-	gw.op(enter, intOp(temps*8), intOp(0))
 }
 
 func (gw *gasWriter) stringLit(s string) operand {

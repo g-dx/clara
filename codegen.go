@@ -64,8 +64,8 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 					return nil
 				})
 
-				// Allocate space for temporaries
-				asm.function(fn.AsmName(n.sym.Name), temps)
+				// Generate standard entry sequence
+				genFnEntry(asm, fn, n.sym.Name, temps)
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
@@ -85,8 +85,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
 				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
 				if !n.IsReturnLastStmt() {
-					asm.op(leave)
-					asm.op(ret)
+					genFnExit(asm)
 				}
 				asm.spacer()
 			}
@@ -97,6 +96,16 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
 	genIoobHandler(asm);
 	return nil
+}
+
+func genFnEntry(asm assembler, fn *FunctionType, astName string, temps int) {
+	asm.function(fn.AsmName(astName))
+	asm.op(enter, intOp(temps*8), intOp(0))
+}
+
+func genFnExit(asm assembler) {
+	asm.op(leave)
+	asm.op(ret)
 }
 
 func genIoobHandler(asm assembler) {
@@ -236,8 +245,7 @@ func genReturnExpression(asm assembler, retn *Node, fn *FunctionType) {
 	}
 
 	// Clean stack & return
-	asm.op(leave)
-	asm.op(ret)
+	genFnExit(asm)
 }
 
 func genFuncCall(asm assembler, n *Node) {
