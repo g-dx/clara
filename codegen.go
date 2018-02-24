@@ -147,9 +147,6 @@ func genStmtList(asm assembler, stmts []*Node, fn *FunctionType) {
 	for _, stmt := range stmts {
 
 		switch stmt.op {
-		case opFuncCall:
-			genFuncCall(asm, stmt)
-
 		case opReturn:
 			genReturnExpression(asm, stmt, fn)
 
@@ -459,7 +456,8 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 				//asm.op(leaq, intOp(v.Addr).mem(), rax)   // rax = [addr]
 				asm.op(pushq, rax) // stack <- rax
 			} else {
-				if v.Type.Is(Function) {
+				// Check for named function
+				if v.Type.Is(Function) && v.IsGlobal {
 					asm.op(pushq, strOp(v.Type.AsFunction().AsmName(v.Name))) // Push address of function
 				} else {
 					asm.op(pushq, intOp(v.Addr)) // stack <- addr

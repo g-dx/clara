@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"github.com/g-dx/clarac/console"
+	"github.com/g-dx/clarac/lex"
 )
 
 //---------------------------------------------------------------------------------------------------------------
@@ -339,9 +340,17 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			n.op = opFuncCall
 			n.token = right.token
 			n.symtab = right.symtab
-			n.stmts = append([]*Node{n.left}, right.stmts...)
-			n.left = nil
 			n.right = nil
+
+			// Check if call is field _of_ struct or normal dot selection rules apply
+			if left.typ.Is(Struct) && left.typ.AsStruct().HasField(right.token.Val) {
+				n.stmts = right.stmts
+				n.left = &Node{ op: opDot, token: lex.WithVal(n.token, "."), symtab: n.symtab, left: left, right:
+					&Node{ op: opIdentifier, token: right.token, symtab: left.symtab }}
+			} else {
+				n.stmts = append([]*Node{n.left}, right.stmts...)
+				n.left = nil
+			}
 
 			// Type check func call
 			errs = append(errs, typeCheck(n, body, fn, debug)...)

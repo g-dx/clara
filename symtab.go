@@ -200,6 +200,11 @@ func (st *StructType) Offset(name string) (*Symbol, int) {
 	return nil, -1 // Not found
 }
 
+func (st *StructType) HasField(name string) bool {
+	s, _ := st.Offset(name)
+	return s != nil
+}
+
 func (st *StructType) Size() int {
 	return len(st.Fields) * ptrSize
 }
@@ -268,6 +273,7 @@ type Symbol struct {
 	Name      string
 	Addr      int
 	IsStack   bool
+	IsGlobal  bool
 	IsLiteral bool
 	Type      *Type
 	Next 	  *Symbol // Only valid for function symbols!

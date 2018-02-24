@@ -3,7 +3,6 @@
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
 - Provide a mechanism for escaping double quotes in string literals.
-- Support calling functions stored in structs.
 - []byte & []int should *not* interchangeable when matching method signatures.
 - Fix scoping for variables containing functions which shadow same name of global function. In the example below the first call
 to cube(3) will yield a nil type for the funcCall node. This because it resolves the identifier symbol from the line below (it
@@ -29,6 +28,7 @@ DONE:
 - Support negative numbers.
 - Allow functions to have same name as builtin types such as byte, int
 - Allow full function overloading
+- Support calling functions stored in structs.
 
 N/A
 ---

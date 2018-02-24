@@ -99,7 +99,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		}
 
 		// Create & define symbol
-		fnSym := &Symbol{ Name: constructorName, Type: &Type{ Kind: Function, Data:
+		fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Args: args, isConstructor: true, ret: n.sym.Type, }}}
 		root.symtab.Define(fnSym)
 

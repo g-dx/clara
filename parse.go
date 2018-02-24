@@ -479,7 +479,7 @@ func (p *Parser) fnDclNode(token *lex.Token, params []*Node, stmts []*Node, symT
 		p.symtab.Define(&Symbol{Name: typedFn, Type: fnType})
 
 		// Define function type
-		sym = &Symbol{Name: token.Val, Type: fnType}
+		sym = &Symbol{Name: token.Val, Type: fnType, IsGlobal: true}
 
 		// Check symtab; define and link to existing symbol if already present
 		if s, ok := p.symtab.Define(sym); ok {
