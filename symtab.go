@@ -100,6 +100,10 @@ func (t *Type) IsFunction(kind TypeKind) bool {
 	return t.Is(Function) && t.AsFunction().ret.Is(kind)
 }
 
+func (t *Type) IsPointer() bool {
+	return t.Is(Array) || t.Is(Struct) || t.Is(String)
+}
+
 func (t *Type) AsStruct() *StructType {
 	return t.Data.(*StructType)
 }
