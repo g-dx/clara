@@ -15,6 +15,7 @@ fn main() {
 }
 
 This problem is fundamentally caused by added symbols during the parse.
+- Unknown return types cause panic
 
 DONE:
 ----
