@@ -7,9 +7,9 @@ fn main() {
   printf("f := square\nf(4) = %d\n", f(4))
   f = cube
   printf("f := cube\nf(4) = %d\n", f(4))
-  s := S1(cube)
-  printf("s := S1(cube)\ns.f(2) = %d\n", s.f(4))
-  printf("decrement(s, 2) = %d\n", decrement(s, 2))
+  s := S1
+  printf("s := S1(cube)\ns.f(2) = %d\n", s(cube).f(4))
+  printf("decrement(s, 2) = %d\n", decrement(S1(cube), 2))
 //  cube := square // TODO: Uncommenting this line will cause line 4 to resolve the symbol on this line rather that the global function
 //  printf("cube := square\ncube(2) = %d\n", cube(2))
 }
