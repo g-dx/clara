@@ -285,7 +285,7 @@ type assembler interface {
 	label(s string)
 	newLabel(s string) string
 	raw(s string) // Remove me!
-
+	addr(sym string)
 	function(name string)
 
 	op(i inst, ops ... operand)
@@ -312,6 +312,10 @@ func (gw *gasWriter) write(asm string, a...interface{}) {
 		panic(err)
 	}
 	gw.w.Flush()
+}
+
+func (gw *gasWriter) addr(sym string) {
+	gw.write(fmt.Sprintf("\t.8byte\t%v\n", sym))
 }
 
 func (gw *gasWriter) tab(s ... string) {
