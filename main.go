@@ -168,7 +168,8 @@ func main() {
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("Link failure: %v\n%v", err, out)
+		fmt.Printf("Link failure: %v\n%v\n", err, string(out))
+		os.Exit(1)
 	}
 }
 
