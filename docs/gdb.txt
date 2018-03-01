@@ -23,3 +23,6 @@ Backtrace: bt
 View local vars: x/x $rbp-24
 View stack: x/25x $sp
 //----------------------------------------------------------------------------------------------------------------------
+
+// Get function name for address
+addr2line -e <binary> <address> -f
