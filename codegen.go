@@ -502,6 +502,7 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 		asm.op(popq, rbx)                  // stack(index) -> rbx
 
 		// Bounds check
+		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
 		asm.op(cmpq, rax.deref(), rbx) // index - array.length
 		asm.op(jae, labelOp("ioob"))   // Defined in runtime.c
 
