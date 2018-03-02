@@ -177,8 +177,8 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			}
 		}
 
-		// SPECIAL CASE: Skip dealing with variadic functions as printf is the only one
-		if n.token.Val == "printf" {
+		// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
+		if n.token.Val == "printf" || n.token.Val == "debug" {
 			s, _ := n.symtab.Resolve(n.token.Val)
 			n.sym = s
 			n.typ = nothingType

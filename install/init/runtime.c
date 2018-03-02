@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -32,6 +33,20 @@ void setStackBase(intptr_t frame)
 int hasNextFrame(intptr_t frame)
 {
     return frame == stackBase ? 0 : 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Debug support
+
+void debug(char *logType, char *format, ...)
+{
+    // Handle varags
+    va_list args;
+    va_start (args, format);
+
+    // TODO: Add types of debug message
+
+    va_end(args);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
