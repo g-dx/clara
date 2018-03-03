@@ -193,20 +193,19 @@ type StructType struct {
 	Fields []*Symbol
 }
 
-func (st *StructType) Offset(name string) (*Symbol, int) {
+func (st *StructType) GetField(name string) *Symbol {
 	off := 0
 	for _, field := range st.Fields {
 		if field.Name == name {
-			return field, off
+			return field
 		}
 		off += ptrSize
 	}
-	return nil, -1 // Not found
+	return nil // Not found
 }
 
 func (st *StructType) HasField(name string) bool {
-	s, _ := st.Offset(name)
-	return s != nil
+	return st.GetField(name) != nil
 }
 
 func (st *StructType) Size() int {

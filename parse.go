@@ -82,8 +82,10 @@ func (p *Parser) parseStructDecl() *Node {
 
 	// Parse fields
 	var fields []*Node
-	for p.isNot(lex.RBrace) {
-		fields = append(fields, p.parseParameter(ioutil.Discard))
+	for off := 0; p.isNot(lex.RBrace); off += 1 {
+		field := p.parseParameter(ioutil.Discard)
+		field.sym.Addr = off * ptrSize // Set field offset
+		fields = append(fields, field)
 	}
 	p.need(lex.RBrace)
 

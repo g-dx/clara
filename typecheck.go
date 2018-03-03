@@ -378,16 +378,11 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			}
 
 			// Check field exists in struct
-			sym, offset := strct.Offset(right.token.Val)
+			sym := strct.GetField(right.token.Val)
 			if sym == nil {
 				errs = append(errs, semanticError(errStructHasNoFieldMsg, right.token, strct.Name))
 				goto end
 			}
-
-			// Set field offset
-			// TODO: This whole process process isn't necessary because when we build a StructType we can set the offsets
-			// for each symbol
-			sym.Addr = offset
 
 			// Set right symbol and set parent as right
 			right.sym = sym

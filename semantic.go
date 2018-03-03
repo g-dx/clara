@@ -94,8 +94,18 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 
 		// Collect struct field types
 		var args []*Type
+		var params []*Node
+		symtab := root.symtab.Child()
+
 		for _, field := range n.stmts {
-			args = append(args, field.sym.Type)
+
+			// Copy symbol
+			s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
+			symtab.Define(s)
+			args = append(args, s.Type)
+
+			// Copy node
+			params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, symtab: symtab})
 		}
 
 		// Create & define symbol
@@ -104,7 +114,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		root.symtab.Define(fnSym)
 
 		// Add AST node
-		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: n.stmts, symtab: n.symtab, sym: fnSym})
+		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: params, symtab: n.symtab, sym: fnSym})
 	}
 	return nil
 }
