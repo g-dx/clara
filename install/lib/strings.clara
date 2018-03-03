@@ -46,7 +46,7 @@ fn toString(buf: stringBuffer) string {
 
 fn append(s1: string, s2: string) string {
     length := s1.length + s2.length
-    bytes := byteArray(length + 1 + 8, length) // + 1 for NUL byte, FIXME: + 8 due to mem corruption bug!
+    bytes := byteArray(length + 1, length) // + 1 for NUL byte
     copyString(s1, 0, bytes, 0)
     copyString(s2, 0, bytes, s1.length)
     return bytes.asString()

@@ -207,12 +207,12 @@ func genAssignStmt(asm assembler, n *Node, fn *function) {
 	asm.op(popq, rax)              // stack -> rax
 
 	// Check if int -> byte cast required
-	if (n.left.typ.IsArray(Byte) || n.left.typ.Is(Byte)) && n.right.typ.Is(Integer) {
+	if n.left.typ.Is(Byte) && n.right.typ.Is(Integer) {
 		asm.op(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
 	}
 
-	// SPECIAL CASE: Stack & struct byte values are stored in 8-byte slots but in byte arrays they occupy a single byte - hence only move a single byte
-	if n.left.typ.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
+	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
+	if n.left.sym.Type.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
 		asm.op(movb, cl, rax.deref()) // [rax] = cl
 	} else {
 		asm.op(movq, rcx, rax.deref()) // [rax] = rcx

@@ -417,6 +417,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 		// SPECIAL CASE: If the left type is a string, array access yields a byte
+		n.sym = left.sym
 		if left.typ.Is(String) {
 			n.typ = byteType
 		} else if left.typ.Is(Array) {
