@@ -1,7 +1,12 @@
 // Linked List of all stack frames up to stack base
 struct frame {
     next: frame
-    // TODO: add activation record, return address, etc
+    caller: function
+}
+
+// Compile-time generated stack frame GC function
+struct function {
+    gc: fn(frame)
 }
 
 // Inserted by compiler to be called at start of `main()` before any other code
@@ -14,5 +19,5 @@ fn init() {
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn getFramePointer() frame // Implemented in assembly by codegen.go
-fn hasNextFrame(f: frame) bool
+fn isStackBase(f: frame) bool
 fn setStackBase(f: frame) nothing

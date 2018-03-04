@@ -240,6 +240,7 @@ const (
 	jmp
 	jne
 	jae
+	je
 
 	// Function support
 	leave
@@ -270,6 +271,7 @@ var instNames = map[inst]string{
 	jmp:    "jmp",
 	jne:    "jne",
 	jae:    "jae",
+	je:     "je",
 	leave:  "leave",
 	enter:  "enter",
 	ret:    "ret",
@@ -349,8 +351,11 @@ func (gw *gasWriter) stringLit(s string) operand {
 	size := fmt.Sprintf("\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x",
 		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
 
-	gw.write("%s:\n\t.ascii \"%v\"\"%v\\x0\"\n", label, size, s[1:len(s)-1])
-	return litOp(label)
+	// string literal GC header (2 == readonly)
+	header := "\\x2\\x0\\x0\\x0\\x0\\x0\\x0\\x0"
+
+	gw.write("%s:\n\t.ascii \"%v\"\"%v\"\"%v\\x0\"\n", label, header, size, s[1:len(s)-1])
+	return litOp(label+"+8") // Ensure the address points _after_ the header
 }
 
 func (gw *gasWriter) newLabel(s string) string {

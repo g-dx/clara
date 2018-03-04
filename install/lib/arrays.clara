@@ -38,4 +38,4 @@ fn byteArray(size: int, length: int) []byte {
 // External Functions
 fn toIntArray(header: arrayHeader) []int
 fn toByteArray(header: arrayHeader) []byte
-fn toHeader(p: pointer) arrayHeader
+fn toHeader(b: block) arrayHeader

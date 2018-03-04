@@ -9,7 +9,7 @@ import (
 //----------------------------------------------------------------------------------------------------------------------
 
 const ptrSize = 8 // 64-bit pointer size in bytes
-
+const fnPrefix = "clara·"
 //----------------------------------------------------------------------------------------------------------------------
 
 var byteType = &Type{ Kind: Byte, Data: &IntType{ Width: 1 } }
@@ -132,6 +132,13 @@ func (t *Type) String() string {
 	}
 }
 
+func (t *Type) GcName() string {
+	if !t.IsPointer() {
+		panic("Non-pointer types cannot have GC functions!")
+	}
+	return fmt.Sprintf("%v%v_gc", fnPrefix, t.AsmName())
+}
+
 func (t *Type) AsmName() string {
 	switch t.Kind {
 	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
@@ -232,12 +239,29 @@ func (ft *FunctionType) AsmName(name string) string {
 	}
 
 	// Build name safe for usage in ASM
-	buf := bytes.NewBufferString("clara·")
+	buf := bytes.NewBufferString(fnPrefix)
 	buf.WriteString(name)
 	for _, arg := range ft.Args {
 		buf.WriteString(".")
 		buf.WriteString(arg.AsmName())
 	}
+	return buf.String()
+}
+
+func (ft *FunctionType) Describe(name string) string {
+	if ft.IsExternal {
+		return fmt.Sprintf("%v (external)", name)
+	}
+
+	// Build name safe for usage in ASM
+	buf := bytes.NewBufferString(name)
+	buf.WriteString("(")
+	var types []string
+	for _, arg := range ft.Args {
+		types = append(types, arg.String())
+	}
+	buf.WriteString(strings.Join(types, ", "))
+	buf.WriteString(")")
 	return buf.String()
 }
 
@@ -331,4 +355,20 @@ func (st *SymTab) Walk(f func(*Symbol)) {
 	for _, s := range st.symbols {
 		f(s)
 	}
+}
+
+// Unique list of all types in table
+func (st *SymTab) allTypes() []*Type {
+	t := make(map[string]*Type)
+	st.Walk(func(s *Symbol) {
+		x := s.Type.AsmName()
+		if _, ok := t[x]; !ok {
+			t[x] = s.Type
+		}
+	})
+	var typs []*Type
+	for _, typ := range t {
+		typs = append(typs, typ)
+	}
+	return typs
 }

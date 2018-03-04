@@ -19,6 +19,21 @@ void indexOutOfBounds(int index)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Heap Support
+
+intptr_t blocks;
+
+intptr_t getBlocks() { return blocks; }
+void setBlocks(intptr_t b) { blocks = b; }
+int isValidBlock(intptr_t b) { return b != 0; } // NUL check
+intptr_t emptyBlock() { return 0; } // NUL block
+
+intptr_t inc(intptr_t b, int i)
+{
+    return b + i;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Stack frame support
 
 intptr_t getFramePointer(); // Implemented by codegen.go
@@ -30,21 +45,25 @@ void setStackBase(intptr_t frame)
 }
 // ---------------------------------------------------------------------------------------------------------------------
 
-int hasNextFrame(intptr_t frame)
+int isStackBase(intptr_t frame)
 {
-    return frame == stackBase ? 0 : 1;
+    return frame == stackBase;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Debug support
 
+int debugGc = 0;
 void debug(char *logType, char *format, ...)
 {
     // Handle varags
     va_list args;
     va_start (args, format);
 
-    // TODO: Add types of debug message
+    // GC debugging
+    if (strcasecmp(logType, "gc") == 0 && debugGc) {
+        vprintf(format, args);
+    }
 
     va_end(args);
 }

@@ -1,16 +1,40 @@
 // TODO: Whole file should be private
 
-struct pointer {
-    // ...
+struct block {
+    next: block
+    header: int
+    // ... data ...
 }
 
-fn claralloc(size: int) pointer {
-    // TODO: GC goes here!
-    return malloc(size)
+fn claralloc(size: int) block {
+    gc()
+    // -----------------------------------------------------------------------------------------------------------------
+    // NOTE: No constructors can be invoked below this line!!!
+    // -----------------------------------------------------------------------------------------------------------------
+    b := malloc(size+16) // +8 for header, +8 for next
+    debug("gc", "Allocated (0x%lx) @ size: %d\n", b, size+16)
+    b.next = getBlocks()
+    setBlocks(b)
+    return b.inc(16) // Skip past next & header
+}
+
+fn clarafree(b: block) {
+    free(b)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Basic-Allocation.html#index-malloc
-fn malloc(size: int) pointer
+fn malloc(size: int) block
+
+// Source: libc, https://www.gnu.org/software/libc/manual/html_node/Freeing-after-Malloc.html#Freeing-after-Malloc
+fn free(b: block) nothing
+
+// Heap linked list
+fn getBlocks() block
+fn setBlocks(b: block) nothing
+
+// Pointer manipulation
+fn inc(b: block, i: int) block

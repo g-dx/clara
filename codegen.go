@@ -29,11 +29,23 @@ var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 // Current function being compiled
 type function struct {
 	AstName string
-	Type *FunctionType
+	Type    *FunctionType
+	gcRoots *GcState
+	gcFns   map[string]GcRoots
 }
 
 func (f *function) AsmName() string {
 	return f.Type.AsmName(f.AstName)
+}
+
+func (f *function) NewGcFunction() string {
+	roots := f.gcRoots.Snapshot()
+	if len(roots) == 0 {
+		return noGc
+	}
+	name := fmt.Sprintf("%v_gc%v", f.AsmName(), roots.String())
+	f.gcFns[name] = roots
+	return name
 }
 
 func codegen(symtab *SymTab, tree *Node, asm assembler) error {
@@ -45,6 +57,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 	asm.tab(".section", ".rodata")
 
 	// Output strings
+	// TODO: Delay writing string literals until end of assembly generation
 	symtab.Walk(func(s *Symbol) {
 		if s.Type.Is(String) && s.IsLiteral {
 			stringOps[s.Name] = asm.stringLit(s.Name)
@@ -59,7 +72,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 	tree.Walk(func(n *Node) {
 		switch n.op {
 		case opFuncDcl:
-			fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction() }
+			fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction(), gcRoots: &GcState{}, gcFns: make(map[string]GcRoots) }
 
 			// Ensure we only generate code for "our" functions
 			if !fn.Type.IsExternal {
@@ -76,7 +89,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 				})
 
 				// Generate standard entry sequence
-				genFnEntry(asm, fn, temps)
+				genFnEntry(asm, fn.AsmName(), temps)
 
 				// Copy register values into stack slots
 				for i, param := range n.params {
@@ -84,6 +97,7 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 					param.sym.Addr = addr
 					param.sym.IsStack = true
 					asm.op(movq, regs[i], rbp.displace(-addr))
+					fn.gcRoots.Add(addr, param.typ)
 				}
 
 				// Generate functions
@@ -96,9 +110,12 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 
 				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
 				if !n.IsReturnLastStmt() {
-					genFnExit(asm)
+					genFnExit(asm, n.sym.Name == "main")
 				}
 				asm.spacer()
+
+				// Generate stack frame GC functions
+				genStackFrameGcFuncs(asm, fn)
 			}
 		default:
 			//			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
@@ -108,7 +125,127 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 	genIoobHandler(asm);
 	asm.spacer()
 	genFramePointerAccess(asm)
+	asm.spacer()
+	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
+	asm.spacer()
+	genNoTraceGcFunc(asm) 	// No trace GC function
 	return nil
+}
+
+func genNoTraceGcFunc(asm assembler) {
+	genFnEntry(asm, noGc, 0)
+	genFnExit(asm, false)
+}
+
+func genStackFrameGcFuncs(asm assembler, fn *function) {
+	for name, roots := range fn.gcFns {
+
+		// TODO: Delay writing string literals until end of assembly generation
+		asm.tab(".section", ".rodata")
+		debug := asm.stringLit(fmt.Sprintf("\"\\n%v\\n\"", fn.Type.Describe(fn.AstName)))
+		asm.tab(".text")
+
+		genFnEntry(asm, name, 1)
+		asm.op(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
+
+		genDebugGcPrintf(asm, debug)
+
+		// Invoke GC function for type of each root
+		for _, root := range roots {
+			asm.op(movq, rbp.displace(-ptrSize), rax)    // load frame pointer
+			asm.op(leaq, rax.displace(-root.off), rdi)   // load slot stack address
+			asm.op(call, labelOp(root.typ.GcName()))
+		}
+		genFnExit(asm, false) // Called from Clara code -
+		asm.spacer()
+	}
+}
+
+func genTypeGcFuncs(asm assembler, types []*Type) {
+	for _, typ := range types {
+		if typ.IsPointer() {
+			asm.spacer()
+			genTypeGcFunc(asm, typ)
+		}
+	}
+}
+
+func genTypeGcFunc(asm assembler, t *Type) {
+
+	//
+	// GC functions take a single parameter which is the stack address of the slot to trace
+	//
+
+	// TODO: Delay writing string literals until end of assembly generation
+	asm.tab(".section", ".rodata")
+	debug := asm.stringLit(fmt.Sprintf("\"  - (0x%%lx) '%v' \\n\"", t))
+	asm.tab(".text")
+
+	genFnEntry(asm, t.GcName(), 1)
+	asm.op(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
+	asm.op(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
+
+	// Calculate pointer to block from type
+	asm.op(leaq, rdi.displace(-16), rsi) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
+	genDebugGcPrintf(asm, debug)
+
+	// Labels
+	exit := asm.newLabel("exit")
+
+	// Dereference pointer & load header into rax.
+	asm.op(movq, rbp.displace(-ptrSize), rax)     // Copy stack slot
+	asm.op(subq, intOp(gcHeaderSize), rax)        // *type-8 -> *header
+
+	// if header & 1 == 1 (i.e. already marked)
+	asm.op(movq, rax.deref(), rbx)
+	asm.op(andq, intOp(1), rbx)
+	asm.op(cmpq, _true, rbx)
+	asm.op(je, labelOp(exit))
+
+	// || header & 2 == 2 (i.e. is ready only)
+	asm.op(movq, rax.deref(), rbx)
+	asm.op(andq, intOp(2), rbx)
+	asm.op(cmpq, intOp(2), rbx)
+	asm.op(je, labelOp(exit))
+
+	// header.marked = true
+	asm.op(orq, intOp(1), rax.deref())
+
+	switch t.Kind {
+	case String, Array:
+		// Nothing to do...
+	case Struct:
+		// Invoke GC for pointer fields
+		for _, f := range t.AsStruct().Fields {
+			if f.Type.IsPointer() {
+				asm.op(movq, rbp.displace(-ptrSize), rdi)
+				asm.op(addq, intOp(f.Addr), rdi)  // Increment pointer to offset of field
+				asm.op(call, labelOp(f.Type.GcName()))
+			}
+		}
+	default:
+		panic(fmt.Sprintf("Unexpected type for GC: %v\n", t.AsmName()))
+	}
+
+	// Exit
+	asm.label(exit)
+	genFnExit(asm, true) // assembly defined caller
+}
+
+// printf args must already be setup in appropriate registers
+func genDebugGcPrintf(asm assembler, template operand) {
+
+	exit := asm.newLabel("exit")
+	asm.op(movq, strOp("debugGc"), rax) // Defined in runtime.c!
+	asm.op(movq, rax.deref(), rax) // Get value
+	asm.op(cmpq, _true, rax)
+	asm.op(jne, labelOp(exit))
+	asm.op(movq, template, rdi)
+	asm.op(leaq, rdi.displace(8), rdi) // Skip past length!
+	asm.op(movq, intOp(0), rax)
+	asm.op(call, labelOp("printf"))
+	asm.label(exit)
+
 }
 
 func genFramePointerAccess(asm assembler) {
@@ -118,14 +255,22 @@ func genFramePointerAccess(asm assembler) {
 	asm.op(ret)
 }
 
-func genFnEntry(asm assembler, f *function, temps int) {
-	asm.function(f.AsmName())
+func genFnEntry(asm assembler, name string, temps int) {
+	asm.function(name)
 	asm.op(enter, intOp(temps*8), intOp(0))
 }
 
-func genFnExit(asm assembler) {
+func genFnExit(asm assembler, skipGc bool) {
 	asm.op(leave)
-	asm.op(ret)
+	if skipGc {
+		asm.op(ret)
+		return
+	}
+	// Jump over frame GC function address
+	// TODO: Is there any way to compress this?
+	asm.op(popq, rbx)
+	asm.op(addq, intOp(ptrSize), rbx)
+	asm.op(jmp, rbx.indirect())
 }
 
 func genIoobHandler(asm assembler) {
@@ -140,6 +285,7 @@ func genConstructor(asm assembler, f *function, params []*Node) {
 	// Malloc memory of appropriate size
 	asm.op(movq, intOp(f.Type.ret.AsStruct().Size()), rdi)
 	asm.op(call, labelOp(claralloc)) // Implemented in lib/mem.clara
+	asm.addr(f.NewGcFunction())
 
 	// Copy stack values into fields
 	off := 0
@@ -155,6 +301,7 @@ func genConstructor(asm assembler, f *function, params []*Node) {
 }
 
 func genStmtList(asm assembler, stmts []*Node, fn *function) {
+	fn.gcRoots.OpenScope()
 	for _, stmt := range stmts {
 
 		switch stmt.op {
@@ -174,6 +321,7 @@ func genStmtList(asm assembler, stmts []*Node, fn *function) {
 			genExprWithoutAssignment(asm, stmt, 0, false, fn)
 		}
 	}
+	fn.gcRoots.CloseScope()
 }
 
 func genWhileStmt(asm assembler, n *Node, fn *function) {
@@ -201,21 +349,27 @@ func genAssignStmt(asm assembler, n *Node, fn *function) {
 	asm.op(popq, rcx) // TODO: Stack machine only uses rax & rbx. If changed revisit this!
 
 	// Evaluate mem location to store
-	genExprWithoutAssignment(asm, n.left, 0, true, fn)
+	slot := n.left
+	genExprWithoutAssignment(asm, slot, 0, true, fn)
 
 	// Pop location to rax and move rbx there
 	asm.op(popq, rax)              // stack -> rax
 
 	// Check if int -> byte cast required
-	if n.left.typ.Is(Byte) && n.right.typ.Is(Integer) {
+	if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
 		asm.op(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
 	}
 
 	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
-	if n.left.sym.Type.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
+	if slot.sym.Type.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
 		asm.op(movb, cl, rax.deref()) // [rax] = cl
 	} else {
 		asm.op(movq, rcx, rax.deref()) // [rax] = rcx
+	}
+
+	// If decl & assign start tracking as gc root
+	if n.op == opDas {
+		fn.gcRoots.Add(slot.sym.Addr, slot.sym.Type)
 	}
 }
 
@@ -262,7 +416,7 @@ func genReturnExpression(asm assembler, retn *Node, fn *function) {
 	}
 
 	// Clean stack & return
-	genFnExit(asm)
+	genFnExit(asm, false)
 }
 
 func genFuncCall(asm assembler, n *Node, f *function) {
@@ -309,6 +463,11 @@ func genFuncCall(asm assembler, n *Node, f *function) {
 		asm.op(call, rbp.displace(-s.Addr).indirect()) // Parameter func call: memory indirect
 	} else {
 		asm.op(call, labelOp(fn.AsmName(s.Name))) // Named func call
+	}
+
+	// Only generate GC function addresses for Clara functions
+	if !fn.IsExternal {
+		asm.addr(f.NewGcFunction())
 	}
 }
 
