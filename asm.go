@@ -278,7 +278,7 @@ var instNames = map[inst]string{
 	call:   "call",
 }
 
-type assembler interface {
+type asmWriter interface {
 
 	// General
 	tab(s... string) // TODO: This is a directive really...
@@ -289,11 +289,10 @@ type assembler interface {
 	raw(s string) // Remove me!
 	addr(sym string)
 	function(name string)
-
 	op(i inst, ops ... operand)
 }
 
-// GNU AS assembler (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
+// Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
 type gasWriter struct {
 	w *bufio.Writer
 	debug bool

@@ -48,7 +48,7 @@ func (f *function) NewGcFunction() string {
 	return name
 }
 
-func codegen(symtab *SymTab, tree *Node, asm assembler) error {
+func codegen(symtab *SymTab, tree *Node, asm asmWriter) error {
 
 	// ---------------------------------------------------------------------------------------
 	// Assembly Generation Start
@@ -132,12 +132,12 @@ func codegen(symtab *SymTab, tree *Node, asm assembler) error {
 	return nil
 }
 
-func genNoTraceGcFunc(asm assembler) {
+func genNoTraceGcFunc(asm asmWriter) {
 	genFnEntry(asm, noGc, 0)
 	genFnExit(asm, false)
 }
 
-func genStackFrameGcFuncs(asm assembler, fn *function) {
+func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 	for name, roots := range fn.gcFns {
 
 		// TODO: Delay writing string literals until end of assembly generation
@@ -161,7 +161,7 @@ func genStackFrameGcFuncs(asm assembler, fn *function) {
 	}
 }
 
-func genTypeGcFuncs(asm assembler, types []*Type) {
+func genTypeGcFuncs(asm asmWriter, types []*Type) {
 	for _, typ := range types {
 		if typ.IsPointer() {
 			asm.spacer()
@@ -170,7 +170,7 @@ func genTypeGcFuncs(asm assembler, types []*Type) {
 	}
 }
 
-func genTypeGcFunc(asm assembler, t *Type) {
+func genTypeGcFunc(asm asmWriter, t *Type) {
 
 	//
 	// GC functions take a single parameter which is the stack address of the slot to trace
@@ -233,7 +233,7 @@ func genTypeGcFunc(asm assembler, t *Type) {
 }
 
 // printf args must already be setup in appropriate registers
-func genDebugGcPrintf(asm assembler, template operand) {
+func genDebugGcPrintf(asm asmWriter, template operand) {
 
 	exit := asm.newLabel("exit")
 	asm.op(movq, strOp("debugGc"), rax) // Defined in runtime.c!
@@ -248,19 +248,19 @@ func genDebugGcPrintf(asm assembler, template operand) {
 
 }
 
-func genFramePointerAccess(asm assembler) {
+func genFramePointerAccess(asm asmWriter) {
 	// Requires non-standard entry & exit!
 	asm.function("getFramePointer")
 	asm.op(movq, rbp, rax)
 	asm.op(ret)
 }
 
-func genFnEntry(asm assembler, name string, temps int) {
+func genFnEntry(asm asmWriter, name string, temps int) {
 	asm.function(name)
 	asm.op(enter, intOp(temps*8), intOp(0))
 }
 
-func genFnExit(asm assembler, skipGc bool) {
+func genFnExit(asm asmWriter, skipGc bool) {
 	asm.op(leave)
 	if skipGc {
 		asm.op(ret)
@@ -273,14 +273,14 @@ func genFnExit(asm assembler, skipGc bool) {
 	asm.op(jmp, rbx.indirect())
 }
 
-func genIoobHandler(asm assembler) {
+func genIoobHandler(asm asmWriter) {
 
 	asm.label("ioob")
 	asm.op(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
 	asm.op(call, labelOp("indexOutOfBounds"))
 }
 
-func genConstructor(asm assembler, f *function, params []*Node) {
+func genConstructor(asm asmWriter, f *function, params []*Node) {
 
 	// Malloc memory of appropriate size
 	asm.op(movq, intOp(f.Type.ret.AsStruct().Size()), rdi)
@@ -300,13 +300,13 @@ func genConstructor(asm assembler, f *function, params []*Node) {
 	// Pointer is already in rax so nothing to do...
 }
 
-func genStmtList(asm assembler, stmts []*Node, fn *function) {
+func genStmtList(asm asmWriter, stmts []*Node, fn *function) {
 	fn.gcRoots.OpenScope()
 	for _, stmt := range stmts {
 
 		switch stmt.op {
 		case opReturn:
-			genReturnExpression(asm, stmt, fn)
+			genReturnStmt(asm, stmt, fn)
 
 		case opIf:
 			genIfElseIfElseStmts(asm, stmt, fn)
@@ -318,13 +318,13 @@ func genStmtList(asm assembler, stmts []*Node, fn *function) {
 			genWhileStmt(asm, stmt, fn)
 
 		default:
-			genExprWithoutAssignment(asm, stmt, 0, false, fn)
+			genExpr(asm, stmt, 0, false, fn)
 		}
 	}
 	fn.gcRoots.CloseScope()
 }
 
-func genWhileStmt(asm assembler, n *Node, fn *function) {
+func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Create new labels
 	exit := asm.newLabel("while_end")
@@ -332,7 +332,7 @@ func genWhileStmt(asm assembler, n *Node, fn *function) {
 	asm.label(start)
 
 	// Generate condition
-	genExprWithoutAssignment(asm, n.left, 0, false, fn) // Left stores condition
+	genExpr(asm, n.left, 0, false, fn) // Left stores condition
 
 	asm.op(popq, rax)          // Pop result from stack to rax
 	asm.op(cmpq, _true, rax)   // Compare (true) to rax
@@ -342,15 +342,15 @@ func genWhileStmt(asm assembler, n *Node, fn *function) {
 	asm.label(exit)               // Declare exit point
 }
 
-func genAssignStmt(asm assembler, n *Node, fn *function) {
+func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Evaluate expression & save result to rbx
-	genExprWithoutAssignment(asm, n.right, 0, false, fn)
+	genExpr(asm, n.right, 0, false, fn)
 	asm.op(popq, rcx) // TODO: Stack machine only uses rax & rbx. If changed revisit this!
 
 	// Evaluate mem location to store
 	slot := n.left
-	genExprWithoutAssignment(asm, slot, 0, true, fn)
+	genExpr(asm, slot, 0, true, fn)
 
 	// Pop location to rax and move rbx there
 	asm.op(popq, rax)              // stack -> rax
@@ -373,7 +373,7 @@ func genAssignStmt(asm assembler, n *Node, fn *function) {
 	}
 }
 
-func genIfElseIfElseStmts(asm assembler, n *Node, fn *function) {
+func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 
 	// Generate exit label
 	exit := asm.newLabel("if_end")
@@ -382,7 +382,7 @@ func genIfElseIfElseStmts(asm assembler, n *Node, fn *function) {
 	for cur != nil {
 		if cur.left != nil {
 			// Generate condition
-			genExprWithoutAssignment(asm, cur.left, 0, false, fn) // Left stores condition
+			genExpr(asm, cur.left, 0, false, fn) // Left stores condition
 
 			// Create new label
 			next := asm.newLabel("else")
@@ -402,11 +402,11 @@ func genIfElseIfElseStmts(asm assembler, n *Node, fn *function) {
 	asm.label(exit) // Declare exit point
 }
 
-func genReturnExpression(asm assembler, retn *Node, fn *function) {
+func genReturnStmt(asm asmWriter, retn *Node, fn *function) {
 
 	// If return has expression evaluate it & pop result to rax
 	if retn.left != nil {
-		genExprWithoutAssignment(asm, retn.left, 0, false, fn)
+		genExpr(asm, retn.left, 0, false, fn)
 		asm.op(popq, rax)
 
 		// Check if int -> byte cast required
@@ -419,7 +419,7 @@ func genReturnExpression(asm assembler, retn *Node, fn *function) {
 	genFnExit(asm, false)
 }
 
-func genFuncCall(asm assembler, n *Node, f *function) {
+func genFnCall(asm asmWriter, n *Node, f *function) {
 
 	// Determine how function is referenced
 	var s *Symbol
@@ -436,8 +436,8 @@ func genFuncCall(asm assembler, n *Node, f *function) {
 		if i >= 6 {
 			panic("Calling functions with more than 6 parameters not yet implemented")
 		}
-		genExprWithoutAssignment(asm, arg, i, false, f) // Evaluate expression
-		asm.op(popq, regs[i])                                  // Pop result from stack into correct reg
+		genExpr(asm, arg, i, false, f) // Evaluate expression
+		asm.op(popq, regs[i])                   // Pop result from stack into correct reg
 
 		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
 		// means the value can be directly supplied to other libc functions without modification.
@@ -471,34 +471,14 @@ func genFuncCall(asm assembler, n *Node, f *function) {
 	}
 }
 
-func restore(asm assembler, regPos int) {
-	if regPos > 0 {
-		asm.raw("#----------------------------- Restore")
-		for i := regPos; i > 0; i-- {
-			asm.op(popq, regs[i-1]) // Pop stack into reg
-		}
-		asm.raw("#------------------------------------#")
-	}
-}
-
-func spill(asm assembler, regPos int) {
-	if regPos > 0 {
-		asm.raw("#------------------------------- Spill")
-		for i := 0; i < regPos; i++ {
-			asm.op(pushq, regs[i]) // Push reg onto stack
-		}
-		asm.raw("#------------------------------------#")
-	}
-}
-
-func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr bool, fn *function) {
+func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *function) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExprWithoutAssignment(asm, expr.right, regsInUse, false, fn)
+		genExpr(asm, expr.right, regsInUse, false, fn)
 	}
 	if expr.left != nil {
-		genExprWithoutAssignment(asm, expr.left, regsInUse, false, fn)
+		genExpr(asm, expr.left, regsInUse, false, fn)
 	}
 
 	// Implements stack machine
@@ -638,7 +618,7 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 	case opFuncCall:
 
 		spill(asm, regsInUse) // Spill any in use registers to the stack
-		genFuncCall(asm, expr, fn)
+		genFnCall(asm, expr, fn)
 		restore(asm, regsInUse) // Restore registers previously in use
 		asm.op(pushq, rax)      // Push result (rax) onto stack
 
@@ -685,5 +665,25 @@ func genExprWithoutAssignment(asm assembler, expr *Node, regsInUse int, takeAddr
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
+	}
+}
+
+func restore(asm asmWriter, regPos int) {
+	if regPos > 0 {
+		asm.raw("#----------------------------- Restore")
+		for i := regPos; i > 0; i-- {
+			asm.op(popq, regs[i-1]) // Pop stack into reg
+		}
+		asm.raw("#------------------------------------#")
+	}
+}
+
+func spill(asm asmWriter, regPos int) {
+	if regPos > 0 {
+		asm.raw("#------------------------------- Spill")
+		for i := 0; i < regPos; i++ {
+			asm.op(pushq, regs[i]) // Push reg onto stack
+		}
+		asm.raw("#------------------------------------#")
 	}
 }
