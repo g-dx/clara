@@ -26,6 +26,7 @@ const (
 	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
+	errNotWritableAssignMsg    = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
 	errMissingReturnMsg 	   = "%v:%d:%d: error, missing return for function '%v'"
 
 	// Debug messages

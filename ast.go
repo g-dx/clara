@@ -39,6 +39,18 @@ func (n *Node) isAddressable() bool {
 	}
 }
 
+// n should be type checked before call!
+func (n *Node) isReadOnly() bool {
+	switch n.op {
+	case opDot:
+		// Currently only array lengths are readonly
+		t := n.left.sym.Type
+		return (t.Is(Array) || t.Is(String)) && n.right.sym.Name == "length"
+	default:
+		return false
+	}
+}
+
 func (n *Node) isTerminating() bool {
 
 	switch n.op {

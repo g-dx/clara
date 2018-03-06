@@ -455,6 +455,12 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			goto end
 		}
 
+		// Check left is writable
+		if left.isReadOnly() {
+			errs = append(errs, semanticError2(errNotWritableAssignMsg, left.right.token, left.right.token.Val))
+			goto end
+		}
+
 		// Check types in assignment
 		if !left.typ.Matches(right.typ) {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, right.token, right.typ, left.typ))

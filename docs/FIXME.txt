@@ -1,4 +1,3 @@
-- Array length fields should be readonly
 - Type check variadic function calls
 - []byte & []int should *not* be interchangeable when matching method signatures.
 - Fix scoping for variables containing functions which shadow same name of global function. In the example below the first call
