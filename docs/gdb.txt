@@ -26,3 +26,6 @@ View stack: x/25x $sp
 
 // Get function name for address
 addr2line -e <binary> <address> -f
+
+// Dump debug symbols
+nm --debug-syms <name>

@@ -1,7 +1,7 @@
 (Hopefully these are in the order they should be tackled...)
 
+- Escape double quotes in string literals.
 - support modules
-- Add utility functions for basic types into some sort of standard library
 - Add support for anonymous functions
 - Add support for closures
 - add single register stack machine in code gen
@@ -19,3 +19,4 @@ DONE:
 - support arrays of int & string (all 8 bytes in size)
 - support passing functions as parameters
 - support a standard library
+- Add utility functions for basic types into some sort of standard library

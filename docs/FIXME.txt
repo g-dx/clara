@@ -1,8 +1,6 @@
-- Type check arithmetic operators (more generally, define operator rules better or more succinctly)
+- Unknown return types cause panic
+- Array length fields should be readonly
 - Type check variadic function calls
-- Move int -> byte casting into the AST rather than outputting them during code gen
-- Consider making byte storage on stack & heap a single byte rather than 8-bytes. This will mean sign-extending before any arithmetic.
-- Provide a mechanism for escaping double quotes in string literals.
 - []byte & []int should *not* be interchangeable when matching method signatures.
 - Fix scoping for variables containing functions which shadow same name of global function. In the example below the first call
 to cube(3) will yield a nil type for the funcCall node. This because it resolves the identifier symbol from the line below (it
@@ -15,23 +13,3 @@ fn main() {
 }
 
 This problem is fundamentally caused by added symbols during the parse.
-- Unknown return types cause panic
-- Array length fields should be readonly
-
-DONE:
-----
-
-- Position information for invalid operands always assume "left" is to blame.
-- Type check function calls (Maybe also provide a way to disable this as it is handy for experimentation)
-- Ensure functions which return something terminate properly.
-- Functions which return structs should be able to occupy the left position on a '.' call.
-- Ensure built-in functions cannot be overridden. To do this we could "namespace" all function names by prefixing with "clara_"
-- Ensure struct constructors cannot be overridden.
-- Support negative numbers.
-- Allow functions to have same name as builtin types such as byte, int
-- Allow full function overloading
-- Support calling functions stored in structs.
-
-N/A
----
-- Type check parameter expressions with respect to the parameter type (default parameters current removed)
