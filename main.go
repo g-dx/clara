@@ -110,7 +110,7 @@ func main() {
 		// TODO: If too many errors b
 		tokens = tokens[:0]
 	}
-	parser.Finish()
+	errs = append(errs, parser.Finish()...)
 
 	if *showProg {
 		printProgram(prog)

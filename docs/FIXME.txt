@@ -1,4 +1,3 @@
-- Unknown return types cause panic
 - Array length fields should be readonly
 - Type check variadic function calls
 - []byte & []int should *not* be interchangeable when matching method signatures.
