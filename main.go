@@ -153,7 +153,7 @@ func main() {
 
 	// Generate assembly
 	asm := NewGasWriter(f, *showAsm)
-	err = codegen(rootSymtab, rootNode, asm)
+	err = codegen(rootSymtab, rootNode.stmts, asm)
 	if err != nil {
 		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
 		os.Exit(1)

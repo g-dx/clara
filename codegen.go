@@ -48,7 +48,7 @@ func (f *function) NewGcFunction() string {
 	return name
 }
 
-func codegen(symtab *SymTab, tree *Node, asm asmWriter) error {
+func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 
 	// ---------------------------------------------------------------------------------------
 	// Assembly Generation Start
@@ -68,59 +68,11 @@ func codegen(symtab *SymTab, tree *Node, asm asmWriter) error {
 
 	// Output func calls
 	asm.tab(".text")
-
-	tree.Walk(func(n *Node) {
-		switch n.op {
-		case opFuncDcl:
-			fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction(), gcRoots: &GcState{}, gcFns: make(map[string]GcRoots) }
-
-			// Ensure we only generate code for "our" functions
-			if !fn.Type.IsExternal {
-
-				// Assign stack offsets for temporaries
-				temps := len(fn.Type.Args)
-				walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
-					// Look for symbols which should be on the stack but have no address
-					if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
-						n.sym.Addr = ptrSize * (temps + 1) // Assign a stack slot for temporary
-						temps++
-					}
-					return nil
-				})
-
-				// Generate standard entry sequence
-				genFnEntry(asm, fn.AsmName(), temps)
-
-				// Copy register values into stack slots
-				for i, param := range n.params {
-					addr := ptrSize * (i + 1) // Assign a stack slot for var
-					param.sym.Addr = addr
-					param.sym.IsStack = true
-					asm.op(movq, regs[i], rbp.displace(-addr))
-					fn.gcRoots.Add(addr, param.typ)
-				}
-
-				// Generate functions
-				if fn.Type.isConstructor {
-					genConstructor(asm, fn, n.params)
-				} else {
-					// Generate code for all statements
-					genStmtList(asm, n.stmts, fn)
-				}
-
-				// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
-				if !n.IsReturnLastStmt() {
-					genFnExit(asm, n.sym.Name == "main")
-				}
-				asm.spacer()
-
-				// Generate stack frame GC functions
-				genStackFrameGcFuncs(asm, fn)
-			}
-		default:
-			//			fmt.Printf("Skipping: %v\n", nodeTypes[n.op])
+	for _, n := range tree {
+		if n.op == opFuncDcl {
+			genFunc(asm, n)
 		}
-	})
+	}
 
 	genIoobHandler(asm);
 	asm.spacer()
@@ -130,6 +82,55 @@ func codegen(symtab *SymTab, tree *Node, asm asmWriter) error {
 	asm.spacer()
 	genNoTraceGcFunc(asm) 	// No trace GC function
 	return nil
+}
+
+func genFunc(asm asmWriter, n *Node) {
+
+	fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction(), gcRoots: &GcState{}, gcFns: make(map[string]GcRoots) }
+
+	// Ensure we only generate code for "our" functions
+	if !fn.Type.IsExternal {
+
+		// Assign stack offsets for temporaries
+		temps := len(fn.Type.Args)
+		walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
+			// Look for symbols which should be on the stack but have no address
+			if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
+				n.sym.Addr = ptrSize * (temps + 1) // Assign a stack slot for temporary
+				temps++
+			}
+			return nil
+		})
+
+		// Generate standard entry sequence
+		genFnEntry(asm, fn.AsmName(), temps)
+
+		// Copy register values into stack slots
+		for i, param := range n.params {
+			addr := ptrSize * (i + 1) // Assign a stack slot for var
+			param.sym.Addr = addr
+			param.sym.IsStack = true
+			asm.op(movq, regs[i], rbp.displace(-addr))
+			fn.gcRoots.Add(addr, param.typ)
+		}
+
+		// Generate functions
+		if fn.Type.isConstructor {
+			genConstructor(asm, fn, n.params)
+		} else {
+			// Generate code for all statements
+			genStmtList(asm, n.stmts, fn)
+		}
+
+		// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
+		if !n.IsReturnLastStmt() {
+			genFnExit(asm, n.sym.Name == "main")
+		}
+		asm.spacer()
+
+		// Generate stack frame GC functions
+		genStackFrameGcFuncs(asm, fn)
+	}
 }
 
 func genNoTraceGcFunc(asm asmWriter) {
