@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include "shared.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // C Runtime functions
@@ -53,7 +54,7 @@ int isStackBase(intptr_t frame)
 // ---------------------------------------------------------------------------------------------------------------------
 // Debug support
 
-int debugGc = 0;
+int debugGc; // Defined in shared.h
 void debug(char *logType, char *format, ...)
 {
     // Handle varags
