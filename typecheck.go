@@ -435,7 +435,15 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			errs = append(errs, semanticError2(errUnexpectedAssignMsg, left.token))
 		}
 
+		// Now right is resolved, define symbol for left
+		sym, ok := n.symtab.Define(&Symbol{ Name: left.token.Val, IsStack: true })
+		if ok {
+			errs = append(errs, semanticError(errRedeclaredMsg, left.token))
+			goto end
+		}
+
 		// Left gets type of right
+		left.sym = sym
 		left.sym.Type = right.typ
 		left.typ = right.typ
 

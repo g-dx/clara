@@ -181,14 +181,6 @@ func (p *Parser) parseWhileStmt() *Node {
 }
 
 func (p *Parser) parseDeclAssignStmt(lhs *Node) *Node {
-
-	sym, ok := p.symtab.Define(&Symbol{ Name: lhs.token.Val, IsStack: true })
-	if ok {
-		p.symbolError(errRedeclaredMsg, lhs.token)
-	}
-	lhs.sym = sym
-	lhs.typ = sym.Type
-
 	return &Node{ op: opDas, token: p.need(lex.Das), left: lhs, right: p.parseExpr(0), symtab: p.symtab }
 }
 
