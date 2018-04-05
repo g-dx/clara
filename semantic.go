@@ -71,7 +71,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 			if _, found := symtab.Define(sym); found {
 				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
 			}
-		case opFuncDcl:
+		case opBlockFnDcl, opExprFnDcl, opExternFnDcl:
 			// NOTE: This is simply a "marker" symbol used to check for redeclaration
 			if _, found := symtab.Define(&Symbol{Name: n.typeName(), Type: &Type{Kind: Nothing}}); found {
 				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
@@ -113,10 +113,10 @@ loop:
 				x += 1
 			}
 
-		case opFuncDcl, opExtFuncDcl:
+		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
 			// Add actual symbol and link to existing symbol if already present
-			fnType := &FunctionType{IsExternal: n.op == opExtFuncDcl}
+			fnType := &FunctionType{IsExternal: n.op == opExternFnDcl}
 			sym := &Symbol{Name: n.token.Val, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
 			if s, found := symtab.Define(sym); found {
 				for ; s.Next != nil; s = s.Next { /* ... */ }
@@ -155,7 +155,7 @@ loop:
 			}
 
 			// Check for termination
-			if !fnType.ret.Is(Nothing) && !fnType.IsExternal && !n.isTerminating() {
+			if n.op == opBlockFnDcl && !fnType.ret.Is(Nothing) && !n.isTerminating() {
 				errs = append(errs, semanticError(errMissingReturnMsg, n.token))
 				continue loop
 			}
@@ -205,7 +205,7 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 }
 
 func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opFuncDcl && n.token.Val == "main" {
+	if n.op == opBlockFnDcl && n.token.Val == "main" {
 		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType} }, n.stmts...) // Insert runtime init
 	}
 	return nil
@@ -229,7 +229,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		if _, found := root.symtab.Resolve(constructorName); found {
 			var n *Node
 			for _, x := range root.stmts {
-				if x.op == opFuncDcl && x.token.Val == constructorName {
+				if (x.op == opBlockFnDcl || x.op == opExprFnDcl || x.op == opExternFnDcl) && x.token.Val == constructorName {
 					n = x
 					break
 				}
@@ -257,7 +257,7 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		symtab.Define(fnSym)
 
 		// Add AST node
-		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: params, sym: fnSym})
+		root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opBlockFnDcl, params: params, sym: fnSym})
 	}
 	return nil
 }

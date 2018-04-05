@@ -311,11 +311,18 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 	case opStructDcl:
 		// Nothing to do...
 
-	case opFuncDcl, opExtFuncDcl:
+	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
 		// Type check stmts
+		fn := n.sym.Type.AsFunction()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, n.symtab, n.sym.Type.AsFunction(), debug)...)
+			errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
+		}
+
+		// Check expression function return type
+		if n.op == opExprFnDcl && !fn.ret.Matches(n.stmts[0].typ) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[0].token, n.stmts[0].typ, fn.ret))
+			goto end
 		}
 
 	case opDot:

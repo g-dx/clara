@@ -65,15 +65,19 @@ func (p *Parser) parseStruct() *Node {
 
 func (p *Parser) parseFn() *Node {
 	p.need(lex.Fn)
-	n := &Node{op: opFuncDcl, token: p.need(lex.Identifier), params: p.parseParameters()}
+	n := &Node{op: opBlockFnDcl, token: p.need(lex.Identifier), params: p.parseParameters()}
 	if p.is(lex.Fn, lex.LBrack, lex.Identifier) {
 		n.left = p.parseType()
 	}
-	hasBlock := p.is(lex.LBrace)
-	if hasBlock {
+	switch p.Kind() {
+	case lex.LBrace:
 		n.stmts = p.parseBlock()
-	} else {
-		n.op = opExtFuncDcl
+	case lex.As:
+		p.next()
+		n.op = opExprFnDcl
+		n.stmts = []*Node{p.parseExpr(0)}
+	default:
+		n.op = opExternFnDcl
 	}
 	return n
 }

@@ -83,7 +83,7 @@ func (n *Node) isTerminating() bool {
 		}
 		return true
 
-	case opFuncDcl:
+	case opBlockFnDcl:
 		if len(n.stmts) == 0 {
 			return false
 		}
@@ -99,7 +99,7 @@ func (n *Node) IsReturnLastStmt() bool {
 	x := []*Node { n }
 	for i := 0; i < len(x); i++ {
 		switch x[i].op {
-		case opFuncDcl, opElse, opElseIf, opIf:
+		case opBlockFnDcl, opElse, opElseIf, opIf:
 			if len(x[i].stmts) > 0 {
 				x = append(x, x[i].stmts[len(x[i].stmts)-1])
 			}
@@ -115,7 +115,7 @@ func (n *Node) typeName() string {
 	case opStructDcl:
 		return n.token.Val
 		
-	case opFuncDcl, opExtFuncDcl:
+	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 		w := bytes.NewBufferString(n.token.Val)
 		w.WriteRune(lex.LParen)
 		var paramTypes []string
@@ -145,8 +145,9 @@ func (n *Node) typeName() string {
 }
 
 const (
-	opFuncDcl = iota
-	opExtFuncDcl
+	opBlockFnDcl  = iota
+	opExprFnDcl
+	opExternFnDcl
 	opFuncCall
 	opLit
 	opAdd
@@ -179,24 +180,25 @@ const (
 )
 
 var nodeTypes = map[int]string{
-	opFuncDcl:    "Func Decl",
-	opExtFuncDcl: "Func Decl (External)",
-	opFuncCall:   "Func Call",
-	opFuncType:   "Func Type",
-	opArrayType:  "Array Type",
-	opNamedType:  "Named Type",
-	opLit:        "Literal",
-	opAdd:        "Binary Op [Add]",
-	opMin:        "Binary Op [Min]",
-	opMul:        "Binary Op [Mul]",
-	opDiv:        "Binary Op [Div]",
-	opIdentifier: "Identifier",
-	opArray:      "Array Access",
-	opReturn:     "Return Expr",
-	opIf:         "If Stmt",
-	opDas:        "Decl & Assign Stmt",
-	opAs:         "Assign Stmt",
-	opElseIf:     "ElseIf Stmt",
+	opBlockFnDcl:  "Block Fn Decl",
+	opExternFnDcl: "Extern Fn Decl",
+	opExprFnDcl:   "Expr Fn Decl",
+	opFuncCall:    "Func Call",
+	opFuncType:    "Func Type",
+	opArrayType:   "Array Type",
+	opNamedType:   "Named Type",
+	opLit:         "Literal",
+	opAdd:         "Binary Op [Add]",
+	opMin:         "Binary Op [Min]",
+	opMul:         "Binary Op [Mul]",
+	opDiv:         "Binary Op [Div]",
+	opIdentifier:  "Identifier",
+	opArray:       "Array Access",
+	opReturn:      "Return Expr",
+	opIf:          "If Stmt",
+	opDas:         "Decl & Assign Stmt",
+	opAs:          "Assign Stmt",
+	opElseIf:      "ElseIf Stmt",
 	opElse:       "Else Stmt",
 	opGt:         "Comparison Op [>]",
 	opLt:         "Comparison Op [<]",

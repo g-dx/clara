@@ -69,7 +69,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Output func calls
 	asm.tab(".text")
 	for _, n := range tree {
-		if n.op == opFuncDcl {
+		if n.op == opBlockFnDcl || n.op == opExprFnDcl {
 			genFunc(asm, n)
 		}
 	}
@@ -120,6 +120,11 @@ func genFunc(asm asmWriter, n *Node) {
 		} else {
 			// Generate code for all statements
 			genStmtList(asm, n.stmts, fn)
+
+			// Handle result in expression func
+			if n.op == opExprFnDcl {
+				genPrepareResult(asm, n.stmts[0], fn)
+			}
 		}
 
 		// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
@@ -405,19 +410,23 @@ func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 
 func genReturnStmt(asm asmWriter, retn *Node, fn *function) {
 
-	// If return has expression evaluate it & pop result to rax
+	// If return has expression evaluate it
 	if retn.left != nil {
 		genExpr(asm, retn.left, 0, false, fn)
-		asm.op(popq, rax)
-
-		// Check if int -> byte cast required
-		if retn.left.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
-			asm.op(movsbq, rax._8bit(), rax)
-		}
+		genPrepareResult(asm, retn.left, fn)
 	}
 
 	// Clean stack & return
 	genFnExit(asm, false)
+}
+
+func genPrepareResult(asm asmWriter, n *Node, fn *function) {
+
+	// Insert result to rax & check if int -> byte cast required
+	asm.op(popq, rax)
+	if n.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
+		asm.op(movsbq, rax._8bit(), rax)
+	}
 }
 
 func genFnCall(asm asmWriter, n *Node, f *function) {

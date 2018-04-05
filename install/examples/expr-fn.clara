@@ -1,0 +1,9 @@
+// Entry point
+fn main() {
+  hello()
+  printf("one() + one() = %d\n", one() + one())
+}
+
+fn hello() = printf("Hello!\n")
+
+fn one() int = 1
