@@ -320,9 +320,12 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 		// Check expression function return type
-		if n.op == opExprFnDcl && !fn.ret.Matches(n.stmts[0].typ) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[0].token, n.stmts[0].typ, fn.ret))
-			goto end
+		if n.op == opExprFnDcl {
+			expr := n.stmts[0]
+			if expr.typ != nil && !fn.ret.Matches(expr.typ) {
+				errs = append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[0].token, n.stmts[0].typ, fn.ret))
+				goto end
+			}
 		}
 
 	case opDot:
