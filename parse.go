@@ -3,11 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"github.com/g-dx/clarac/lex"
 )
 
-const errSyntaxMsg = "%v:%d:%d: syntax error, Unexpected '%v', expected one of: '%v'"
+const errSyntaxMsg = "%v:%d:%d: syntax error, Unexpected '%v', expected: '%v'"
 
 type Parser struct {
 	pos    int
@@ -43,7 +42,7 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 			root.Add(p.parseStruct())
 
 		default:
-			p.syntaxError(lex.Fn, lex.Struct)
+			p.syntaxError(lex.KindValues[lex.Fn] + " or " + lex.KindValues[lex.Struct])
 			p.next()
 			// TODO: p.sync(lex.Fn, lex.Struct)
 		}
@@ -112,7 +111,7 @@ func (p *Parser) parseStatement() *Node {
 		}
 
 	default:
-		p.syntaxError(lex.Return, lex.While, lex.If, lex.As, lex.Das)
+		p.syntaxError("<statement>")
 		return &Node{op: opError, token: p.next()}
 	}
 }
@@ -189,10 +188,7 @@ func (p *Parser) parseOperand() *Node {
 		return p.parseIdentifier()
 
 	default:
-		// Error
-		p.syntaxError(lex.LParen, lex.Integer, lex.True, lex.False, lex.String, lex.Identifier, lex.Not, lex.Min, lex.Neg)
-		// TODO: What should we synchronise on?
-		// Next statement?
+		p.syntaxError("<expression>")
 		return &Node{op: opError, token: p.next()}
 	}
 }
@@ -228,10 +224,8 @@ func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 	case lex.Lt:
 		return opLt, p.next()
 	default:
-		// TODO: maybe "expected operator" is better than listing everything?
-		p.syntaxError(lex.Dot, lex.Not, lex.Plus, lex.Mul, lex.Div, lex.Eq, lex.Min, lex.And, lex.Or, lex.Gt, lex.Lt)
-		p.next()
-		return opError, nil
+		p.syntaxError("<operator>")
+		return opError, p.next()
 	}
 }
 
@@ -321,7 +315,7 @@ func (p *Parser) parseType() *Node {
 	case lex.Identifier:
 		return &Node{op: opNamedType, token: p.next()}
 	default:
-		p.syntaxError(lex.Fn, lex.LBrack, lex.Identifier)
+		p.syntaxError("<type>")
 		return &Node{op: opError, token: p.next()}
 	}
 }
@@ -332,7 +326,7 @@ func (p *Parser) parseType() *Node {
 
 func (p *Parser) need(k lex.Kind) *lex.Token {
 	for !p.is(k) {
-		p.syntaxError(k)
+		p.syntaxError(lex.KindValues[k])
 		p.next()
 	}
 	p.discard = false
@@ -380,16 +374,10 @@ func (p *Parser) next() *lex.Token {
 	return token
 }
 
-func (p *Parser) syntaxError(expected...lex.Kind) {
+func (p *Parser) syntaxError(expected string) {
 	if !p.discard {
 		// Enable discard mode
 		p.discard = true
-
-		// Gather values
-		expectedValues := make([]string, 0, 2)
-		for _, v := range expected {
-			expectedValues = append(expectedValues, lex.KindValues[v])
-		}
 
 		// Store error
 		token := p.tokens[p.pos]
@@ -399,7 +387,7 @@ func (p *Parser) syntaxError(expected...lex.Kind) {
 				token.Line,
 				token.Pos,
 				p.tokens[p.pos].Val,
-				strings.Join(expectedValues, "' or '"))))
+				expected)))
 	}
 }
 
