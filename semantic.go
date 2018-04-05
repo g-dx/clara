@@ -11,6 +11,7 @@ import (
 //
 
 const (
+	errRedeclaredMsg 		   = "%v:%d:%d: error, '%v' redeclared"
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errAmbiguousVarMsg         = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
@@ -60,15 +61,158 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 	return false
 }
 
+func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
+	// Add types and check for redeclares
+	for _, n := range rootNode.stmts {
+		switch n.op {
+		case opStructDcl:
+			sym := &Symbol{Name: n.typeName(), IsGlobal: true, Type: &Type{Kind: Struct, Data: &StructType{Name: n.token.Val}}}
+			n.sym = sym
+			if _, found := symtab.Define(sym); found {
+				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
+			}
+		case opFuncDcl:
+			// NOTE: This is simply a "marker" symbol used to check for redeclaration
+			if _, found := symtab.Define(&Symbol{Name: n.typeName(), Type: &Type{Kind: Nothing}}); found {
+				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+
+	// Process structs & funcs
+loop:
+	for _, n := range rootNode.stmts {
+		switch n.op {
+		case opStructDcl:
+			s, _ := symtab.Resolve(n.token.Val)
+			strt := s.Type.AsStruct()
+
+			// Calculate field information
+			x := 0
+			child := symtab.Child()
+			for _, n := range n.stmts {
+
+				// Look up type
+				fieldType, err := createType(child, n.left)
+				if err != nil {
+					errs = append(errs, err)
+					continue loop
+				}
+				s := &Symbol{Name: n.token.Val, Addr: x * ptrSize, Type: fieldType}
+
+				// Define field
+				if _, found := child.Define(s); found {
+					errs = append(errs, semanticError(errRedeclaredMsg, n.token))
+					continue loop
+				}
+				strt.Fields = append(strt.Fields, s)
+				n.sym = s
+				x += 1
+			}
+
+		case opFuncDcl, opExtFuncDcl:
+
+			// Add actual symbol and link to existing symbol if already present
+			fnType := &FunctionType{IsExternal: n.op == opExtFuncDcl}
+			sym := &Symbol{Name: n.token.Val, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
+			if s, found := symtab.Define(sym); found {
+				for ; s.Next != nil; s = s.Next { /* ... */ }
+				s.Next = sym
+			}
+			n.sym = sym
+
+			// Process parameters
+			child := symtab.Child()
+			n.symtab = child // Required during typecheck
+			for _, param := range n.params {
+				paramType, err := createType(child, param.left)
+				if err != nil {
+					errs = append(errs, err)
+					continue loop
+				}
+				sym, found := child.Define(&Symbol{Name: param.token.Val, Type: paramType})
+				param.sym = sym
+				param.typ = paramType
+				if found {
+					errs = append(errs, semanticError(errRedeclaredMsg, param.token))
+					continue loop
+				}
+				fnType.Args = append(fnType.Args, paramType)
+			}
+
+			// Process return
+			fnType.ret = nothingType // Default case
+			if n.left != nil {
+				retType, err := createType(child, n.left)
+				if err != nil {
+					errs = append(errs, err)
+					continue loop
+				}
+				fnType.ret = retType
+			}
+
+			// Check for termination
+			if !fnType.ret.Is(Nothing) && !fnType.IsExternal && !n.isTerminating() {
+				errs = append(errs, semanticError(errMissingReturnMsg, n.token))
+				continue loop
+			}
+		}
+	}
+	return errs
+}
+
+func createType(symtab *SymTab, n *Node) (*Type, error) {
+	switch n.op {
+	case opNamedType:
+		s, ok := symtab.Resolve(n.token.Val)
+		if !ok {
+			return nil, semanticError(errUnknownTypeMsg, n.token)
+		}
+		return s.Type, nil
+
+	case opArrayType:
+		s, ok := symtab.Resolve(n.left.token.Val)
+		if !ok {
+			return nil, semanticError(errUnknownTypeMsg, n.left.token)
+		}
+		return &Type{ Kind: Array, Data: &ArrayType{Elem: s.Type} }, nil
+
+	case opFuncType:
+		var argTypes []*Type
+		for _, arg := range n.stmts {
+			t, err := createType(symtab, arg)
+			if err != nil {
+				return nil, err
+			}
+			argTypes = append(argTypes, t)
+		}
+		fnType := &FunctionType{ Args: argTypes }
+		fnType.ret = nothingType
+		if n.left != nil {
+			t, err := createType(symtab, n.left)
+			if err != nil {
+				return nil, err
+			}
+			fnType.ret = t
+		}
+		return &Type{ Kind: Function, Data: fnType}, nil
+	default:
+		panic(fmt.Sprintf("AST node [%v]does not represent a type!", nodeTypes[n.op]))
+	}
+}
+
 func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opFuncDcl && n.token.Val == "main" {
-		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab} }, n.stmts...) // Insert runtime init
+		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType} }, n.stmts...) // Insert runtime init
 	}
 	return nil
 }
 
 func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
-	if n.op == opStruct {
+	if n.op == opStructDcl {
 
 		name := n.token.Val
 		firstLetter := name[:1]
@@ -96,26 +240,24 @@ func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 		// Collect struct field types
 		var args []*Type
 		var params []*Node
-		symtab := root.symtab.Child()
 
 		for _, field := range n.stmts {
 
 			// Copy symbol
 			s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
-			symtab.Define(s)
 			args = append(args, s.Type)
 
 			// Copy node
-			params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, symtab: symtab})
+			params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
 		}
 
 		// Create & define symbol
 		fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Args: args, isConstructor: true, ret: n.sym.Type, }}}
-		root.symtab.Define(fnSym)
+		symtab.Define(fnSym)
 
 		// Add AST node
-		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: params, symtab: n.symtab, sym: fnSym})
+		root.Add(&Node{token:&lex.Token{Val : constructorName}, op:opFuncDcl, params: params, sym: fnSym})
 	}
 	return nil
 }

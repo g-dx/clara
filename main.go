@@ -107,33 +107,24 @@ func main() {
 
 		// Parse
 		errs = append(errs, parser.Parse(tokens, rootNode)...)
-		// TODO: If too many errors b
 		tokens = tokens[:0]
 	}
-	errs = append(errs, parser.Finish()...)
 
 	if *showProg {
 		printProgram(prog)
 	}
 
+	// Handle top level types first
+	errs = append(errs, processTopLevelTypes(rootNode, rootSymtab)...)
+	exitIfErrors(showAst, rootNode, errs, prog)
+
 	// Generate constructor functions
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, addRuntimeInit)...)
-
-	// Type check function signatures
-	for _, topLevel := range rootNode.stmts {
-		if topLevel.op == opFuncDcl {
-			errs = append(errs, typeCheck(topLevel, false, nil, *showTypes)...)
-		}
-	}
 	exitIfErrors(showAst, rootNode, errs, prog)
 
-	// Type check function bodies
-	for _, topLevel := range rootNode.stmts {
-		if topLevel.op == opFuncDcl {
-			errs = append(errs, typeCheck(topLevel, true, nil, *showTypes)...)
-		}
-	}
+	// Type check
+	errs = append(errs, typeCheck(rootNode, rootSymtab, nil, *showTypes)...)
 	exitIfErrors(showAst, rootNode, errs, prog)
 
 	// Show final AST if necessary

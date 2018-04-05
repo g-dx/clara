@@ -9,14 +9,14 @@ import (
 
 //---------------------------------------------------------------------------------------------------------------
 
-func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) {
+func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
 
 	left := n.left
 	right := n.right
 
 	switch n.op {
 	case opWhile:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -28,12 +28,13 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 		// Type check body
+		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
+			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
 		}
 
 	case opIf, opElseIf:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -45,21 +46,23 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 		// Type check body
+		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
+			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
 		}
 
 		// Type check next elseif case (if any)
 		if right != nil {
-			errs = append(errs, typeCheck(right, body, fn, debug)...)
+			errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 		}
 
 		// Does not promote type...
 
 	case opElse:
 		// Type check body
+		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, body, fn, debug)...)
+			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
 		}
 
 		// Does not promote type...
@@ -72,7 +75,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 		// Check expression if any
 		if left != nil {
-			errs = append(errs, typeCheck(left, body, fn, debug)...)
+			errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 			if !left.hasType() {
 				goto end
 			}
@@ -88,8 +91,8 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 
 	case opAnd, opOr, opAdd, opMul, opMin, opDiv:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
-		errs = append(errs, typeCheck(right, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -119,7 +122,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 	case opNot:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -133,7 +136,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 
 	case opNeg:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -146,12 +149,27 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		n.typ = left.typ
 
 	case opLit:
+		s, found := symtab.Resolve(n.token.Val)
+		if !found {
+			s, _ = symtab.Define(&Symbol{ Name: n.token.Val, IsLiteral: true })
+			switch n.token.Kind {
+			case lex.Integer:
+				s.Type = intType
+			case lex.String:
+				s.Type = stringType
+			case lex.True, lex.False:
+				s.Type = boolType
+			default:
+				panic(fmt.Sprintf("Unknown literal! %v", lex.KindValues[n.token.Kind]))
+			}
+		}
+		n.sym = s
 		n.typ = n.sym.Type
 
 	case opIdentifier:
 		// If no symbol - try to find identifier declaration
 		if n.sym == nil {
-			sym, found := n.symtab.Resolve(n.token.Val)
+			sym, found := symtab.Resolve(n.token.Val)
 			if !found {
 				errs = append(errs, semanticError(errUnknownVarMsg, n.token))
 				goto end
@@ -171,7 +189,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 	case opFuncCall:
 		// Type check args
 		for _, arg := range n.stmts {
-			errs = append(errs, typeCheck(arg, body, fn, debug)...)
+			errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
 			if !arg.hasType() {
 				goto end
 			}
@@ -179,7 +197,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 		// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
 		if n.token.Val == "printf" || n.token.Val == "debug" {
-			s, _ := n.symtab.Resolve(n.token.Val)
+			s, _ := symtab.Resolve(n.token.Val)
 			n.sym = s
 			n.typ = nothingType
 			return
@@ -193,7 +211,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		if left != nil {
 
 			// Subexpression will yield a function
-			errs = append(errs, typeCheck(left, body, fn, debug)...)
+			errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 			if !left.hasType() {
 				goto end
 			}
@@ -233,7 +251,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		// Attempt to resolve symbol
 		var match *Symbol
 	loop:
-		for s, _ := n.symtab.Resolve(n.token.Val); s != nil; s = s.Next {
+		for s, _ := symtab.Resolve(n.token.Val); s != nil; s = s.Next {
 
 			// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
 			if s.Type == nil {
@@ -278,8 +296,8 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		n.typ = match.Type.AsFunction().ret
 
 	case opGt, opLt, opEq:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
-		errs = append(errs, typeCheck(right, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -290,44 +308,18 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 		n.typ = boolType
 
-	case opFuncDcl:
+	case opStructDcl:
+		// Nothing to do...
 
-		fn := n.sym.Type.AsFunction()
-		if !body {
+	case opFuncDcl, opExtFuncDcl:
 
-			// Check if we need to configure function types
-			// TODO: Seriously consider disallowing use before declaration of types. It would simplify things a lot...
-			addArgs := len(fn.Args) == 0
-
-			// Type check params
-			for _, param := range n.params {
-				errs = append(errs, typeCheck(param, body, fn, debug)...)
-				if !param.hasType() {
-					goto end
-				}
-				if addArgs {
-					fn.Args = append(fn.Args, param.typ)
-				}
-			}
-		}
-
-		if body {
-
-			// Type check stmts
-			for _, stmt := range n.stmts {
-				errs = append(errs, typeCheck(stmt, body, fn, debug)...)
-			}
-
-			n.typ = n.sym.Type
-
-			// Check for termination
-			if !fn.ret.Is(Nothing) && !fn.IsExternal && !fn.isConstructor && !n.isTerminating() {
-				errs = append(errs, semanticError(errMissingReturnMsg, n.token))
-			}
+		// Type check stmts
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt, n.symtab, n.sym.Type.AsFunction(), debug)...)
 		}
 
 	case opDot:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -339,27 +331,26 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 			// Rewrite to func call
 			n.op = opFuncCall
 			n.token = right.token
-			n.symtab = right.symtab
 			n.right = nil
 
 			// Check if call is field _of_ struct or normal dot selection rules apply
 			if left.typ.Is(Struct) && left.typ.AsStruct().HasField(right.token.Val) {
 				n.stmts = right.stmts
-				n.left = &Node{ op: opDot, token: lex.WithVal(n.token, "."), symtab: n.symtab, left: left, right:
-					&Node{ op: opIdentifier, token: right.token, symtab: left.symtab }}
+				n.left = &Node{ op: opDot, token: lex.WithVal(n.token, "."), left: left, right:
+					&Node{ op: opIdentifier, token: right.token }}
 			} else {
 				n.stmts = append([]*Node{n.left}, right.stmts...)
 				n.left = nil
 			}
 
 			// Type check func call
-			errs = append(errs, typeCheck(n, body, fn, debug)...)
+			errs = append(errs, typeCheck(n, symtab, fn, debug)...)
 
 			// Handle field access on right
 		} else if right.op == opIdentifier {
 
 			// SPECIAL CASE: Fudge strings to give them a special int field "length" at offset 0
-			if (left.sym.Type.Is(Array) || left.sym.Type.Is(String)) && right.token.Val == "length" {
+			if (left.typ.Is(Array) || left.typ.Is(String)) && right.token.Val == "length" {
 				right.sym = &Symbol{Name: "length", Addr: 0, Type: intType}
 				right.typ = right.sym.Type
 				n.typ = right.typ
@@ -368,10 +359,10 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 			// Check we have a struct
 			var strct *StructType
-			if left.sym.Type.Is(Struct) {
-				strct = left.sym.Type.AsStruct()
-			} else if left.sym.Type.IsFunction(Struct) {
-				strct = left.sym.Type.AsFunction().ret.AsStruct()
+			if left.typ.Is(Struct) {
+				strct = left.typ.AsStruct()
+			} else if left.typ.IsFunction(Struct) {
+				strct = left.typ.AsFunction().ret.AsStruct()
 			} else {
 				errs = append(errs, semanticError(errNotStructMsg, left.token))
 				goto end
@@ -399,8 +390,8 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 
 
 	case opArray:
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
-		errs = append(errs, typeCheck(right, body, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -423,7 +414,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 	case opDas:
-		errs = append(errs, typeCheck(right, body, fn, debug)...)
+		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 
 		if !right.hasType() {
 			goto end
@@ -436,7 +427,7 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		}
 
 		// Now right is resolved, define symbol for left
-		sym, ok := n.symtab.Define(&Symbol{ Name: left.token.Val, IsStack: true })
+		sym, ok := symtab.Define(&Symbol{ Name: left.token.Val, IsStack: true })
 		if ok {
 			errs = append(errs, semanticError(errRedeclaredMsg, left.token))
 			goto end
@@ -450,8 +441,8 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		// Does not promote type...
 
 	case opAs:
-		errs = append(errs, typeCheck(right, body, fn, debug)...)
-		errs = append(errs, typeCheck(left, body, fn, debug)...)
+		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !right.hasType() || !left.hasType() {
 			goto end
@@ -478,7 +469,9 @@ func typeCheck(n *Node, body bool, fn *FunctionType, debug bool) (errs []error) 
 		// Does not promote type...
 
 	case opRoot:
-		panic("Type check called on root node of AST")
+		for _, n := range n.stmts {
+			errs = append(errs, typeCheck(n, symtab, nil, debug)...)
+		}
 
 	case opError:
 		// TODO: Decide what to do here...

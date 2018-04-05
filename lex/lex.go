@@ -90,6 +90,15 @@ func (k Kind) IsUnaryOperator() bool {
 	}
 }
 
+func (k Kind) IsExprStart() bool {
+	switch k {
+	case Integer, String, Identifier, True, False, Not, LParen:
+		return true
+	default:
+		return false
+	}
+}
+
 func (k Kind) Precedence() int {
 
 	// TODO: other operators should get added here

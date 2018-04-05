@@ -3,6 +3,8 @@ import (
 	"fmt"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
+	"strings"
+	"bytes"
 )
 
 // AST
@@ -108,8 +110,43 @@ func (n *Node) IsReturnLastStmt() bool {
 	return false
 }
 
+func (n *Node) typeName() string {
+	switch n.op {
+	case opStructDcl:
+		return n.token.Val
+		
+	case opFuncDcl, opExtFuncDcl:
+		w := bytes.NewBufferString(n.token.Val)
+		w.WriteRune(lex.LParen)
+		var paramTypes []string
+		for _, p := range n.params {
+			paramTypes = append(paramTypes, p.left.typeName())
+		}
+		w.WriteString(strings.Join(paramTypes, ", "))
+		w.WriteRune(lex.RParen)
+		return w.String()
+		
+	case opArrayType:
+		return fmt.Sprintf("[]%v", n.left.typeName())
+
+	case opFuncType:
+		var typeParams []string
+		for _, p := range n.stmts {
+			typeParams = append(typeParams, p.typeName())
+		}
+		return fmt.Sprintf("fn(%v)", strings.Join(typeParams, ", "))
+
+	case opNamedType:
+		return n.token.Val
+
+	default:
+		panic(fmt.Sprintf("AST node [%v]does not represent a type!", nodeTypes[n.op]))
+	}
+}
+
 const (
 	opFuncDcl = iota
+	opExtFuncDcl
 	opFuncCall
 	opLit
 	opAdd
@@ -122,7 +159,10 @@ const (
 	opDot
 	opAnd
 	opIdentifier
+	opNamedType
+	opFuncType
 	opArray
+	opArrayType
 	opReturn
 	opIf
 	opWhile
@@ -135,12 +175,16 @@ const (
 	opOr
 	opError
 	opRoot
-	opStruct
+	opStructDcl
 )
 
 var nodeTypes = map[int]string{
 	opFuncDcl:    "Func Decl",
+	opExtFuncDcl: "Func Decl (External)",
 	opFuncCall:   "Func Call",
+	opFuncType:   "Func Type",
+	opArrayType:  "Array Type",
+	opNamedType:  "Named Type",
 	opLit:        "Literal",
 	opAdd:        "Binary Op [Add]",
 	opMin:        "Binary Op [Min]",
@@ -164,7 +208,7 @@ var nodeTypes = map[int]string{
 	opOr:         "Logical [or]",
 	opError:      "(error)",
 	opRoot:       "<none>",
-	opStruct:     "Struct",
+	opStructDcl:  "Struct",
 	opWhile:      "While",
 }
 

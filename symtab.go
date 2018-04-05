@@ -1,7 +1,6 @@
 package main
 import (
 	"fmt"
-	"github.com/g-dx/clarac/lex"
 	"bytes"
 	"strings"
 )
@@ -167,30 +166,6 @@ func (t *Type) Width() int {
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-type TypeLinker struct {
-	types map[string][]**Type
-	tokens map[string][]*lex.Token
-}
-
-func NewTypeLinker() *TypeLinker {
-	return &TypeLinker{ types: make(map[string][]**Type), tokens: make(map[string][]*lex.Token) }
-}
-
-func (tl *TypeLinker) Add(token *lex.Token, t **Type) {
-	tl.types[token.Val] = append(tl.types[token.Val], t)
-	tl.tokens[token.Val] = append(tl.tokens[token.Val], token)
-}
-
-func (tl *TypeLinker) Link(token *lex.Token, t *Type) {
-	for _, typ := range tl.types[token.Val] {
-		*typ = t
-	}
-	delete(tl.types, token.Val)
-	delete(tl.tokens, token.Val)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
