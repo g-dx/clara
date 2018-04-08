@@ -66,7 +66,17 @@ func (t *Type) Matches(x *Type) bool {
 	case Boolean, String, Nothing:
 		return t.Kind == x.Kind
 	case Array:
-		return x.Kind == Array && t.AsArray().Elem.Matches(x.AsArray().Elem)
+		if x.Kind != Array {
+			return false
+		}
+		te := t.AsArray().Elem
+		xe := x.AsArray().Elem
+		// SPECIAL CASE: Int & Byte are _not_ interchangeable in arrays!
+		if te.Kind == Integer || te.Kind == Byte {
+			return te.Kind == xe.Kind
+		} else {
+			return te.Matches(xe)
+		}
 	case Function:
 		if x.Kind != Function  {
 			return false

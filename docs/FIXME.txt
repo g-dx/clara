@@ -1,2 +1,1 @@
 - Type check variadic function calls
-- []byte & []int should *not* be interchangeable when matching method signatures.
