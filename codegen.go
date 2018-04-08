@@ -429,7 +429,7 @@ func genPrepareResult(asm asmWriter, n *Node, fn *function) {
 	}
 }
 
-func genFnCall(asm asmWriter, n *Node, f *function) {
+func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 
 	// Determine how function is referenced
 	var s *Symbol
@@ -438,8 +438,11 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		s = n.sym
 		fn = s.Type.AsFunction()
 	} else {
-		fn = n.left.typ.AsFunction() // Func is returned from subexpression
+		asm.op(popq, r15) // Pop computed function addr from stack
+		fn = n.left.typ.AsFunction()
 	}
+
+	spill(asm, regsInUse) // Spill any in use registers to the stack
 
 	// Generate arg code
 	for i, arg := range n.stmts {
@@ -468,7 +471,7 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 
 	// Call function
 	if s == nil {
-		asm.op(call, rax.indirect()) // anonymous func call: register indirect
+		asm.op(call, r15.indirect()) // anonymous func call: register indirect
 	} else if s.IsStack {
 		asm.op(call, rbp.displace(-s.Addr).indirect()) // Parameter func call: memory indirect
 	} else {
@@ -479,6 +482,9 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 	if !fn.IsExternal {
 		asm.addr(f.NewGcFunction())
 	}
+
+	// Restore registers previously in use
+	restore(asm, regsInUse)
 }
 
 func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *function) {
@@ -627,9 +633,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	case opFuncCall:
 
-		spill(asm, regsInUse) // Spill any in use registers to the stack
-		genFnCall(asm, expr, fn)
-		restore(asm, regsInUse) // Restore registers previously in use
+		genFnCall(asm, expr, fn, regsInUse)
 		asm.op(pushq, rax)      // Push result (rax) onto stack
 
 	case opDot:
