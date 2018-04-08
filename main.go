@@ -113,6 +113,7 @@ func main() {
 	if *showProg {
 		printProgram(prog)
 	}
+	exitIfErrors(showAst, rootNode, errs, prog)
 
 	// Handle top level types first
 	errs = append(errs, processTopLevelTypes(rootNode, rootSymtab)...)
