@@ -196,6 +196,7 @@ var KindValues = map[Kind]string{
 	EOF:        "<EOF>",
 	Struct:     "struct",
 	While:      "while",
+	Err:        "<error>",
 }
 
 type Token struct {

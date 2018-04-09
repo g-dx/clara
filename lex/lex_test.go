@@ -44,9 +44,7 @@ func TestLex(t *testing.T) {
 
 		// Errors
 		{"&", tokens(Err)}, // Unexpected character
-		{"abc", tokens(Err)}, // Identifier not terminated
 		{"\"abc", tokens(Err)}, // Unclosed string literal
-		{"/", tokens(Err)}, // Unexpected character
 
 		// Programs
 		{"// Comment\nfn x() {\n y(1,\"\")\n }\n",
