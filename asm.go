@@ -289,7 +289,7 @@ type asmWriter interface {
 	raw(s string) // Remove me!
 	addr(sym string)
 	function(name string)
-	op(i inst, ops ... operand)
+	ins(i inst, ops []operand, desc string)
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
@@ -304,11 +304,7 @@ func NewGasWriter(io io.Writer, debug bool) *gasWriter {
 }
 
 func (gw *gasWriter) write(asm string, a...interface{}) {
-	asm = fmt.Sprintf(asm, a...)
-	if gw.debug {
-		fmt.Print(asm)
-	}
-	_, err := gw.w.WriteString(asm)
+	_, err := gw.w.WriteString(fmt.Sprintf(asm, a...))
 	if err != nil {
 		panic(err)
 	}
@@ -316,11 +312,11 @@ func (gw *gasWriter) write(asm string, a...interface{}) {
 }
 
 func (gw *gasWriter) addr(sym string) {
-	gw.write(fmt.Sprintf("\t.8byte\t%v\n", sym))
+	gw.write(fmt.Sprintf("   .8byte   %v\n", sym))
 }
 
 func (gw *gasWriter) tab(s ... string) {
-	gw.write(fmt.Sprintf("\t" + strings.Join(s, "\t") + "\n"))
+	gw.write(fmt.Sprintf("   " + strings.Join(s, "   ") + "\n"))
 }
 
 func (gw *gasWriter) spacer() {
@@ -353,7 +349,7 @@ func (gw *gasWriter) stringLit(s string) operand {
 	// string literal GC header (2 == readonly)
 	header := "\\x2\\x0\\x0\\x0\\x0\\x0\\x0\\x0"
 
-	gw.write("%s:\n\t.ascii \"%v\"\"%v\"\"%v\\x0\"\n", label, header, size, s[1:len(s)-1])
+	gw.write("%s:\n   .ascii \"%v\"\"%v\"\"%v\\x0\"\n", label, header, size, s[1:len(s)-1])
 	return litOp(label+"+8") // Ensure the address points _after_ the header
 }
 
@@ -371,10 +367,14 @@ func (gw *gasWriter) raw(s string) {
 	gw.write(fmt.Sprintf("%v\n", s))
 }
 
-func (gw *gasWriter) op(i inst, ops ...operand) {
+func (gw *gasWriter) ins(i inst, ops []operand, desc string) {
 	s := make([]string, len(ops))
 	for i := 0; i < len(s); i++ {
 		s[i] = ops[i].Print()
 	}
-	gw.write("\t%s\t%s\n", instNames[i], strings.Join(s, ", "))
+	gw.write("   %-8s%-50s", instNames[i], strings.Join(s, ", "))
+	if gw.debug {
+		gw.write("# %v", desc)
+	}
+	gw.write("\n")
 }
