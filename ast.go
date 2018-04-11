@@ -5,6 +5,7 @@ import (
 	"github.com/g-dx/clarac/lex"
 	"strings"
 	"bytes"
+	"io"
 )
 
 // AST
@@ -221,13 +222,13 @@ func (n * Node) Walk(fn func(*Node)) {
 	}
 }
 
-func printTree(n *Node) {
-	fmt.Println("\nAbstract Syntax Tree:\n")
-	printTreeImpl(n, "    ", true)
-	fmt.Println()
+func printTree(n *Node, out io.Writer) {
+	fmt.Fprintln(out, "\nAbstract Syntax Tree:\n")
+	printTreeImpl(n, "    ", true, out)
+	fmt.Fprintln(out)
 }
 
-func printTreeImpl(n *Node, prefix string, isTail bool) {
+func printTreeImpl(n *Node, prefix string, isTail bool, out io.Writer) {
 	// Handle current node
 	row := "├── "
 	if isTail {
@@ -244,13 +245,13 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
     }
 
     // Print node
-	fmt.Printf("%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
+	fmt.Fprintf(out, "%v%v%v%v%v%v%v ", console.Yellow, prefix, row, console.Disable, console.NodeTypeColour, val, console.Disable)
 	if n.sym != nil {
-		fmt.Printf(": %v%v%v(%v%v - %v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, n.sym.Type, console.Disable)
+		fmt.Fprintf(out, ": %v%v%v(%v%v - %v%v)", console.Red, nodeTypes[n.op], console.Disable, console.Green, n.sym.Name, n.sym.Type, console.Disable)
 	} else {
-		fmt.Printf(": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
+		fmt.Fprintf(out,": %v%v%v", console.Red, nodeTypes[n.op], console.Disable)
 	}
-	fmt.Println("")
+	fmt.Fprintln(out, "")
 
 	// Handle 0..n-1 children
 	row = "│    "
@@ -260,24 +261,24 @@ func printTreeImpl(n *Node, prefix string, isTail bool) {
 
 	// TODO: Print parameters better. Currently it looks like they are block statments
 	// Print parameters
-	printNodeListImpl(n.params, prefix+row)
+	printNodeListImpl(n.params, prefix+row, out)
 
 	// Print statements & left/right
-	printTreeImpl(n.left, prefix + row, false)
-	printTreeImpl(n.right, prefix + row, true)
-	printNodeListImpl(n.stmts, prefix+row)
+	printTreeImpl(n.left, prefix + row, false, out)
+	printTreeImpl(n.right, prefix + row, true, out)
+	printNodeListImpl(n.stmts, prefix+row, out)
 }
 
-func printNodeListImpl(nodes []*Node, prefix string) {
+func printNodeListImpl(nodes []*Node, prefix string, out io.Writer) {
 
 	if len(nodes) == 0 {
 		return
 	}
 
 	for i := 0; i < len(nodes)-1; i++ {
-		printTreeImpl(nodes[i], prefix, false)
+		printTreeImpl(nodes[i], prefix, false, out)
 	}
 
 	// Handle n child
-	printTreeImpl(nodes[len(nodes)-1], prefix, true)
+	printTreeImpl(nodes[len(nodes)-1], prefix, true, out)
 }

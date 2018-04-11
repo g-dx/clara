@@ -8,7 +8,6 @@ import (
     "flag"
 	"path/filepath"
 	"github.com/g-dx/clarac/lex"
-	"github.com/g-dx/clarac/console"
 	"os/exec"
 	"os/user"
 	"io"
@@ -20,7 +19,8 @@ func main() {
 	// Get user details
 	usr, err := user.Current()
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	// Default install dir
@@ -41,15 +41,15 @@ func main() {
 	claraLib := glob(fmt.Sprintf("%v/lib/*.clara", *installPath)) // NOTE: Does NOT traverse all directories!
 	cLib := glob(fmt.Sprintf("%v/init/*.c", *installPath)) // NOTE: Does NOT traverse all directories!
 
-	// Open program to compile
-	f, err := os.Open(*progPath)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	options := options{ showLex: *showLex, showAst: *showAst, showTypes: *showTypes, showAsm: *showAsm, showProg: *showProg }
-	Compile(options, claraLib, f, *progPath, cLib, *outPath)
+	_, errs := Compile(options, claraLib, *progPath, cLib, *outPath, os.Stdout)
+	if len(errs) > 0 {
+		fmt.Println("\nErrors\n")
+		for _, err := range errs {
+			fmt.Printf(" - %v\n", err)
+		}
+		os.Exit(1)
+	}
 }
 
 type options struct {
@@ -60,7 +60,7 @@ type options struct {
 	showProg  bool
 }
 
-func Compile(options options, claraLibPaths []string, progReader io.Reader, progPath string, cLibPaths []string, outPath string) string {
+func Compile(options options, claraLibPaths []string, progPath string, cLibPaths []string, outPath string, out io.Writer) (string, []error) {
 
 	// Define root AST node
 	rootSymtab := NewSymtab()
@@ -77,49 +77,42 @@ func Compile(options options, claraLibPaths []string, progReader io.Reader, prog
 		rootSymtab.Define(s)
 	}
 
-	// Lex + parse standard lib
+	// Lex + parse all Clara files
 	var errs []error
+	claraLibPaths = append(claraLibPaths, progPath)
 	for _, f := range claraLibPaths {
-
-		// Read program file
 		bytes, err := ioutil.ReadFile(f)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return "", []error{err}
 		}
-		errs = append(errs, lexAndParse(string(bytes), f, rootNode, options.showLex)...)
+		errs = append(errs, lexAndParse(string(bytes), f, rootNode, options.showLex, out)...)
 	}
-
-	// Lex + parse program
-	bytes, err := ioutil.ReadAll(progReader)
-	prog := string(bytes)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if len(errs) > 0 {
+		return "", errs
 	}
-	errs = append(errs, lexAndParse(prog, progPath, rootNode, options.showLex)...)
-
-	if options.showProg {
-		printProgram(prog)
-	}
-	exitIfErrors(options.showAst, rootNode, errs, prog)
 
 	// Handle top level types first
 	errs = append(errs, processTopLevelTypes(rootNode, rootSymtab)...)
-	exitIfErrors(options.showAst, rootNode, errs, prog)
+	if len(errs) > 0 {
+		return "", errs
+	}
 
 	// Generate constructor functions
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 	errs = append(errs, walk(rootNode, rootSymtab, rootNode, addRuntimeInit)...)
-	exitIfErrors(options.showAst, rootNode, errs, prog)
+	if len(errs) > 0 {
+		return "", errs
+	}
 
 	// Type check
 	errs = append(errs, typeCheck(rootNode, rootSymtab, nil, options.showTypes)...)
-	exitIfErrors(options.showAst, rootNode, errs, prog)
+	if len(errs) > 0 {
+		return "", errs
+	}
 
 	// Show final AST if necessary
 	if options.showAst {
-		printTree(rootNode)
+		printTree(rootNode, out)
 	}
 
 	// Create assembly file
@@ -129,15 +122,14 @@ func Compile(options options, claraLibPaths []string, progReader io.Reader, prog
 	os.Remove(asmPath) // Ignore error
 	f, err := os.Create(asmPath)
 	if err != nil {
-		fmt.Printf(" - %v\n", err)
+		return "", []error{err}
 	}
 
 	// Generate assembly
 	asm := NewGasWriter(f, options.showAsm)
 	err = codegen(rootSymtab, rootNode.stmts, asm)
 	if err != nil {
-		fmt.Printf("\nCode Gen Errors:\n %v\n", err)
-		os.Exit(1)
+		return "", []error{errors.New(fmt.Sprintf("\nCode Gen Errors:\n %v\n", err))}
 	}
 	f.Close()
 
@@ -151,15 +143,14 @@ func Compile(options options, claraLibPaths []string, progReader io.Reader, prog
 	args = append(args, cLibPaths...)
 	cmd := exec.Command("gcc", args...)
 	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
+	stdOut, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("Link failure: %v\n%v\n", err, string(out))
-		os.Exit(1)
+		return "", []error{errors.New(fmt.Sprintf("Link failure: %v\n%v\n", err, string(stdOut)))}
 	}
-	return outputPath
+	return outputPath, nil
 }
 
-func lexAndParse(code string, path string, root *Node, showLex bool) (errs []error) {
+func lexAndParse(code string, path string, root *Node, showLex bool, out io.Writer) (errs []error) {
 
 	// Lex
 	var tokens []*lex.Token
@@ -183,29 +174,11 @@ func lexAndParse(code string, path string, root *Node, showLex bool) (errs []err
 	}
 
 	if showLex {
-		printLex(tokens)
+		printLex(tokens, out)
 	}
 
 	// Parse
 	return NewParser().Parse(tokens, root)
-}
-
-func exitIfErrors(showAst bool, tree *Node, errs []error, prog string) {
-	// Print AST if necessary
-	if len(errs) > 0 {
-
-		// Show state of AST before exit
-		if showAst	{
-			printTree(tree)
-		}
-
-		printProgram(prog)
-		fmt.Println("\nErrors\n")
-		for _, err := range errs {
-			fmt.Printf(" - %v\n", err)
-		}
-		os.Exit(1)
-	}
 }
 
 func stdSyms() []*Symbol {
@@ -237,17 +210,10 @@ func stdlib() []*Node {
 	}
 }
 
-func printProgram(prog string) {
-	fmt.Println("\nInput Program\n")
-	for i, line := range strings.Split(prog, "\n") {
-		fmt.Printf("%v%2d%v. %v%v%v\n", console.Yellow, i+1, console.Disable, console.NodeTypeColour, line, console.Disable)
-	}
-}
-
-func printLex(tokens []*lex.Token) {
-	fmt.Println("\nLexical Tokens\n")
+func printLex(tokens []*lex.Token, out io.Writer) {
+	fmt.Fprintln(out, "\nLexical Tokens\n")
 	for _, token := range tokens {
-		fmt.Println(token)
+		fmt.Fprintln(out, token)
 	}
 }
 
