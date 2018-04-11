@@ -158,7 +158,7 @@ func (t *Type) AsmName() string {
 		if len(fn.Args) > 0 {
 			buf.WriteString(fmt.Sprintf("$%v", fn.Args[0].AsmName()))
 			for i := 1; i < len(fn.Args); i += 1 {
-				buf.WriteString(fmt.Sprintf(".%v", fn.Args[i].AsmName))
+				buf.WriteString(fmt.Sprintf(".%v", fn.Args[i].AsmName()))
 			}
 			buf.WriteString("$")
 		}

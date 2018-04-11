@@ -223,7 +223,7 @@ func (n * Node) Walk(fn func(*Node)) {
 }
 
 func printTree(n *Node, out io.Writer) {
-	fmt.Fprintln(out, "\nAbstract Syntax Tree:\n")
+	fmt.Fprintln(out, "\nAbstract Syntax Tree:")
 	printTreeImpl(n, "    ", true, out)
 	fmt.Fprintln(out)
 }

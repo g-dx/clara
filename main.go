@@ -44,7 +44,7 @@ func main() {
 	options := options{ showLex: *showLex, showAst: *showAst, showTypes: *showTypes, showAsm: *showAsm, showProg: *showProg }
 	_, errs := Compile(options, claraLib, *progPath, cLib, *outPath, os.Stdout)
 	if len(errs) > 0 {
-		fmt.Println("\nErrors\n")
+		fmt.Println("\nErrors")
 		for _, err := range errs {
 			fmt.Printf(" - %v\n", err)
 		}
@@ -211,7 +211,7 @@ func stdlib() []*Node {
 }
 
 func printLex(tokens []*lex.Token, out io.Writer) {
-	fmt.Fprintln(out, "\nLexical Tokens\n")
+	fmt.Fprintln(out, "\nLexical Tokens")
 	for _, token := range tokens {
 		fmt.Fprintln(out, token)
 	}
