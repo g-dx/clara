@@ -590,25 +590,19 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opIdentifier:
 
 		v := expr.sym
-		if v.IsStack {
+		switch {
+		case v.IsStack: // Var operand
+			inst := movq
 			if takeAddr {
-				asm.ins(leaq, op(rbp.displace(-v.Addr), rax), na) // rax = [rbp - offset]
-			} else {
-				asm.ins(movq, op(rbp.displace(-v.Addr), rax), na) // stack <- rbp - offset
+				inst = leaq
 			}
-		} else {
-			if takeAddr {
-				// TODO: We don't have global variables yet which can be written to so this case is never executed!
-				//asm.ins(leaq, op(intOp(v.Addr).mem(), rax), na)   // rax = [addr]
-				//asm.ins(pushq, op(rax), na) // stack <- rax
-			} else {
-				// Check for named function
-				if v.Type.Is(Function) && v.IsGlobal {
-					asm.ins(movq, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na) // Push address of function
-				} else {
-					asm.ins(movq, op(intOp(v.Addr), rax), na) // stack <- addr
-				}
-			}
+			asm.ins(inst, op(rbp.displace(-v.Addr), rax), na)
+
+		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
+			asm.ins(movq, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
+
+		default: // Struct field operand
+			asm.ins(movq, op(intOp(v.Addr), rax), na)
 		}
 
 	case opFuncCall:
