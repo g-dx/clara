@@ -13,6 +13,8 @@ import (
 	"bytes"
 )
 
+var regex = regexp.MustCompile("^.*?//\\sEXPECT:\\s(.*)$")
+
 func TestE2E(t *testing.T) {
 	files, err := filepath.Glob("./tests/*.clara")
 	if err != nil {
@@ -32,7 +34,6 @@ func TestE2E(t *testing.T) {
 
 			// Gather all expectations
 			var expects []string
-			regex := regexp.MustCompile("^.*?//\\sEXPECT:\\s(.*)$")
 			for _, step := range steps {
 				if strings.HasPrefix(step, "//") { // Skip commented out lines
 					continue
@@ -53,15 +54,15 @@ func TestE2E(t *testing.T) {
 			for _, expect := range expects {
 				if pos < len(lines) {
 					if expect != lines[pos] {
-						t.Errorf("- %v Expected: '%v', Got: '%v'\n", f, expect, lines[pos])
+						t.Errorf("- %v, expected: '%v', got: '%v'\n", f, expect, lines[pos])
 					}
 				} else {
-					t.Errorf(" - %v Expected: '%v', Got: <nothing>\n", f, expect)
+					t.Errorf(" - %v, expected: '%v', got: <nothing>\n", f, expect)
 				}
 				pos += 1
 			}
 			if pos < len(lines) {
-				t.Errorf(" - %v Expected: <nothing>, Got: '%v'\n", f, strings.Join(lines[pos:], "\n"))
+				t.Errorf(" - %v, expected: <nothing>, got: '%v'\n", f, strings.Join(lines[pos:], "\n"))
 			}
 		})
 	}
