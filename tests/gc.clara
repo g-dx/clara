@@ -1,0 +1,10 @@
+// Simple test of the garbage collector.
+//
+// If gcSweep() does not work (or is disabled) this fails on my machine (16Gb RAM)
+fn main() {
+    x := 10000
+    while x > 0 {
+        intArray(2147483647)
+        x = x - 1
+    }
+}
