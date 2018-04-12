@@ -1,0 +1,27 @@
+fn main() {
+    // Basic operations
+    eval("Hello".append(" ").append("world!")) // EXPECT: Hello world!
+
+    // Length
+    s := "<string>"
+    eval("".length) // EXPECT: 0
+    eval(s.length)  // EXPECT: 8
+
+    // Immutable
+    s.append("<extra>")
+    eval(s) // EXPECT: <string>
+
+    // Index
+    char(s[0]) // EXPECT: <
+    char(s[1]) // EXPECT: s
+    char(s[2]) // EXPECT: t
+    char(s[3]) // EXPECT: r
+    char(s[4]) // EXPECT: i
+    char(s[5]) // EXPECT: n
+    char(s[6]) // EXPECT: g
+    char(s[7]) // EXPECT: >
+}
+
+fn eval(s: string) = printf("%s\n", s)
+fn eval(i: int) = printf("%d\n", i)
+fn char(b: byte) = printf("%c\n", b)
