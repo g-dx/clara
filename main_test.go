@@ -92,9 +92,11 @@ func CompileAndRun(progPath string, t *testing.T) string {
 	// Execute binary
 	cmd := exec.Command(binary)
 	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
+	outBytes, err := cmd.Output()
+	out := string(outBytes)
 	if err != nil {
+		t.Log(out)
 		t.Fatalf("Execution failure: %v\n", err)
 	}
-	return string(out)
+	return out
 }

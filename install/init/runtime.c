@@ -64,6 +64,7 @@ void debug(char *logType, char *format, ...)
     // GC debugging
     if (strcasecmp(logType, "gc") == 0 && debugGc) {
         vprintf(format, args);
+        fflush(stdout); // Flush immediately
     }
 
     va_end(args);
