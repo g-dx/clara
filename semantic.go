@@ -11,7 +11,7 @@ import (
 //
 
 const (
-	errRedeclaredMsg 		   = "%v:%d:%d: error, '%v' redeclared"
+	errRedeclaredMsg           = "%v:%d:%d: error, '%v' redeclared"
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errAmbiguousVarMsg         = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
