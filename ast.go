@@ -152,7 +152,7 @@ const (
 	opFuncCall
 	opLit
 	opAdd
-	opMin
+	opSub
 	opMul
 	opDiv
 	opEq
@@ -190,7 +190,7 @@ var nodeTypes = map[int]string{
 	opNamedType:   "Named Type",
 	opLit:         "Literal",
 	opAdd:         "Binary Op [Add]",
-	opMin:         "Binary Op [Min]",
+	opSub:         "Binary Op [Min]",
 	opMul:         "Binary Op [Mul]",
 	opDiv:         "Binary Op [Div]",
 	opIdentifier:  "Identifier",
@@ -200,12 +200,12 @@ var nodeTypes = map[int]string{
 	opDas:         "Decl & Assign Stmt",
 	opAs:          "Assign Stmt",
 	opElseIf:      "ElseIf Stmt",
-	opElse:       "Else Stmt",
-	opGt:         "Comparison Op [>]",
-	opLt:         "Comparison Op [<]",
-	opNot:        "Bool Negation [not]",
-	opNeg:        "Numeric Negation [not]",
-	opDot:        "Dot Select",
+	opElse:        "Else Stmt",
+	opGt:          "Comparison Op [>]",
+	opLt:          "Comparison Op [<]",
+	opNot:         "Bool Negation [not]",
+	opNeg:         "Numeric Negation [not]",
+	opDot:         "Dot Select",
 	opEq:         "Equality [eq]",
 	opAnd:        "Logical [and]",
 	opOr:         "Logical [or]",

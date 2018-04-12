@@ -40,7 +40,7 @@ type OperatorTypes map[int][]TypeKind
 
 var operatorTypes = OperatorTypes {
 	opAdd: { Integer, Byte },
-	opMin: { Integer, Byte },
+	opSub: { Integer, Byte },
 	opMul: { Integer, Byte },
 	opDiv: { Integer, Byte },
 	opOr:  { Boolean },

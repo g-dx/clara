@@ -212,13 +212,13 @@ func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 	case lex.Eq:
 		return opEq, p.next()
 	case lex.Min:
-		// Rewrite token to differentiate binary minus from unary minus
+		// Rewrite token to differentiate binary subtract from unary minus
 		if isUnary {
 			t := p.next()
 			t.Kind = lex.Neg
 			return opNeg, t
 		}
-		return opMin, p.next()
+		return opSub, p.next()
 	case lex.And:
 		return opAnd, p.next()
 	case lex.Or:

@@ -523,7 +523,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(addq, op(rsp.deref(), rax), na)
 		asm.ins(addq, op(intOp(8), rsp), na)
 
-	case opMin:
+	case opSub:
 
 		asm.ins(subq, op(rsp.deref(), rax), na)
 		asm.ins(addq, op(intOp(8), rsp), na)
