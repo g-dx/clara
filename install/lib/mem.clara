@@ -12,6 +12,9 @@ fn claralloc(size: int) block {
     // NOTE: No constructors can be invoked below this line!!!
     // -----------------------------------------------------------------------------------------------------------------
     b := malloc(size+16) // +8 for header, +8 for next
+    if not b.isValidBlock() {
+        panic("Failed to allocate memory!")
+    }
     debug("gc", "Allocated (0x%lx) @ size: %d\n", b, size+16)
     b.next = getBlocks()
     setBlocks(b)
@@ -25,6 +28,7 @@ fn clarafree(b: block) {
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
+fn panic(cause: string) nothing
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Basic-Allocation.html#index-malloc
 fn malloc(size: int) block

@@ -27,7 +27,7 @@ fn byteArray(length: int) []byte {
 // TODO: Should be private!
 fn byteArray(size: int, length: int) []byte {
     if length > size {
-        // TODO: PANIC!
+        panic("Length cannot be greater than size!")
     }
     h := claralloc(size + 8).toHeader() // + 8 for length
     h.length = length
