@@ -211,7 +211,7 @@ func (r reg) _8bit() reg {
 // ---------------------------------------------------------------------------------------------------------------------
 type inst byte
 const (
-	movq = iota
+	movq = inst(iota)
 	movb
 	movsbq
 	popq

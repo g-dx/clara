@@ -280,6 +280,7 @@ func genFnExit(asm asmWriter, skipGc bool) {
 
 func genIoobHandler(asm asmWriter) {
 
+	// rbx is index register. See: codegen.go:647
 	asm.label("ioob")
 	asm.ins(movq, op(rbx, rdi), na) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
 	asm.ins(call, op(labelOp("indexOutOfBounds")), na)
@@ -339,8 +340,7 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 	// Generate condition
 	genExpr(asm, n.left, 0, false, fn) // Left stores condition
 
-	asm.ins(popq, op(rax), na)           // Pop result from stack to rax
-	asm.ins(cmpq, op(_true, rax), na)    // Compare (true), na) to rax
+	asm.ins(cmpq, op(_true, rax), na)    // Pop result from stack to rax
 	asm.ins(jne, op(labelOp(exit)), na)  // Jump over block if not true
 	genStmtList(asm, n.stmts, fn)        // Generate stmts block
 	asm.ins(jmp, op(labelOp(start)), na) // Jump to start of loop
@@ -349,16 +349,13 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 
 func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
-	// Evaluate expression & save result to rbx
+	// Evaluate expression & save result to rcx
 	genExpr(asm, n.right, 0, false, fn)
-	asm.ins(popq, op(rcx), na) // TODO: Stack machine only uses rax & rbx. If changed revisit this!
+	asm.ins(movq, op(rax, rcx), na) // TODO: This is not safe because this register is used to pass parameters!
 
 	// Evaluate mem location to store
 	slot := n.left
 	genExpr(asm, slot, 0, true, fn)
-
-	// Pop location to rax and move rbx there
-	asm.ins(popq, op(rax), na) // stack -> rax
 
 	// Check if int -> byte cast required
 	if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
@@ -392,7 +389,6 @@ func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 			// Create new label
 			next := asm.newLabel("else")
 
-			asm.ins(popq, op(rax), na)          // Pop result from stack to rax
 			asm.ins(cmpq, op(_true, rax), na)   // Compare (true), na) to rax
 			asm.ins(jne, op(labelOp(next)), na) // Jump over block if not equal
 
@@ -421,8 +417,7 @@ func genReturnStmt(asm asmWriter, retn *Node, fn *function) {
 
 func genPrepareResult(asm asmWriter, n *Node, fn *function) {
 
-	// Insert result to rax & check if int -> byte cast required
-	asm.ins(popq, op(rax), na)
+	// Check if int -> byte cast required
 	if n.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
 		asm.ins(movsbq, op(rax._8bit(), rax), na)
 	}
@@ -437,7 +432,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		s = n.sym
 		fn = s.Type.AsFunction()
 	} else {
-		asm.ins(popq, op(r15), na) // Pop computed function addr from stack
+		asm.ins(movq, op(rax, r15), na) // TODO: This is a callee saved register. If we use it, we should save it!
 		fn = n.left.typ.AsFunction()
 	}
 
@@ -449,12 +444,15 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 			panic("Calling functions with more than 6 parameters not yet implemented")
 		}
 		genExpr(asm, arg, i, false, f) // Evaluate expression
-		asm.ins(popq, op(regs[i]), na) // Pop result from stack into correct reg
+
+		// Move result into reg
 
 		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
 		// means the value can be directly supplied to other libc functions without modification.
 		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal {
-			asm.ins(leaq, op(regs[i].displace(8), regs[i]), na)
+			asm.ins(leaq, op(rax.displace(8), regs[i]), na)
+		} else {
+			asm.ins(movq, op(rax, regs[i]), na)
 		}
 
 		// Check if int -> byte cast required
@@ -491,6 +489,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	// Post-fix, depth first search!
 	if expr.right != nil {
 		genExpr(asm, expr.right, regsInUse, false, fn)
+		asm.ins(pushq, op(rax), na) // Push acc to stack
 	}
 	if expr.left != nil {
 		genExpr(asm, expr.left, regsInUse, false, fn)
@@ -503,18 +502,17 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opLit:
 		switch expr.sym.Type.Kind {
 		case String:
-			asm.ins(pushq, op(stringOps[expr.sym.Name]), na)
+			asm.ins(movq, op(stringOps[expr.sym.Name], rax), na)
 
 		case Byte, Integer:
-			asm.ins(pushq, op(strOp(expr.sym.Name)), na) // Push onto top of stack
+			asm.ins(movq, op(strOp(expr.sym.Name), rax), na) // Push onto top of stack
 
 		case Boolean:
-			// TODO: Seems a bit hacky. Maybe a bool symbol with Val (1|0)?
 			v := _false
 			if expr.token.Val == "true" {
 				v = _true
 			}
-			asm.ins(pushq, op(v), na) // Push onto top of stack
+			asm.ins(movq, op(v, rax), na) // Push onto top of stack
 
 		default:
 			panic(fmt.Sprintf("Unknown type for literal: %v", expr.sym.Type.Kind))
@@ -522,88 +520,72 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	case opAdd:
 
-		asm.ins(popq, op(rbx), na)      // Pop from stack to rbx
-		asm.ins(popq, op(rax), na)      // Pop from stack to rax
-		asm.ins(addq, op(rbx, rax), na) // rax = (rbx + rax), na)
-		asm.ins(pushq, op(rax), na)     // Push rax onto stack
+		asm.ins(addq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na)
 
 	case opMin:
 
-		asm.ins(popq, op(rax), na)      // Pop from stack to rbx
-		asm.ins(popq, op(rbx), na)      // Pop from stack to rax
-		asm.ins(subq, op(rbx, rax), na) // rax = (rbx - rax), na)
-		asm.ins(pushq, op(rax), na)     // Push rax onto stack
+		asm.ins(subq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na)
 
 	case opMul:
-		asm.ins(popq, op(rbx), na)       // Pop from stack to rbx
-		asm.ins(popq, op(rax), na)       // Pop from stack to rax
-		asm.ins(imulq, op(rbx, rax), na) // rdx(high-64 bits):rax(low 64-bits) = (rbx * rax), na) TODO: We ignore high bits!
-		asm.ins(pushq, op(rax), na)      // Push rax onto stack
+
+		// Result is: rdx(high-64 bits):rax(low 64-bits) TODO: We ignore high bits!
+		asm.ins(imulq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na)
 
 	case opDiv:
 
-		asm.ins(popq, op(rax), na)         // Pop from stack to rbx
-		asm.ins(popq, op(rbx), na)         // Pop from stack to rax
-		asm.ins(movq, op(_false, rdx), na) // rdx = 0 (remainder), na). Prevents overflow from concatenation of rdx:rax
-		asm.ins(idivq, op(rbx, rax), na)   // rdx(remainder):rax(quotient) = (rbx / rax), na) TODO: We ignore remainder!
-		asm.ins(pushq, op(rax), na)        // Push rax onto stack
+		// Result is: rdx(remainder):rax(quotient) TODO: We ignore remainder!
+		asm.ins(movq, op(_false, rdx), na)
+		asm.ins(idivq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na)
 
 	case opNot:
-		asm.ins(popq, op(rax), na)        // Pop from stack to rax
-		asm.ins(notq, op(rax), na)        // rax = ~rax
-		asm.ins(andq, op(_true, rax), na) // rax = rax & 0x01
-		asm.ins(pushq, op(rax), na)       // Push result onto stack
+
+		asm.ins(notq, op(rax), na)
+		asm.ins(andq, op(_true, rax), na)
 
 	case opNeg:
-		asm.ins(popq, op(rax), na)  // Pop from stack to rax
-		asm.ins(negq, op(rax), na)  // rax = -rax
-		asm.ins(pushq, op(rax), na) // Push result onto stack
 
-	case opGt: // TODO: Other comparisons can get added here as they all share the same code!
+		asm.ins(negq, op(rax), na)
 
-		// NOTE: The order we pop from the stack here important
-		// TODO: Consider changing opAdd to have the same order as addition is associative
-		asm.ins(popq, op(rax), na)         // Pop from stack to rax
-		asm.ins(popq, op(rbx), na)         // Pop from stack to rbx
-		asm.ins(cmpq, op(rbx, rax), na)    // Compare rax <-> rbx
-		asm.ins(movq, op(_true, rbx), na)  // Load true into rbx
-		asm.ins(movq, op(_false, rax), na) // Load false into rax
-		asm.ins(cmovg, op(rbx, rax), na)   // Conditionally move rbx (true) into rax (false), na) if previous comparison was greater than
-		asm.ins(pushq, op(rax), na)        // Push result onto stack
+	case opGt:
+
+		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was greater than
+		asm.ins(cmpq, op(rsp.deref(), rax), na)
+		asm.ins(movq, op(_true, rbx), na)
+		asm.ins(movq, op(_false, rax), na)
+		asm.ins(cmovg, op(rbx, rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opLt:
 
-		asm.ins(popq, op(rax), na)         // Pop from stack to rax
-		asm.ins(popq, op(rbx), na)         // Pop from stack to rbx
-		asm.ins(cmpq, op(rbx, rax), na)    // Compare rax <-> rbx
-		asm.ins(movq, op(_true, rbx), na)  // Load true into rbx
-		asm.ins(movq, op(_false, rax), na) // Load false into rax
-		asm.ins(cmovl, op(rbx, rax), na)   // Conditionally move rbx (true) into rax (false), na) if previous comparison was less./ than
-		asm.ins(pushq, op(rax), na)        // Push result onto stack
+		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was less than
+		asm.ins(cmpq, op(rsp.deref(), rax), na)
+		asm.ins(movq, op(_true, rbx), na)
+		asm.ins(movq, op(_false, rax), na)
+		asm.ins(cmovl, op(rbx, rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opEq:
 
-		asm.ins(popq, op(rax), na)         // Pop from stack to rax
-		asm.ins(popq, op(rbx), na)         // Pop from stack to rbx
-		asm.ins(cmpq, op(rbx, rax), na)    // Compare rax <-> rbx
-		asm.ins(movq, op(_true, rbx), na)  // Load true into rbx
-		asm.ins(movq, op(_false, rax), na) // Load false into rax
-		asm.ins(cmove, op(rbx, rax), na)   // Conditionally move rbx (true) into rax (false), na) if previous comparison was equal
-		asm.ins(pushq, op(rax), na)        // Push result onto stack
+		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was equal
+		asm.ins(cmpq, op(rsp.deref(), rax), na)
+		asm.ins(movq, op(_true, rbx), na)
+		asm.ins(movq, op(_false, rax), na)
+		asm.ins(cmove, op(rbx, rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opAnd:
 
-		asm.ins(popq, op(rax), na)      // Pop from stack to rax
-		asm.ins(popq, op(rbx), na)      // Pop from stack to rbx
-		asm.ins(andq, op(rbx, rax), na) // rax = rbx & rax
-		asm.ins(pushq, op(rax), na)     // Push result onto stack
+		asm.ins(andq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opOr:
 
-		asm.ins(popq, op(rax), na)     // Pop from stack to rax
-		asm.ins(popq, op(rbx), na)     // Pop from stack to rbx
-		asm.ins(orq, op(rbx, rax), na) // rax = rbx | rax
-		asm.ins(pushq, op(rax), na)    // Push result onto stack
+		asm.ins(orq, op(rsp.deref(), rax), na)
+		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opIdentifier:
 
@@ -611,21 +593,20 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		if v.IsStack {
 			if takeAddr {
 				asm.ins(leaq, op(rbp.displace(-v.Addr), rax), na) // rax = [rbp - offset]
-				asm.ins(pushq, op(rax), na)                       // stack <- rax
 			} else {
-				asm.ins(pushq, op(rbp.displace(-v.Addr)), na) // stack <- rbp - offset
+				asm.ins(movq, op(rbp.displace(-v.Addr), rax), na) // stack <- rbp - offset
 			}
 		} else {
 			if takeAddr {
 				// TODO: We don't have global variables yet which can be written to so this case is never executed!
 				//asm.ins(leaq, op(intOp(v.Addr).mem(), rax), na)   // rax = [addr]
-				asm.ins(pushq, op(rax), na) // stack <- rax
+				//asm.ins(pushq, op(rax), na) // stack <- rax
 			} else {
 				// Check for named function
 				if v.Type.Is(Function) && v.IsGlobal {
-					asm.ins(pushq, op(strOp(v.Type.AsFunction().AsmName(v.Name))), na) // Push address of function
+					asm.ins(movq, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na) // Push address of function
 				} else {
-					asm.ins(pushq, op(intOp(v.Addr)), na) // stack <- addr
+					asm.ins(movq, op(intOp(v.Addr), rax), na) // stack <- addr
 				}
 			}
 		}
@@ -633,24 +614,20 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opFuncCall:
 
 		genFnCall(asm, expr, fn, regsInUse)
-		asm.ins(pushq, op(rax), na) // Push result (rax), na) onto stack
 
 	case opDot:
 
-		asm.ins(popq, op(rax), na) // Pop from stack to rax
-		asm.ins(popq, op(rbx), na) // Pop from stack to rbx
+		inst := movq
 		if takeAddr {
-			asm.ins(leaq, op(rax.offset(rbx), rax), na) // rax = [rax + rbx
-		} else {
-			asm.ins(movq, op(rax.offset(rbx), rax), na) // rax = [rax + rbx]
+			inst = leaq
 		}
-		asm.ins(pushq, op(rax), na) // Push result (rax), na) onto stack
+		asm.ins(popq, op(rbx), na)
+		asm.ins(inst, op(rax.offset(rbx), rax), na)
 
 	case opArray:
 
 		width := expr.typ.Width()
 
-		asm.ins(popq, op(rax), na) // stack(*array), na) -> rax
 		asm.ins(popq, op(rbx), na) // stack(index), na) -> rbx
 
 		// Bounds check
@@ -666,15 +643,13 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			// Read value according to width
 			switch width {
 			case 1:
-				asm.ins(movsbq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8), na)]
+				asm.ins(movsbq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			case 8:
-				asm.ins(movq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8), na)]
+				asm.ins(movq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			default:
 				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
 			}
 		}
-
-		asm.ins(pushq, op(rax), na) // rax(int/byte/...), na) -> stack
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
