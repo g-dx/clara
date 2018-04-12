@@ -1,0 +1,48 @@
+fn main() {
+    // Simple
+    eval(square(2)) // EXPECT: 4
+    eval(cube(3))   // EXPECT: 27
+
+    // Dot selection
+    eval(2.square()) // EXPECT: 4
+    eval(3.cube())   // EXPECT: 27
+    eval(2.cube().pow(3).inc()) // EXPECT: 513
+
+    // Parameters
+    eval(5.apply(cube)) // EXPECT: 125
+
+    // Variable storage
+    f := square
+    eval(f(8)) // EXPECT: 64
+    f = cube
+    eval(f(8)) // EXPECT: 512
+
+    inc := dec // Shadow inc()!
+    eval(inc(9)) // EXPECT: 8
+
+    // Returns
+    eval(ident(square)(5)) // EXPECT: 25
+    eval(ident(cube)(5))   // EXPECT: 125
+    eval(f1(1)(2)(3)(4)) // EXPECT: 64
+
+    // Anonymous TODO!
+}
+
+fn eval(i: int) = printf("%d\n", i)
+fn apply(i: int, f: fn(int) int) int = f(i)
+fn ident(f: fn(int) int) fn(int) int = f
+
+fn square(i: int) int = i * i
+fn cube(i: int) int = i * i * i
+fn dec(i: int) int = i - 1
+fn inc(i: int) int = i + 1
+fn pow(x: int, n: int) int {
+    if n == 1 {
+        return x
+    }
+    return x * pow(x, n - 1)
+}
+
+fn f1(i: int) fn(int) fn(int) fn(int) int = f2
+fn f2(i: int) fn(int) fn(int) int = f3
+fn f3(i: int) fn(int) int = cube
