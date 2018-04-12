@@ -1,0 +1,47 @@
+fn main() {
+    branchOn(_if)      // EXPECT: if
+    branchOn(_elseif1) // EXPECT: elseif1
+    branchOn(_elseif2) // EXPECT: elseif2
+    branchOn(_else)    // EXPECT: else
+
+    // EXPECT: 0
+    // EXPECT: 1
+    // EXPECT: 2
+    // EXPECT: 3
+    // EXPECT: 4
+    loopUpTo(5, noEarlyReturn)
+
+    // EXPECT: 0
+    // EXPECT: 1
+    loopUpTo(5, returnOn2)
+}
+
+fn branchOn(f: fn(int) bool) {
+    if f(1) {
+        printf("if\n")
+    } elseif f(2) {
+        printf("elseif1\n")
+    } elseif f(3) {
+        printf("elseif2\n")
+    } else {
+        printf("else\n")
+    }
+}
+
+fn loopUpTo(n: int, f: fn(int) bool) {
+    i := 0
+    while i < n {
+        if f(i) {
+            return
+        }
+        printf("%i\n", i)
+        i = i + 1
+    }
+}
+
+fn _if(i: int) bool = i == 1
+fn _elseif1(i: int) bool = i == 2
+fn _elseif2(i: int) bool = i == 3
+fn _else(i: int) bool = false
+fn returnOn2(i: int) bool = i == 2
+fn noEarlyReturn(i: int) bool = false
