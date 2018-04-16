@@ -226,9 +226,9 @@ const (
 	orq
 	andq
 	cmpq
-	cmovg
-	cmovl
-	cmove
+	setg
+	setl
+	sete
 
 	// Arithmetic
 	addq
@@ -261,9 +261,9 @@ var instNames = map[inst]string{
 	orq:    "orq",
 	andq:   "andq",
 	cmpq:   "cmpq",
-	cmovg:  "cmovg",
-	cmovl:  "cmovl",
-	cmove:  "cmove",
+	setg:   "setg",
+	setl:   "setl",
+	sete:   "sete",
 	addq:   "addq",
 	subq:   "subq",
 	imulq:  "imulq",

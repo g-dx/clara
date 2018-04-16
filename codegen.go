@@ -552,29 +552,23 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	case opGt:
 
-		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was greater than
 		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(movq, op(_true, rbx), na)
-		asm.ins(movq, op(_false, rax), na)
-		asm.ins(cmovg, op(rbx, rax), na)
+		asm.ins(setg, op(al), na)
+		asm.ins(andq, op(_true, rax), na) // Clear top bits
 		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opLt:
 
-		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was less than
 		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(movq, op(_true, rbx), na)
-		asm.ins(movq, op(_false, rax), na)
-		asm.ins(cmovl, op(rbx, rax), na)
+		asm.ins(setl, op(al), na)
+		asm.ins(andq, op(_true, rax), na) // Clear top bits
 		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opEq:
 
-		// Conditionally overwrite false (rax) with true (rbx) iff previous cmp was equal
 		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(movq, op(_true, rbx), na)
-		asm.ins(movq, op(_false, rax), na)
-		asm.ins(cmove, op(rbx, rax), na)
+		asm.ins(sete, op(al), na)
+		asm.ins(andq, op(_true, rax), na) // Clear top bits
 		asm.ins(addq, op(intOp(8), rsp), na) // Pop
 
 	case opAnd:
