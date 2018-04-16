@@ -1,0 +1,29 @@
+fn main() {
+    eval(true)  // EXPECT: true
+    eval(false) // EXPECT: false
+
+    eval(not true)  // EXPECT: false
+    eval(not false) // EXPECT: true
+
+    eval(true or true)   // EXPECT: true
+    eval(true or false)  // EXPECT: true
+    eval(false or false) // EXPECT: false
+
+    eval(true and true)   // EXPECT: true
+    eval(true and false)  // EXPECT: false
+    eval(false and false) // EXPECT: false
+
+    eval(true or false and true) // EXPECT: true
+    eval(true and false or true) // EXPECT: true
+
+    eval(not (not true and not true))  // EXPECT: true
+    eval(not (true or false and not false) or (not false and not false)) // EXPECT: true
+}
+
+fn eval(b: bool) {
+    s := "false"
+    if b {
+        s = "true"
+    }
+    printf("%s\n", s)
+}
