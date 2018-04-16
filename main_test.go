@@ -15,6 +15,11 @@ import (
 
 var regex = regexp.MustCompile("^.*?//\\sEXPECT:\\s(.*)$")
 
+type expectation struct {
+	val string
+	line int
+}
+
 func TestE2E(t *testing.T) {
 	files, err := filepath.Glob("./tests/*.clara")
 	if err != nil {
@@ -33,14 +38,14 @@ func TestE2E(t *testing.T) {
 			steps := strings.Split(test, "\n")
 
 			// Gather all expectations
-			var expects []string
-			for _, step := range steps {
+			var expects []*expectation
+			for i, step := range steps {
 				if strings.HasPrefix(step, "//") { // Skip commented out lines
 					continue
 				}
 				match := regex.FindStringSubmatch(step)
 				if match != nil {
-					expects = append(expects, match[1]) // First group hold expectation
+					expects = append(expects, &expectation{val: match[1], line: i+1})
 				}
 			}
 
@@ -51,18 +56,22 @@ func TestE2E(t *testing.T) {
 
 			// Match output against expectations
 			pos := 0
+			var builder strings.Builder
 			for _, expect := range expects {
 				if pos < len(lines) {
-					if expect != lines[pos] {
-						t.Errorf("- %v, expected: '%v', got: '%v'\n", f, expect, lines[pos])
+					if expect.val != lines[pos] {
+						builder.WriteString(fmt.Sprintf("- ./%v:%d:, expected: '%v', got: '%v'\n", f, expect.line, expect.val, lines[pos]))
 					}
 				} else {
-					t.Errorf(" - %v, expected: '%v', got: <nothing>\n", f, expect)
+					builder.WriteString(fmt.Sprintf("- ./%v:%d:, expected: '%v', got: <nothing>\n", f, expect.line, expect.val))
 				}
 				pos += 1
 			}
 			if pos < len(lines) {
-				t.Errorf(" - %v, expected: <nothing>, got: '%v'\n", f, strings.Join(lines[pos:], "\n"))
+				builder.WriteString(fmt.Sprintf(" - ./%v:, expected: <nothing>, got: ['%v']\n", f, strings.Join(lines[pos:], "', '")))
+			}
+			if builder.Len() > 0 {
+				t.Errorf("\n%v\n", builder.String())
 			}
 		})
 	}
