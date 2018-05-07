@@ -342,14 +342,14 @@ func (gw *gasWriter) stringLit(s string) operand {
 	}
 	binary.LittleEndian.PutUint64(b, uint64(len(raw)))
 
-	// Generate escaped Go string of raw hex values
-	size := fmt.Sprintf("\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x\\x%x",
+	// Generate escaped Go string of raw octal values
+	size := fmt.Sprintf("\\%o\\%o\\%o\\%o\\%o\\%o\\%o\\%o",
 		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
 
 	// string literal GC header (2 == readonly)
-	header := "\\x2\\x0\\x0\\x0\\x0\\x0\\x0\\x0"
+	header := "\\2\\0\\0\\0\\0\\0\\0\\0"
 
-	gw.write("%s:\n   .ascii \"%v\"\"%v\"\"%v\\x0\"\n", label, header, size, s[1:len(s)-1])
+	gw.write("%s:\n   .ascii \"%v\"\"%v\"\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
 	return litOp(label+"+8") // Ensure the address points _after_ the header
 }
 
