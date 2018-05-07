@@ -349,7 +349,7 @@ func (gw *gasWriter) stringLit(s string) operand {
 	// string literal GC header (2 == readonly)
 	header := "\\2\\0\\0\\0\\0\\0\\0\\0"
 
-	gw.write("%s:\n   .ascii \"%v\"\"%v\"\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
+	gw.write("%s:\n   .ascii \"%v\",\"%v\",\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
 	return litOp(label+"+8") // Ensure the address points _after_ the header
 }
 
