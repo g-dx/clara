@@ -53,7 +53,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Assembly Generation Start
 	// ---------------------------------------------------------------------------------------
 
-	asm.tab(".section", ".rodata")
+	asm.tab(".data")
 
 	// Output strings
 	// TODO: Delay writing string literals until end of assembly generation
@@ -146,7 +146,7 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 	for name, roots := range fn.gcFns {
 
 		// TODO: Delay writing string literals until end of assembly generation
-		asm.tab(".section", ".rodata")
+		asm.tab(".data")
 		debug := asm.stringLit(fmt.Sprintf("\"\\n%v\\n\"", fn.Type.Describe(fn.AstName)))
 		asm.tab(".text")
 
@@ -182,7 +182,7 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 	//
 
 	// TODO: Delay writing string literals until end of assembly generation
-	asm.tab(".section", ".rodata")
+	asm.tab(".data")
 	debug := asm.stringLit(fmt.Sprintf("\"  - (0x%%lx) '%v' \\n\"", t))
 	asm.tab(".text")
 
