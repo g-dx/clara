@@ -21,7 +21,7 @@ var stringOps = make(map[string]operand)
 */
 
 var na = "<debug>"
-var claralloc = "clara·claralloc.int" // NOTE: keep in sync with ASM name generation!
+var claralloc = "clara_claralloc.int" // NOTE: keep in sync with ASM name generation!
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 

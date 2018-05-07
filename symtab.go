@@ -8,7 +8,7 @@ import (
 //----------------------------------------------------------------------------------------------------------------------
 
 const ptrSize = 8 // 64-bit pointer size in bytes
-const fnPrefix = "clara·"
+const fnPrefix = "clara_"
 //----------------------------------------------------------------------------------------------------------------------
 
 var byteType = &Type{ Kind: Byte, Data: &IntType{ Width: 1 } }
@@ -220,7 +220,7 @@ func (ft *FunctionType) AsmName(name string) string {
 		return name
 	}
 	if name == "main" {
-		return "clara_main"
+		return fnPrefix + "main"
 	}
 
 	// Build name safe for usage in ASM
