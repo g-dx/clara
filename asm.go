@@ -214,6 +214,7 @@ const (
 	movq = inst(iota)
 	movb
 	movsbq
+	movabs
 	popq
 	pushq
 
@@ -253,6 +254,7 @@ var instNames = map[inst]string{
 	movq:   "movq",
 	movb:   "movb",
 	movsbq: "movsbq",
+	movabs: "movabs",
 	popq:   "popq",
 	pushq:  "pushq",
 	leaq:   "leaq",

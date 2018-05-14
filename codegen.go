@@ -241,11 +241,11 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 func genDebugGcPrintf(asm asmWriter, template operand) {
 
 	exit := asm.newLabel("exit")
-	asm.ins(movq, op(strOp("debugGc"), rax), na) // Defined in runtime.c!
+	asm.ins(movabs, op(strOp("debugGc"), rax), na) // Defined in runtime.c!
 	asm.ins(movq, op(rax.deref(), rax), na)      // Get value
 	asm.ins(cmpq, op(_true, rax), na)
 	asm.ins(jne, op(labelOp(exit)), na)
-	asm.ins(movq, op(template, rdi), na)
+	asm.ins(movabs, op(template, rdi), na)
 	asm.ins(leaq, op(rdi.displace(8), rdi), na) // Skip past length!
 	asm.ins(movq, op(intOp(0), rax), na)
 	asm.ins(call, op(labelOp("printf")), na)
@@ -502,7 +502,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opLit:
 		switch expr.sym.Type.Kind {
 		case String:
-			asm.ins(movq, op(stringOps[expr.sym.Name], rax), na)
+			asm.ins(movabs, op(stringOps[expr.sym.Name], rax), na)
 
 		case Byte, Integer:
 			asm.ins(movq, op(strOp(expr.sym.Name), rax), na) // Push onto top of stack
@@ -593,7 +593,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			asm.ins(inst, op(rbp.displace(-v.Addr), rax), na)
 
 		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
-			asm.ins(movq, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
+			asm.ins(movabs, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
 
 		default: // Struct field operand
 			asm.ins(movq, op(intOp(v.Addr), rax), na)
