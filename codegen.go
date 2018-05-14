@@ -261,6 +261,9 @@ func genFramePointerAccess(asm asmWriter) {
 }
 
 func genFnEntry(asm asmWriter, name string, temps int) {
+	if temps % 2 != 0 {
+		temps += 1 // ALIGNMENT: Ensure even $rsp increment
+	}
 	asm.function(name)
 	asm.ins(enter, op(intOp(temps*8), intOp(0)), na)
 }
@@ -490,9 +493,17 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	if expr.right != nil {
 		genExpr(asm, expr.right, regsInUse, false, fn)
 		asm.ins(pushq, op(rax), na) // Push acc to stack
+
+		// ALIGNMENT: Ensure alignment is correct before evaluating left (as it may contain fn calls)
+		asm.ins(subq, op(intOp(8), rsp), na)
 	}
 	if expr.left != nil {
 		genExpr(asm, expr.left, regsInUse, false, fn)
+
+		// ALIGNMENT: Correct alignment now 'left' has been calculated
+		if expr.right != nil {
+			asm.ins(addq, op(intOp(8), rsp), na)
+		}
 	}
 
 	// Implements stack machine
@@ -650,6 +661,10 @@ func restore(asm asmWriter, regPos int) {
 		for i := regPos; i > 0; i-- {
 			asm.ins(popq, op(regs[i-1]), na) // Pop stack into reg
 		}
+		// ALIGNMENT: Restore $rsp after function call
+		if regPos % 2 != 0 {
+			asm.ins(addq, op(intOp(8), rsp), na)
+		}
 		asm.raw("#------------------------------------#")
 	}
 }
@@ -657,6 +672,10 @@ func restore(asm asmWriter, regPos int) {
 func spill(asm asmWriter, regPos int) {
 	if regPos > 0 {
 		asm.raw("#------------------------------- Spill")
+		// ALIGNMENT: Ensure even $rsp before function call
+		if regPos % 2 != 0 {
+			asm.ins(subq, op(intOp(8), rsp), na)
+		}
 		for i := 0; i < regPos; i++ {
 			asm.ins(pushq, op(regs[i]), na) // Push reg onto stack
 		}
