@@ -159,7 +159,7 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		for _, root := range roots {
 			asm.ins(movq, op(rbp.displace(-ptrSize), rax), na)  // load frame pointer
 			asm.ins(leaq, op(rax.displace(-root.off), rdi), na) // load slot stack address
-			asm.ins(call, op(labelOp(root.typ.GcName())), na)
+			asm.ins(call, op(fnOp(root.typ.GcName())), na)
 		}
 		genFnExit(asm, false) // Called from Clara code -
 		asm.spacer()
@@ -225,7 +225,7 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 			if f.Type.IsPointer() {
 				asm.ins(movq, op(rbp.displace(-ptrSize), rdi), na)
 				asm.ins(addq, op(intOp(f.Addr), rdi), na) // Increment pointer to offset of field
-				asm.ins(call, op(labelOp(f.Type.GcName())), na)
+				asm.ins(call, op(fnOp(f.Type.GcName())), na)
 			}
 		}
 	default:
@@ -241,14 +241,14 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 func genDebugGcPrintf(asm asmWriter, template operand) {
 
 	exit := asm.newLabel("exit")
-	asm.ins(movabs, op(strOp("debugGc"), rax), na) // Defined in runtime.c!
-	asm.ins(movq, op(rax.deref(), rax), na)      // Get value
+	asm.ins(movabs, op(symOp("debugGc"), rax), na) // Defined in runtime.c!
+	asm.ins(movq, op(rax.deref(), rax), na)       // Get value
 	asm.ins(cmpq, op(_true, rax), na)
 	asm.ins(jne, op(labelOp(exit)), na)
 	asm.ins(movabs, op(template, rdi), na)
 	asm.ins(leaq, op(rdi.displace(8), rdi), na) // Skip past length!
 	asm.ins(movq, op(intOp(0), rax), na)
-	asm.ins(call, op(labelOp("printf")), na)
+	asm.ins(call, op(fnOp("printf")), na)
 	asm.label(exit)
 
 }
@@ -286,15 +286,15 @@ func genIoobHandler(asm asmWriter) {
 	// rbx is index register. See: codegen.go:647
 	asm.label("ioob")
 	asm.ins(movq, op(rbx, rdi), na) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
-	asm.ins(call, op(labelOp("indexOutOfBounds")), na)
+	asm.ins(call, op(fnOp("indexOutOfBounds")), na)
 }
 
 func genConstructor(asm asmWriter, f *function, params []*Node) {
 
 	// Malloc memory of appropriate size
 	asm.ins(movq, op(intOp(f.Type.ret.AsStruct().Size()), rdi), na)
-	asm.ins(call, op(labelOp(claralloc)), na) // Implemented in lib/mem.clara
-	asm.addr(f.NewGcFunction())
+	asm.ins(call, op(fnOp(claralloc)), na) // Implemented in lib/mem.clara
+	asm.addr(fnOp(f.NewGcFunction()))
 
 	// Copy stack values into fields
 	off := 0
@@ -475,12 +475,12 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 	} else if s.IsStack {
 		asm.ins(call, op(rbp.displace(-s.Addr).indirect()), na) // Parameter func call: memory indirect
 	} else {
-		asm.ins(call, op(labelOp(fn.AsmName(s.Name))), na) // Named func call
+		asm.ins(call, op(fnOp(fn.AsmName(s.Name))), na) // Named func call
 	}
 
 	// Only generate GC function addresses for Clara functions
 	if !fn.IsExternal {
-		asm.addr(f.NewGcFunction())
+		asm.addr(fnOp(f.NewGcFunction()))
 	}
 
 	// Restore registers previously in use
@@ -604,7 +604,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			asm.ins(inst, op(rbp.displace(-v.Addr), rax), na)
 
 		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
-			asm.ins(movabs, op(strOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
+			asm.ins(movabs, op(symOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
 
 		default: // Struct field operand
 			asm.ins(movq, op(intOp(v.Addr), rax), na)

@@ -9,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"bytes"
+	"runtime"
 )
 
 type operand interface {
@@ -75,10 +76,31 @@ func (mo memOp) Print() string  {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+type fnOp string
+
+func (fo fnOp) Print() string  {
+	if runtime.GOOS == "darwin" {
+		return "_" + string(fo) // OSX requires that all global symbols are prefixed with underscores
+	}
+	return string(fo)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type symOp string
+
+func (so symOp) Print() string  {
+	if runtime.GOOS == "darwin" {
+		return fmt.Sprintf("$_%v", so) // OSX requires that all global symbols are prefixed with underscores
+	}
+	return "$" + string(so)
+}
+// ---------------------------------------------------------------------------------------------------------------------
+
 type labelOp string
 
 func (so labelOp) Print() string  {
-	return fmt.Sprintf("%v", so)
+	return string(so)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -289,7 +311,7 @@ type asmWriter interface {
 	label(s string)
 	newLabel(s string) string
 	raw(s string) // Remove me!
-	addr(sym string)
+	addr(sym fnOp)
 	function(name string)
 	ins(i inst, ops []operand, desc string)
 }
@@ -313,8 +335,8 @@ func (gw *gasWriter) write(asm string, a...interface{}) {
 	gw.w.Flush()
 }
 
-func (gw *gasWriter) addr(sym string) {
-	gw.write(fmt.Sprintf("   .8byte   %v\n", sym))
+func (gw *gasWriter) addr(sym fnOp) {
+	gw.write(fmt.Sprintf("   .8byte   %v\n", sym.Print()))
 }
 
 func (gw *gasWriter) tab(s ... string) {
@@ -326,8 +348,13 @@ func (gw *gasWriter) spacer() {
 }
 
 func (gw *gasWriter) function(name string) {
+	if runtime.GOOS == "darwin" {
+		name = "_" + name
+	}
 	gw.tab(".globl", name)
-	gw.tab(".type", fmt.Sprintf("%v, @function", name))
+	if runtime.GOOS == "linux" {
+		gw.tab(".type", fmt.Sprintf("%v, @function", name))
+	}
 	gw.raw(fmt.Sprintf("%v:", name))
 }
 
