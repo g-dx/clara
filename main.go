@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"io"
 	"errors"
+	"runtime"
 )
 
 func main() {
@@ -135,8 +136,10 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Invoke gcc to link files
 	outputPath := filepath.Join(outPath, progName)
-	args := []string { "-static" }
-	args = append(args, "-g")
+	args := []string { "-fno-pie" }
+	if runtime.GOOS == "linux" {
+		args = append(args, "-no-pie")
+	}
 	args = append(args, "-o")
 	args = append(args, outputPath)
 	args = append(args, asmPath)
