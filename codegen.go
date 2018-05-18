@@ -92,7 +92,7 @@ func genFunc(asm asmWriter, n *Node) {
 
 		// Assign stack offsets for temporaries
 		temps := len(fn.Type.Args)
-		walk(n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
+		walk(postOrder, n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
 			// Look for symbols which should be on the stack but have no address
 			if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
 				n.sym.Addr = ptrSize * (temps + 1) // Assign a stack slot for temporary

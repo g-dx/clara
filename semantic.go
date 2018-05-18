@@ -274,36 +274,68 @@ func semanticError2(msg string, t *lex.Token, vals ...interface{}) error {
 	return errors.New(fmt.Sprintf(msg, args...))
 }
 
-func walk(root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {
+type order byte
+const (
+	postOrder   = iota
+	preOrder
+	inOrder
+)
+
+func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {
 
 	// Depth First Search
 
-	// Visit left and right
-	if n.left != nil {
-		errs = append(errs, walk(root, symtab, n.left, visit)...)
-	}
-	if n.right != nil {
-		errs = append(errs, walk(root, symtab, n.right, visit)...)
-	}
-
-	// Visit parameters
-	for _, param := range n.params {
-		if param != nil {
-			errs = append(errs, walk(root, symtab, param, visit)...)
+	// Visit left
+	left := func() {
+		if n.left != nil {
+			errs = append(errs, walk(o, root, symtab, n.left, visit)...)
 		}
 	}
 
-	// Visit statement
-	for _, stat := range n.stmts {
-		if stat != nil {
-			errs = append(errs, walk(root, symtab, stat, visit)...)
+	// Visit right
+	right := func() {
+		if n.right != nil {
+			errs = append(errs, walk(o, root, symtab, n.right, visit)...)
 		}
 	}
 
-	// Visit node
-	if err := visit(root, symtab, n); err != nil {
-		errs = append(errs, err)
+	// Visit current
+	cur := func() {
+		if err := visit(root, symtab, n); err != nil {
+			errs = append(errs, err)
+		}
+		for _, param := range n.params {
+			if param != nil {
+				errs = append(errs, walk(o, root, symtab, param, visit)...)
+			}
+		}
+		for _, stat := range n.stmts {
+			if stat != nil {
+				errs = append(errs, walk(o, root, symtab, stat, visit)...)
+			}
+		}
 	}
+
+	switch o {
+	case postOrder:
+		left()
+		right()
+		cur()
+
+	case preOrder:
+		cur()
+		left()
+		right()
+
+	case inOrder:
+		left()
+		cur()
+		right()
+
+	default:
+		panic(fmt.Sprintf("Unknown tree traversal order: %v", o))
+	}
+
 	return
 }
 
