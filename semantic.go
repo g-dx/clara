@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/g-dx/clarac/lex"
 	"strings"
+	"strconv"
 )
 
 //
@@ -29,6 +30,7 @@ const (
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
 	errNotWritableAssignMsg    = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
 	errMissingReturnMsg 	   = "%v:%d:%d: error, missing return for function '%v'"
+	errIntegerOverflowMsg 	   = "%v:%d:%d: error, constant '%v' overflow integer type"
 
 	// Debug messages
 	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"
@@ -207,6 +209,25 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opBlockFnDcl && n.token.Val == "main" {
 		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType} }, n.stmts...) // Insert runtime init
+	}
+	return nil
+}
+
+func foldConstants(root *Node, symtab *SymTab, n *Node) error {
+
+	// Rewrite negative literals to single AST nodes
+	if n.op == opNeg && n.left.op == opLit && n.left.token.Kind == lex.Integer {
+		n.op = opLit
+		n.token = lex.WithVal(n.left.token, "-" + n.left.token.Val)
+		n.left = nil
+	}
+
+	// Check for overflow
+	if n.op == opLit && n.token.Kind == lex.Integer {
+		_, err := strconv.ParseInt(n.token.Val, 10, 64)
+		if err != nil {
+			return semanticError(errIntegerOverflowMsg, n.token)
+		}
 	}
 	return nil
 }

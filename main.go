@@ -101,6 +101,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	// Generate constructor functions
 	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, addRuntimeInit)...)
+	errs = append(errs, walk(preOrder, rootNode, rootSymtab, rootNode, foldConstants)...)
 	if len(errs) > 0 {
 		return "", errs
 	}

@@ -1,2 +1,1 @@
 - Type check variadic function calls
-- Fix > "32-bit max" integer literals. Support for -1 << 63 is the tricky case because of the way the AST represents negative literals.

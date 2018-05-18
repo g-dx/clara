@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"math"
 )
 
 var stringOps = make(map[string]operand)
@@ -516,7 +518,17 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			asm.ins(movabs, op(stringOps[expr.sym.Name], rax), na)
 
 		case Byte, Integer:
-			asm.ins(movq, op(strOp(expr.sym.Name), rax), na) // Push onto top of stack
+			// Parse
+			i, err := strconv.ParseInt(expr.sym.Name, 10, 64)
+			if err != nil {
+				panic(err) // NOTE: Should never happen as has been checked on front end
+			}
+			// Check if we need a true 64-bit load
+			ins := movq
+			if i > math.MaxInt32 {
+				ins = movabs
+			}
+			asm.ins(ins, op(strOp(expr.sym.Name), rax), na) // Push onto top of stack
 
 		case Boolean:
 			v := _false
