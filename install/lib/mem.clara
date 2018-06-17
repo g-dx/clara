@@ -11,6 +11,9 @@ fn claralloc(size: int) block {
     // -----------------------------------------------------------------------------------------------------------------
     // NOTE: No constructors can be invoked below this line!!!
     // -----------------------------------------------------------------------------------------------------------------
+    if size == 0 {
+        panic("Cannot allocate zero memory!")
+    }
     b := malloc(size+16) // +8 for header, +8 for next
     if not b.isValidBlock() {
         panic("Failed to allocate memory!")
