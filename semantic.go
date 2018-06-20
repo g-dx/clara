@@ -234,53 +234,61 @@ func foldConstants(root *Node, symtab *SymTab, n *Node) error {
 
 func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opStructDcl {
-
-		name := n.token.Val
-		firstLetter := name[:1]
-
-		// Check struct begins with lowercase
-		if strings.ToUpper(firstLetter) == firstLetter {
-			return semanticError(errStructNamingLowerMsg, n.token)
+		_, err := generateStructConstructor(root, n)
+		if err != nil {
+			return err
 		}
-
-		// Create name
-		constructorName := strings.ToUpper(firstLetter) + name[1:]
-
-		// Ensure there are no other function definitions with this name
-		if _, found := root.symtab.Resolve(constructorName); found {
-			var n *Node
-			for _, x := range root.stmts {
-				if (x.op == opBlockFnDcl || x.op == opExprFnDcl || x.op == opExternFnDcl) && x.token.Val == constructorName {
-					n = x
-					break
-				}
-			}
-			return semanticError(errConstructorOverrideMsg, n.token)
-		}
-
-		// Collect struct field types
-		var args []*Type
-		var params []*Node
-
-		for _, field := range n.stmts {
-
-			// Copy symbol
-			s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
-			args = append(args, s.Type)
-
-			// Copy node
-			params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
-		}
-
-		// Create & define symbol
-		fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: args, isConstructor: true, ret: n.sym.Type, }}}
-		symtab.Define(fnSym)
-
-		// Add AST node
-		root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opBlockFnDcl, params: params, sym: fnSym})
 	}
 	return nil
+}
+
+func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
+
+	name := n.token.Val
+	firstLetter := name[:1]
+
+	// Check struct begins with lowercase
+	if strings.ToUpper(firstLetter) == firstLetter {
+		return nil, semanticError(errStructNamingLowerMsg, n.token)
+	}
+
+	// Create name
+	constructorName := strings.ToUpper(firstLetter) + name[1:]
+
+	// Ensure there are no other function definitions with this name
+	if _, found := root.symtab.Resolve(constructorName); found {
+		var n *Node
+		for _, x := range root.stmts {
+			if (x.op == opBlockFnDcl || x.op == opExprFnDcl || x.op == opExternFnDcl) && x.token.Val == constructorName {
+				n = x
+				break
+			}
+		}
+		return nil, semanticError(errConstructorOverrideMsg, n.token)
+	}
+
+	// Collect struct field types
+	var args []*Type
+	var params []*Node
+
+	for _, field := range n.stmts {
+
+		// Copy symbol
+		s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
+		args = append(args, s.Type)
+
+		// Copy node
+		params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
+	}
+
+	// Create & define symbol
+	fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
+	&FunctionType{ Args: args, isConstructor: true, ret: n.sym.Type, }}}
+	root.symtab.Define(fnSym)
+
+	// Add AST node
+	root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opBlockFnDcl, params: params, sym: fnSym})
+	return fnSym, nil
 }
 
 func semanticError(msg string, t *lex.Token, vals ...interface{}) error {
