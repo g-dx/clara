@@ -117,53 +117,58 @@ loop:
 
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
-			// Add actual symbol and link to existing symbol if already present
-			fnType := &FunctionType{IsExternal: n.op == opExternFnDcl}
-			sym := &Symbol{Name: n.token.Val, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
-			if s, found := symtab.Define(sym); found {
-				for ; s.Next != nil; s = s.Next { /* ... */ }
-				s.Next = sym
-			}
-			n.sym = sym
-
-			// Process parameters
-			child := symtab.Child()
-			n.symtab = child // Required during typecheck
-			for _, param := range n.params {
-				paramType, err := createType(child, param.left)
-				if err != nil {
-					errs = append(errs, err)
-					continue loop
-				}
-				sym, found := child.Define(&Symbol{Name: param.token.Val, Type: paramType})
-				param.sym = sym
-				param.typ = paramType
-				if found {
-					errs = append(errs, semanticError(errRedeclaredMsg, param.token))
-					continue loop
-				}
-				fnType.Args = append(fnType.Args, paramType)
-			}
-
-			// Process return
-			fnType.ret = nothingType // Default case
-			if n.left != nil {
-				retType, err := createType(child, n.left)
-				if err != nil {
-					errs = append(errs, err)
-					continue loop
-				}
-				fnType.ret = retType
-			}
-
-			// Check for termination
-			if n.op == opBlockFnDcl && !fnType.ret.Is(Nothing) && !n.isTerminating() {
-				errs = append(errs, semanticError(errMissingReturnMsg, n.token))
+			err := processFnType(n, n.token.Val, symtab)
+			if err != nil {
+				errs = append(errs, err)
 				continue loop
 			}
 		}
 	}
 	return errs
+}
+
+func processFnType(n *Node, symName string, symtab *SymTab) (error) {
+	// Add actual symbol and link to existing symbol if already present
+	fnType := &FunctionType{IsExternal: n.op == opExternFnDcl}
+	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
+	if s, found := symtab.Define(sym); found {
+		for ; s.Next != nil; s = s.Next { /* ... */ }
+		s.Next = sym
+	}
+	n.sym = sym
+
+	// Process parameters
+	child := symtab.Child()
+	n.symtab = child // Required during typecheck
+	for _, param := range n.params {
+		paramType, err := createType(child, param.left)
+		if err != nil {
+			return err
+		}
+		sym, found := child.Define(&Symbol{Name: param.token.Val, Type: paramType})
+		param.sym = sym
+		param.typ = paramType
+		if found {
+			return semanticError(errRedeclaredMsg, param.token)
+		}
+		fnType.Args = append(fnType.Args, paramType)
+	}
+
+	// Process return
+	fnType.ret = nothingType // Default case
+	if n.left != nil {
+		retType, err := createType(child, n.left)
+		if err != nil {
+			return err
+		}
+		fnType.ret = retType
+	}
+
+	// Check for termination
+	if n.op == opBlockFnDcl && !fnType.ret.Is(Nothing) && !n.isTerminating() {
+		return semanticError(errMissingReturnMsg, n.token)
+	}
+	return nil
 }
 
 func createType(symtab *SymTab, n *Node) (*Type, error) {
