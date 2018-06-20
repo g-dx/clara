@@ -318,6 +318,9 @@ func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTa
 	left := func() {
 		if n.left != nil {
 			errs = append(errs, walk(o, root, symtab, n.left, visit)...)
+			if err := visit(root, symtab, n.left); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -325,14 +328,14 @@ func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTa
 	right := func() {
 		if n.right != nil {
 			errs = append(errs, walk(o, root, symtab, n.right, visit)...)
+			if err := visit(root, symtab, n.right); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
 	// Visit current
 	cur := func() {
-		if err := visit(root, symtab, n); err != nil {
-			errs = append(errs, err)
-		}
 		for _, param := range n.params {
 			if param != nil {
 				errs = append(errs, walk(o, root, symtab, param, visit)...)
@@ -342,6 +345,9 @@ func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTa
 			if stat != nil {
 				errs = append(errs, walk(o, root, symtab, stat, visit)...)
 			}
+		}
+		if err := visit(root, symtab, n); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
