@@ -204,12 +204,12 @@ func stdlib() []*Node {
 	return []*Node{
 		// printf (from libc)
 		{token:&lex.Token{Val : "printf"}, op: opBlockFnDcl,
-		sym:&Symbol{ Name: "printf", Type: &Type{ Kind: Function, Data:
+		sym:&Symbol{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Args: []*Type { stringType }, isVariadic: true, ret: nothingType, IsExternal: true }}}},
 
 		// debug (from runtime.c)
 		{token:&lex.Token{Val : "debug"}, op: opBlockFnDcl,
-			sym:&Symbol{ Name: "debug", Type: &Type{ Kind: Function, Data:
+			sym:&Symbol{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Args: []*Type { stringType, stringType }, isVariadic: true, ret: nothingType, IsExternal: true }}}},
 	}
 }
