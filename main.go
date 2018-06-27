@@ -67,12 +67,6 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	rootSymtab := NewSymtab()
 	rootNode := &Node{op: opRoot, symtab: rootSymtab}
 
-	// Add "AST defined" nodes & symbols
-	for _, n := range stdlib() {
-		rootSymtab.Define(n.sym)
-		rootNode.Add(n)
-	}
-
 	// Add any global symbols
 	for _, s := range stdSyms() {
 		rootSymtab.Define(s)
@@ -203,22 +197,15 @@ func stdSyms() []*Symbol {
 		{ Name: "bool", Type: boolType },
 		// nothing type
 		{ Name: "nothing", Type: nothingType },
-		// invokeDynamic() function
-		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data: &FunctionType{ Args: []*Type{}, ret: nothingType} } },
-	}
-}
-
-func stdlib() []*Node {
-	return []*Node{
-		// printf (from libc)
-		{token:&lex.Token{Val : "printf"}, op: opBlockFnDcl,
-		sym:&Symbol{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: []*Type { stringType }, isVariadic: true, ret: nothingType, IsExternal: true }}}},
-
+		// invokeDynamic (implemented in assembly)
+		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data:
+			&FunctionType{ Args: []*Type{}, ret: nothingType} } },
 		// debug (from runtime.c)
-		{token:&lex.Token{Val : "debug"}, op: opBlockFnDcl,
-			sym:&Symbol{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: []*Type { stringType, stringType }, isVariadic: true, ret: nothingType, IsExternal: true }}}},
+		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
+			&FunctionType{ Args: []*Type { stringType, stringType }, ret: nothingType, isVariadic: true, IsExternal: true }}},
+		// printf (from libc)
+		{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
+		&FunctionType{ Args: []*Type { stringType }, ret: nothingType, isVariadic: true, IsExternal: true }}},
 	}
 }
 
