@@ -36,7 +36,7 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 	for p.isNot(lex.EOF) {
 		switch p.Kind() {
 		case lex.Fn:
-			root.Add(p.parseFn())
+			root.Add(p.parseFn(false))
 
 		case lex.Struct:
 			root.Add(p.parseStruct())
@@ -63,9 +63,12 @@ func (p *Parser) parseStruct() *Node {
 	return &Node{op: opStructDcl, token: id, stmts: fields}
 }
 
-func (p *Parser) parseFn() *Node {
-	p.need(lex.Fn)
-	n := &Node{token: p.need(lex.Identifier), params: p.parseParameters()}
+func (p *Parser) parseFn(isAnon bool) *Node {
+	id := p.need(lex.Fn)
+	if !isAnon {
+		id = p.need(lex.Identifier)
+	}
+	n := &Node{token: id, params: p.parseParameters()}
 	if p.is(lex.Fn, lex.LBrack, lex.Identifier) {
 		n.left = p.parseType()
 	}
@@ -78,7 +81,12 @@ func (p *Parser) parseFn() *Node {
 		n.op = opExprFnDcl
 		n.stmts = []*Node{p.parseExpr(0)}
 	default:
-		n.op = opExternFnDcl
+		if !isAnon {
+			n.op = opExternFnDcl
+		} else {
+			p.syntaxError(lex.KindValues[lex.LBrace] + " or " + lex.KindValues[lex.As])
+			p.next()
+		}
 	}
 	return n
 }
@@ -191,6 +199,9 @@ func (p *Parser) parseOperand() *Node {
 
 	case kind == lex.Identifier:
 		return p.parseIdentifier()
+
+	case kind == lex.Fn:
+		return p.parseFn(true)
 
 	default:
 		p.syntaxError("<expression>")

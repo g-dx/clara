@@ -82,6 +82,10 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
 	asm.spacer()
 	genNoTraceGcFunc(asm) 	// No trace GC function
+	asm.spacer()
+	genInvokeDynamic(asm) // Closure invocation support
+	asm.spacer()
+	genClosureGc(asm) // Closure GC tracing support
 	return nil
 }
 
@@ -102,6 +106,11 @@ func genFunc(asm asmWriter, n *Node) {
 			}
 			return nil
 		})
+
+		// If this function is a closure output the address of the tracing function before it
+		if len(fn.Type.gcFunc) > 0 {
+			asm.addr(fnOp(fn.Type.gcFunc))
+		}
 
 		// Generate standard entry sequence
 		genFnEntry(asm, fn.AsmName(), temps)
@@ -161,7 +170,11 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		for _, root := range roots {
 			asm.ins(movq, op(rbp.displace(-ptrSize), rax), na)  // load frame pointer
 			asm.ins(leaq, op(rax.displace(-root.off), rdi), na) // load slot stack address
-			asm.ins(call, op(fnOp(root.typ.GcName())), na)
+			if root.typ.Is(Function) {
+				asm.ins(call, op(fnOp(closureGc)), na)
+			} else {
+				asm.ins(call, op(fnOp(root.typ.GcName())), na)
+			}
 		}
 		genFnExit(asm, false) // Called from Clara code -
 		asm.spacer()
@@ -170,7 +183,7 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 
 func genTypeGcFuncs(asm asmWriter, types []*Type) {
 	for _, typ := range types {
-		if typ.IsPointer() {
+		if typ.IsPointer() && !typ.Is(Function) { // closureGc handles functions
 			asm.spacer()
 			genTypeGcFunc(asm, typ)
 		}
@@ -227,7 +240,11 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 			if f.Type.IsPointer() {
 				asm.ins(movq, op(rbp.displace(-ptrSize), rdi), na)
 				asm.ins(addq, op(intOp(f.Addr), rdi), na) // Increment pointer to offset of field
-				asm.ins(call, op(fnOp(f.Type.GcName())), na)
+				if f.Type.Is(Function) {
+					asm.ins(call, op(fnOp(closureGc)), na)
+				} else {
+					asm.ins(call, op(fnOp(f.Type.GcName())), na)
+				}
 			}
 		}
 	default:
@@ -253,6 +270,65 @@ func genDebugGcPrintf(asm asmWriter, template operand) {
 	asm.ins(call, op(fnOp("printf")), na)
 	asm.label(exit)
 
+}
+
+func genClosureGc(asm asmWriter) {
+	genFnEntry(asm, closureGc, 1)
+
+	exit := asm.newLabel("exit")
+
+	// Deref stack slot to get pointer
+	asm.ins(movq, op(rdi.deref(), rax), na)
+
+	// Check for read-only (header & 2 == 2)
+	asm.ins(movq, op(rax.displace(-ptrSize), rbx), na)
+	asm.ins(andq, op(intOp(2), rbx), na)
+	asm.ins(cmpq, op(intOp(2), rbx), na)
+	asm.ins(je, op(labelOp(exit)), na)
+
+	// Get function pointer, load & call GC address (stored 16 bytes _behind_)
+	asm.ins(movq, op(rax.deref(), rax), na)
+	asm.ins(movq, op(rax.displace(-16), rax), na)
+	asm.ins(call, op(rax.indirect()), na)
+
+	asm.label(exit)
+	genFnExit(asm, true) // assembly defined caller
+}
+
+func genInvokeDynamic(asm asmWriter) {
+	genFnEntry(asm, fnPrefix + "invokeDynamic", 1)
+	callLabel := asm.newLabel("call")
+	fnPtrLabel := asm.newLabel("fnPtr")
+
+	// Check for read-only (header & 2 == 2)
+	asm.ins(movq, op(rdi.displace(-ptrSize), rax), na)
+	asm.ins(andq, op(intOp(2), rax), na)
+	asm.ins(cmpq, op(intOp(2), rax), na)
+	asm.ins(je, op(labelOp(fnPtrLabel)), na)
+
+	// ----------------------------------------------------------------------------
+	// Closure
+	asm.ins(movq, op(rdi.deref(), rax), na) // Deref closure to get func pointer
+	asm.ins(movq, op(rax, rbp.displace(-ptrSize)), na) // Copy func pointer to stack slot
+	asm.ins(movq, op(rdi.displace(ptrSize), rdi), na) // Deref closure to get env
+	asm.ins(jmp, op(labelOp(callLabel)), na)
+
+	// ----------------------------------------------------------------------------
+	// Function Pointer
+	asm.label(fnPtrLabel)
+	asm.ins(movq, op(rdi, rbp.displace(-ptrSize)), na) // Copy *function to stack
+	asm.ins(movq, op(rsi, rdi), na)
+	asm.ins(movq, op(rdx, rsi), na)
+	asm.ins(movq, op(rcx, rdx), na)
+	asm.ins(movq, op(r8, rcx), na)
+	asm.ins(movq, op(r9, r8), na)
+	// ----------------------------------------------------------------------------
+
+	// Make call
+	asm.label(callLabel)
+	asm.ins(call, op(rbp.displace(-ptrSize).indirect()), na)
+	asm.addr(fnOp(noGc))
+	genFnExit(asm, false) // Called from Clara code
 }
 
 func genFramePointerAccess(asm asmWriter) {

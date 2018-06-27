@@ -92,7 +92,7 @@ func (k Kind) IsUnaryOperator() bool {
 
 func (k Kind) IsExprStart() bool {
 	switch k {
-	case Integer, String, Identifier, True, False, Not, LParen:
+	case Integer, String, Identifier, True, False, Not, LParen, Fn:
 		return true
 	default:
 		return false

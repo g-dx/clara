@@ -348,6 +348,9 @@ func (gw *gasWriter) spacer() {
 }
 
 func (gw *gasWriter) function(name string) {
+
+	gw.write("   .8byte   0x2\n") // "Read-only" GC header
+
 	if runtime.GOOS == "darwin" {
 		name = "_" + name
 	}

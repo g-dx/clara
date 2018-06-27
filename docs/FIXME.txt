@@ -1,1 +1,2 @@
 - Type check variadic function calls
+- Support immediate closure invocation

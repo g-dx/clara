@@ -110,7 +110,7 @@ func (t *Type) IsFunction(kind TypeKind) bool {
 }
 
 func (t *Type) IsPointer() bool {
-	return t.Is(Array) || t.Is(Struct) || t.Is(String)
+	return t.Is(Array) || t.Is(Struct) || t.Is(String) || t.Is(Function)
 }
 
 func (t *Type) AsStruct() *StructType {
@@ -209,6 +209,7 @@ func (st *StructType) Size() int {
 type FunctionType struct {
 	Args          []*Type
 	ret           *Type
+	gcFunc        string  // stores name of GC func for closure
 	isVariadic    bool
 	isConstructor bool
 	IsExternal 	  bool  // Provided at linktime - no code gen required
@@ -313,12 +314,25 @@ func (st *SymTab) Define(s *Symbol) (*Symbol, bool) {
 	return s, false
 }
 
+func (st *SymTab) OwnedBy(s *Symbol) bool {
+	_, ok := st.symbols[s.Name]
+	return ok
+}
+
 func (st *SymTab) Resolve(name string) (*Symbol, bool) {
 	s, ok := st.symbols[name]
 	if !ok && st.parent != nil {
 		s, ok = st.parent.Resolve(name)
 	}
 	return s, ok
+}
+
+func (st *SymTab) MustResolve(name string) *Symbol {
+	s, ok := st.Resolve(name)
+	if !ok {
+		panic(fmt.Sprintf("Required symbol '%v' not found!", name))
+	}
+	return s
 }
 
 func (st *SymTab) Parent() *SymTab {

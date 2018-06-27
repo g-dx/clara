@@ -2,8 +2,6 @@
 
 - Escape double quotes in string literals.
 - support modules
-- Add support for anonymous functions
-- Add support for closures
 - add short circuit boolean code gen
 - full register usage in code gen
 - support escape analysis for stack allocation
@@ -20,3 +18,5 @@ DONE:
 - support a standard library
 - Add utility functions for basic types into some sort of standard library
 - add single register stack machine in code gen
+- Add support for anonymous functions
+- Add support for closures

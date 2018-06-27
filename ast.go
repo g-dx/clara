@@ -111,6 +111,14 @@ func (n *Node) IsReturnLastStmt() bool {
 	return false
 }
 
+func (n *Node) isLocalFn() bool {
+	return (n.op == opBlockFnDcl || n.op == opExprFnDcl) && n.token.Val == "fn"
+}
+
+func (n *Node) isNonGlobalFnCall() bool {
+	return n.op == opFuncCall && (n.sym == nil || !n.sym.IsGlobal)
+}
+
 func (n *Node) typeName() string {
 	switch n.op {
 	case opStructDcl:
@@ -143,6 +151,38 @@ func (n *Node) typeName() string {
 	default:
 		panic(fmt.Sprintf("AST node [%v]does not represent a type!", nodeTypes[n.op]))
 	}
+}
+
+func copyNode(n *Node) *Node {
+
+	x := &Node{token: n.token, typ: n.typ, symtab: n.symtab, op: n.op, sym: n.sym}
+
+	// Visit left and right
+	if n.left != nil {
+		x.left = copyNode(n.left)
+	}
+	if n.right != nil {
+		x.right = copyNode(n.right)
+	}
+
+	// Visit parameters
+	var params []*Node
+	for _, param := range n.params {
+		if param != nil {
+			params = append(params, copyNode(param))
+		}
+	}
+	x.params = params
+
+	// Visit statements
+	var stmts []*Node
+	for _, stmt := range n.stmts {
+		if stmt != nil {
+			stmts = append(stmts, copyNode(stmt))
+		}
+	}
+	x.stmts = stmts
+	return x
 }
 
 const (

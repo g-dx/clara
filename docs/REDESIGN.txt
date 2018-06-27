@@ -1,3 +1,30 @@
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Type check arithmetic operators (more generally, define operator rules better or more succinctly)
 - Track current stack alignment in the code generator so as to minimise superfluous push/pop/addq/subq
+- Move invokeDynamic() into Clara. It would look something like this:
+
+fn invokeDynamic(ptr : int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) {
+    if ptr.isClosure() {
+        cl := ptr.toClosure()
+        cl.f(c.env, arg1, arg2, arg3, arg4, arg5)
+    } else {
+        f := ptr.toFunction()
+        f(arg1, arg2, arg3, arg4, arg5)
+    }
+}
+
+struct closure {
+    f: fn(env, int, int, int, int, int)
+    env: int
+}
+
+// External functions
+fn isClosure(ptr: int) bool                           // Test GC header for readonly
+fn toClosure(ptr: int) cl                             // CAST
+fn toFunction(ptr: int) fn(int, int, int, int, int)   // CAST
+
+The important part is to make sure the AST rewrite does not try to wrap c.f(...) in an invokeDynamic call!
+- Support immediate invocation of defined closure, e.g fn() { printf("hello\n") }()
+- GC tracing of closures can be made more efficient by updating "genClosureGc" to _mark_ the closure pointer & instead
+store the address of the _environment_ struct before the function pointer.
+- Support reuse of closure env & cl structs

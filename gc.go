@@ -5,6 +5,7 @@ import (
 )
 
 const noGc = fnPrefix + "no_gc"
+const closureGc = fnPrefix + "closure_gc"
 const gcHeaderSize = 8
 // ---------------------------------------------------------------------------------------------------------------------
 

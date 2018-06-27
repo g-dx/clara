@@ -5,6 +5,7 @@ import (
 	"strings"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
+	"math/rand"
 )
 
 //---------------------------------------------------------------------------------------------------------------
@@ -312,6 +313,16 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Nothing to do...
 
 	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
+
+		// Closures will not have been annotated yet. Do it now.
+		if n.sym == nil {
+			err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab)
+			if err != nil {
+				errs = append(errs, err)
+				goto end
+			}
+			n.typ = n.sym.Type
+		}
 
 		// Type check stmts
 		fn := n.sym.Type.AsFunction()

@@ -98,7 +98,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 		return "", errs
 	}
 
-	// Generate constructor functions
+	// Pre-typecheck AST rewrite
 	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, generateStructConstructors)...)
 	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, addRuntimeInit)...)
 	errs = append(errs, walk(preOrder, rootNode, rootSymtab, rootNode, foldConstants)...)
@@ -108,6 +108,12 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Type check
 	errs = append(errs, typeCheck(rootNode, rootSymtab, nil, options.showTypes)...)
+	if len(errs) > 0 {
+		return "", errs
+	}
+
+	// Post-typecheck AST rewrite
+	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, rewriteAnonFnAndClosures)...)
 	if len(errs) > 0 {
 		return "", errs
 	}
@@ -197,6 +203,8 @@ func stdSyms() []*Symbol {
 		{ Name: "bool", Type: boolType },
 		// nothing type
 		{ Name: "nothing", Type: nothingType },
+		// invokeDynamic() function
+		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data: &FunctionType{ Args: []*Type{}, ret: nothingType} } },
 	}
 }
 
