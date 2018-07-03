@@ -88,6 +88,20 @@ func (p *Parser) parseFn(isAnon bool) *Node {
 			p.next()
 		}
 	}
+
+	// Anonymous/closure block functions can be immediately invoked
+	if isAnon && n.op == opBlockFnDcl {
+		for p.is(lex.LParen, lex.LBrack) {
+			switch p.Kind() {
+			case lex.LParen:
+				args, tok := p.parseArgs()
+				n = &Node {op: opFuncCall, token: tok, left: n, stmts: args}
+			case lex.LBrack:
+				idx, tok := p.parseIndex()
+				n = &Node {op: opArray, token: tok, left: n, right: idx}
+			}
+		}
+	}
 	return n
 }
 

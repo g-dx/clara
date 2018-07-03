@@ -40,6 +40,9 @@ fn main() {
     a2 := fn(i: int) int = i * i
     eval(a2(4)) // EXPECT: 16
 
+    // Immediate invocation
+    fn(i: int, j: int) { printf("%d\n", i * j) }(12, 12) // EXPECT: 144
+
     // Switch anon for global
     a2 = cube
     eval(a2(4)) // EXPECT: 64
@@ -76,6 +79,9 @@ fn main() {
     eval(c2("*")) // EXPECT: *<closure>*
     c3 := fn(s: string) = printf("%s\n", s)
     c3("Hello!")  // EXPECT: Hello!
+
+    // Immediate invocation
+    fn(i: int) { printf("%s - %d\n", str, i) }(1234) // EXPECT: <closure> - 1234
 
     // Switch closure for global
     c1 = square
