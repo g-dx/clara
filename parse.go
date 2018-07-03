@@ -250,9 +250,11 @@ func (p *Parser) parseIdentifier() *Node {
 	var ident *Node
 	switch p.Kind() {
 	case lex.LParen:
-		ident = &Node {op: opFuncCall, token: val, stmts: p.parseArgs()}
+		args, _ := p.parseArgs()
+		ident = &Node {op: opFuncCall, token: val, stmts: args}
 	case lex.LBrack:
-		ident = &Node {op: opArray, token: lex.WithVal(val, "[]"), left: &Node{op: opIdentifier, token: val}, right: p.parseIndex()}
+		idx, tok := p.parseIndex()
+		ident = &Node {op: opArray, token: tok, left: &Node{op: opIdentifier, token: val}, right: idx}
 	default:
 		ident = &Node {op: opIdentifier, token: val}
 	}
@@ -261,16 +263,18 @@ func (p *Parser) parseIdentifier() *Node {
 	for p.is(lex.LParen, lex.LBrack) {
 		switch p.Kind() {
 		case lex.LParen:
-			ident = &Node {op: opFuncCall, token: lex.WithVal(val, "()"), left: ident, stmts: p.parseArgs()}
+			args, tok := p.parseArgs()
+			ident = &Node {op: opFuncCall, token: tok, left: ident, stmts: args}
 		case lex.LBrack:
-			ident = &Node {op: opArray, token: lex.WithVal(val, "[]"), left: ident, right: p.parseIndex()}
+			idx, tok := p.parseIndex()
+			ident = &Node {op: opArray, token: tok, left: ident, right: idx}
 		}
 	}
 	return ident
 }
 
-func (p *Parser) parseArgs() (args []*Node) {
-	p.need(lex.LParen)
+func (p *Parser) parseArgs() (args []*Node, start *lex.Token) {
+	start = p.need(lex.LParen)
 	if p.isNot(lex.RParen) {
 		args = append(args, p.parseExpr(0))
 		for p.match(lex.Comma) {
@@ -278,14 +282,14 @@ func (p *Parser) parseArgs() (args []*Node) {
 		}
 	}
 	p.need(lex.RParen)
-	return args
+	return args, start
 }
 
-func (p *Parser) parseIndex() *Node {
-	p.need(lex.LBrack)
+func (p *Parser) parseIndex() (*Node, *lex.Token) {
+	start := p.need(lex.LBrack)
 	idx := p.parseExpr(0)
 	p.need(lex.RBrack)
-	return idx
+	return idx, start
 }
 
 func (p *Parser) parseParameters() (x []*Node) {
