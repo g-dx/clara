@@ -1,1 +1,20 @@
 - Type check variadic function calls
+- Ensure spilled heap pointers are also tracked as a GC root.
+
+Example:
+
+fn main() {
+    f(byteArray(10), byteArray(10))
+}
+
+fn f(b1: []byte, b2: []byte) {
+    // ...
+}
+
+In this example the second call to 'byteArray' in main will result in the first 'byteArray' being spilled
+to the stack as the rdi register will be required to load the value 10 before invoking 'byteArray' again.
+Before malloc is called GC will run and mark the _first_ byteArray() return value as unused because it is
+cannot be found by examining the 'main' stackframe (it will be once we enter function 'f').
+
+To fix this GC root tracking must also be mark any pointer values which have been spilled to the stack as
+live.
