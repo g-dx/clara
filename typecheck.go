@@ -204,14 +204,12 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			return
 		}
 
-		// =============================================================================================================
-		// Handle "anonymous" func call f(1, true)("<string>")() ... etc ...
-		// =============================================================================================================
+		// 2 cases, either the function call is a named call (global, parameter, etc) or is
+		// an "anonymous" call from some expression evaluation (f(x)(y), etc)
 
-		// TODO: Unify the logic for anonymous and named functions
 		if left != nil {
 
-			// Subexpression will yield a function
+			// Subexpression yields function
 			errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 			if !left.hasType() {
 				goto end
@@ -242,59 +240,56 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 				}
 			}
 			n.typ = fn.ret
-			return
-		}
 
-		// =============================================================================================================
-		// Handle "named" function call x().y().z() ... etc ...
-		// =============================================================================================================
+		} else {
 
-		// Attempt to resolve symbol
-		var match *Symbol
-	loop:
-		for s, _ := symtab.Resolve(n.token.Val); s != nil; s = s.Next {
+			// Attempt to resolve symbol
+			var match *Symbol
+		loop:
+			for s, _ := symtab.Resolve(n.token.Val); s != nil; s = s.Next {
 
-			// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
-			if s.Type == nil {
+				// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
+				if s.Type == nil {
+					goto end
+				}
+
+				// Check is a function
+				if !s.Type.Is(Function) {
+					continue
+				}
+
+				// Check correct number of args
+				fn := s.Type.AsFunction()
+				if len(n.stmts) != len(fn.Args) {
+					continue
+				}
+
+				// Check all types match
+				for i, arg := range fn.Args {
+					if !n.stmts[i].typ.Matches(arg) {
+						continue loop
+					}
+				}
+
+				// Match found
+				match = s
+				break
+			}
+
+			// Couldn't resolve function
+			if match == nil {
+				var types []string = nil
+				for _, p := range n.stmts {
+					types = append(types, p.typ.String())
+				}
+				errs = append(errs, semanticError2(errResolveFunctionMsg, n.token, fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(types, ", "))))
 				goto end
 			}
 
-			// Check is a function
-			if !s.Type.Is(Function) {
-				continue
-			}
-
-			// Check correct number of args
-			fn := s.Type.AsFunction()
-			if len(n.stmts) != len(fn.Args) {
-				continue
-			}
-
-			// Check all types match
-			for i, arg := range fn.Args {
-				if !n.stmts[i].typ.Matches(arg) {
-					continue loop
-				}
-			}
-
-			// Match found
-			match = s
-			break
+			// Finally set symbol on node
+			n.sym = match
+			n.typ = match.Type.AsFunction().ret
 		}
-
-		// Couldn't resolve function
-		if match == nil {
-			var types []string = nil
-			for _, p := range n.stmts {
-				types = append(types, p.typ.String())
-			}
-			errs = append(errs, semanticError2(errResolveFunctionMsg, n.token, fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(types, ", "))))
-			goto end
-		}
-
-		// Finally set symbol on node
-		n.sym = match
-		n.typ = match.Type.AsFunction().ret
 
 	case opGt, opLt, opEq:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
