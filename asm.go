@@ -313,7 +313,7 @@ type asmWriter interface {
 	raw(s string) // Remove me!
 	addr(sym fnOp)
 	function(name string)
-	ins(i inst, ops []operand, desc string)
+	ins(i inst, ops ...operand)
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
@@ -399,14 +399,10 @@ func (gw *gasWriter) raw(s string) {
 	gw.write(fmt.Sprintf("%v\n", s))
 }
 
-func (gw *gasWriter) ins(i inst, ops []operand, desc string) {
+func (gw *gasWriter) ins(i inst, ops ...operand) {
 	s := make([]string, len(ops))
 	for i := 0; i < len(s); i++ {
 		s[i] = ops[i].Print()
 	}
-	gw.write("   %-8s%-50s", instNames[i], strings.Join(s, ", "))
-	if gw.debug {
-		gw.write("# %v", desc)
-	}
-	gw.write("\n")
+	gw.write("   %-8s%-50s\n", instNames[i], strings.Join(s, ", "))
 }

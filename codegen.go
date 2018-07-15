@@ -22,7 +22,6 @@ var stringOps = make(map[string]operand)
 
 */
 
-var na = "<debug>"
 var claralloc = "clara_claralloc.int" // NOTE: keep in sync with ASM name generation!
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
@@ -120,7 +119,7 @@ func genFunc(asm asmWriter, n *Node) {
 			addr := ptrSize * (i + 1) // Assign a stack slot for var
 			param.sym.Addr = addr
 			param.sym.IsStack = true
-			asm.ins(movq, op(regs[i], rbp.displace(-addr)), na)
+			asm.ins(movq, regs[i], rbp.displace(-addr))
 			fn.gcRoots.Add(addr, param.typ)
 		}
 
@@ -162,18 +161,18 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		asm.tab(".text")
 
 		genFnEntry(asm, name, 1)
-		asm.ins(movq, op(rdi, rbp.displace(-ptrSize)), na) // Copy frame pointer into local slot
+		asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
 
 		genDebugGcPrintf(asm, debug)
 
 		// Invoke GC function for type of each root
 		for _, root := range roots {
-			asm.ins(movq, op(rbp.displace(-ptrSize), rax), na)  // load frame pointer
-			asm.ins(leaq, op(rax.displace(-root.off), rdi), na) // load slot stack address
+			asm.ins(movq, rbp.displace(-ptrSize), rax)  // load frame pointer
+			asm.ins(leaq, rax.displace(-root.off), rdi) // load slot stack address
 			if root.typ.Is(Function) {
-				asm.ins(call, op(fnOp(closureGc)), na)
+				asm.ins(call, fnOp(closureGc))
 			} else {
-				asm.ins(call, op(fnOp(root.typ.GcName())), na)
+				asm.ins(call, fnOp(root.typ.GcName()))
 			}
 		}
 		genFnExit(asm, false) // Called from Clara code -
@@ -202,34 +201,34 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 	asm.tab(".text")
 
 	genFnEntry(asm, t.GcName(), 1)
-	asm.ins(movq, op(rdi.deref(), rdi), na)            // Deref stack slot to get pointer into heap
-	asm.ins(movq, op(rdi, rbp.displace(-ptrSize)), na) // Copy into local slot
+	asm.ins(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
+	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
 
 	// Calculate pointer to block from type
-	asm.ins(leaq, op(rdi.displace(-16), rsi), na) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
+	asm.ins(leaq, rdi.displace(-16), rsi) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
 	genDebugGcPrintf(asm, debug)
 
 	// Labels
 	exit := asm.newLabel("exit")
 
 	// Dereference pointer & load header into rax.
-	asm.ins(movq, op(rbp.displace(-ptrSize), rax), na) // Copy stack slot
-	asm.ins(subq, op(intOp(gcHeaderSize), rax), na)    // *type-8 -> *header
+	asm.ins(movq, rbp.displace(-ptrSize), rax) // Copy stack slot
+	asm.ins(subq, intOp(gcHeaderSize), rax)    // *type-8 -> *header
 
 	// if header & 1 == 1 (i.e. already marked)
-	asm.ins(movq, op(rax.deref(), rbx), na)
-	asm.ins(andq, op(intOp(1), rbx), na)
-	asm.ins(cmpq, op(_true, rbx), na)
-	asm.ins(je, op(labelOp(exit)), na)
+	asm.ins(movq, rax.deref(), rbx)
+	asm.ins(andq, intOp(1), rbx)
+	asm.ins(cmpq, _true, rbx)
+	asm.ins(je, labelOp(exit))
 
 	// || header & 2 == 2 (i.e. is ready only)
-	asm.ins(movq, op(rax.deref(), rbx), na)
-	asm.ins(andq, op(intOp(2), rbx), na)
-	asm.ins(cmpq, op(intOp(2), rbx), na)
-	asm.ins(je, op(labelOp(exit)), na)
+	asm.ins(movq, rax.deref(), rbx)
+	asm.ins(andq, intOp(2), rbx)
+	asm.ins(cmpq, intOp(2), rbx)
+	asm.ins(je, labelOp(exit))
 
 	// header.marked = true
-	asm.ins(orq, op(intOp(1), rax.deref()), na)
+	asm.ins(orq, intOp(1), rax.deref())
 
 	switch t.Kind {
 	case String, Array:
@@ -238,12 +237,12 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 		// Invoke GC for pointer fields
 		for _, f := range t.AsStruct().Fields {
 			if f.Type.IsPointer() {
-				asm.ins(movq, op(rbp.displace(-ptrSize), rdi), na)
-				asm.ins(addq, op(intOp(f.Addr), rdi), na) // Increment pointer to offset of field
+				asm.ins(movq, rbp.displace(-ptrSize), rdi)
+				asm.ins(addq, intOp(f.Addr), rdi) // Increment pointer to offset of field
 				if f.Type.Is(Function) {
-					asm.ins(call, op(fnOp(closureGc)), na)
+					asm.ins(call, fnOp(closureGc))
 				} else {
-					asm.ins(call, op(fnOp(f.Type.GcName())), na)
+					asm.ins(call, fnOp(f.Type.GcName()))
 				}
 			}
 		}
@@ -260,14 +259,14 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 func genDebugGcPrintf(asm asmWriter, template operand) {
 
 	exit := asm.newLabel("exit")
-	asm.ins(movabs, op(symOp("debugGc"), rax), na) // Defined in runtime.c!
-	asm.ins(movq, op(rax.deref(), rax), na)       // Get value
-	asm.ins(cmpq, op(_true, rax), na)
-	asm.ins(jne, op(labelOp(exit)), na)
-	asm.ins(movabs, op(template, rdi), na)
-	asm.ins(leaq, op(rdi.displace(8), rdi), na) // Skip past length!
-	asm.ins(movq, op(intOp(0), rax), na)
-	asm.ins(call, op(fnOp("printf")), na)
+	asm.ins(movabs, symOp("debugGc"), rax) // Defined in runtime.c!
+	asm.ins(movq, rax.deref(), rax)       // Get value
+	asm.ins(cmpq, _true, rax)
+	asm.ins(jne, labelOp(exit))
+	asm.ins(movabs, template, rdi)
+	asm.ins(leaq, rdi.displace(8), rdi) // Skip past length!
+	asm.ins(movq, intOp(0), rax)
+	asm.ins(call, fnOp("printf"))
 	asm.label(exit)
 
 }
@@ -278,18 +277,18 @@ func genClosureGc(asm asmWriter) {
 	exit := asm.newLabel("exit")
 
 	// Deref stack slot to get pointer
-	asm.ins(movq, op(rdi.deref(), rax), na)
+	asm.ins(movq, rdi.deref(), rax)
 
 	// Check for read-only (header & 2 == 2)
-	asm.ins(movq, op(rax.displace(-ptrSize), rbx), na)
-	asm.ins(andq, op(intOp(2), rbx), na)
-	asm.ins(cmpq, op(intOp(2), rbx), na)
-	asm.ins(je, op(labelOp(exit)), na)
+	asm.ins(movq, rax.displace(-ptrSize), rbx)
+	asm.ins(andq, intOp(2), rbx)
+	asm.ins(cmpq, intOp(2), rbx)
+	asm.ins(je, labelOp(exit))
 
 	// Get function pointer, load & call GC address (stored 16 bytes _behind_)
-	asm.ins(movq, op(rax.deref(), rax), na)
-	asm.ins(movq, op(rax.displace(-16), rax), na)
-	asm.ins(call, op(rax.indirect()), na)
+	asm.ins(movq, rax.deref(), rax)
+	asm.ins(movq, rax.displace(-16), rax)
+	asm.ins(call, rax.indirect())
 
 	asm.label(exit)
 	genFnExit(asm, true) // assembly defined caller
@@ -301,32 +300,32 @@ func genInvokeDynamic(asm asmWriter) {
 	fnPtrLabel := asm.newLabel("fnPtr")
 
 	// Check for read-only (header & 2 == 2)
-	asm.ins(movq, op(rdi.displace(-ptrSize), rax), na)
-	asm.ins(andq, op(intOp(2), rax), na)
-	asm.ins(cmpq, op(intOp(2), rax), na)
-	asm.ins(je, op(labelOp(fnPtrLabel)), na)
+	asm.ins(movq, rdi.displace(-ptrSize), rax)
+	asm.ins(andq, intOp(2), rax)
+	asm.ins(cmpq, intOp(2), rax)
+	asm.ins(je, labelOp(fnPtrLabel))
 
 	// ----------------------------------------------------------------------------
 	// Closure
-	asm.ins(movq, op(rdi.deref(), rax), na) // Deref closure to get func pointer
-	asm.ins(movq, op(rax, rbp.displace(-ptrSize)), na) // Copy func pointer to stack slot
-	asm.ins(movq, op(rdi.displace(ptrSize), rdi), na) // Deref closure to get env
-	asm.ins(jmp, op(labelOp(callLabel)), na)
+	asm.ins(movq, rdi.deref(), rax) // Deref closure to get func pointer
+	asm.ins(movq, rax, rbp.displace(-ptrSize)) // Copy func pointer to stack slot
+	asm.ins(movq, rdi.displace(ptrSize), rdi) // Deref closure to get env
+	asm.ins(jmp, labelOp(callLabel))
 
 	// ----------------------------------------------------------------------------
 	// Function Pointer
 	asm.label(fnPtrLabel)
-	asm.ins(movq, op(rdi, rbp.displace(-ptrSize)), na) // Copy *function to stack
-	asm.ins(movq, op(rsi, rdi), na)
-	asm.ins(movq, op(rdx, rsi), na)
-	asm.ins(movq, op(rcx, rdx), na)
-	asm.ins(movq, op(r8, rcx), na)
-	asm.ins(movq, op(r9, r8), na)
+	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy *function to stack
+	asm.ins(movq, rsi, rdi)
+	asm.ins(movq, rdx, rsi)
+	asm.ins(movq, rcx, rdx)
+	asm.ins(movq, r8, rcx)
+	asm.ins(movq, r9, r8)
 	// ----------------------------------------------------------------------------
 
 	// Make call
 	asm.label(callLabel)
-	asm.ins(call, op(rbp.displace(-ptrSize).indirect()), na)
+	asm.ins(call, rbp.displace(-ptrSize).indirect())
 	asm.addr(fnOp(noGc))
 	genFnExit(asm, false) // Called from Clara code
 }
@@ -334,8 +333,8 @@ func genInvokeDynamic(asm asmWriter) {
 func genFramePointerAccess(asm asmWriter) {
 	// Requires non-standard entry & exit!
 	asm.function("getFramePointer")
-	asm.ins(movq, op(rbp, rax), na)
-	asm.ins(ret, op(), na)
+	asm.ins(movq, rbp, rax)
+	asm.ins(ret, )
 }
 
 func genFnEntry(asm asmWriter, name string, temps int) {
@@ -343,35 +342,35 @@ func genFnEntry(asm asmWriter, name string, temps int) {
 		temps += 1 // ALIGNMENT: Ensure even $rsp increment
 	}
 	asm.function(name)
-	asm.ins(enter, op(intOp(temps*8), intOp(0)), na)
+	asm.ins(enter, intOp(temps*8), intOp(0))
 }
 
 func genFnExit(asm asmWriter, skipGc bool) {
-	asm.ins(leave, op(), na)
+	asm.ins(leave, )
 	if skipGc {
-		asm.ins(ret, op(), na)
+		asm.ins(ret, )
 		return
 	}
 	// Jump over frame GC function address
 	// TODO: Is there any way to compress this?
-	asm.ins(popq, op(rbx), na)
-	asm.ins(addq, op(intOp(ptrSize), rbx), na)
-	asm.ins(jmp, op(rbx.indirect()), na)
+	asm.ins(popq, rbx)
+	asm.ins(addq, intOp(ptrSize), rbx)
+	asm.ins(jmp, rbx.indirect())
 }
 
 func genIoobHandler(asm asmWriter) {
 
 	// rbx is index register. See: codegen.go:647
 	asm.label("ioob")
-	asm.ins(movq, op(rbx, rdi), na) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
-	asm.ins(call, op(fnOp("indexOutOfBounds")), na)
+	asm.ins(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
+	asm.ins(call, fnOp("indexOutOfBounds"))
 }
 
 func genConstructor(asm asmWriter, f *function, params []*Node) {
 
 	// Malloc memory of appropriate size
-	asm.ins(movq, op(intOp(f.Type.ret.AsStruct().Size()), rdi), na)
-	asm.ins(call, op(fnOp(claralloc)), na) // Implemented in lib/mem.clara
+	asm.ins(movq, intOp(f.Type.ret.AsStruct().Size()), rdi)
+	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
 	asm.addr(fnOp(f.NewGcFunction()))
 
 	// Copy stack values into fields
@@ -379,8 +378,8 @@ func genConstructor(asm asmWriter, f *function, params []*Node) {
 	for _, param := range params {
 		id := param.sym
 		// Can't move mem -> mem. Must go through a register.
-		asm.ins(movq, op(rbp.displace(-id.Addr), rbx), na)
-		asm.ins(movq, op(rbx, rax.displace(off)), na)
+		asm.ins(movq, rbp.displace(-id.Addr), rbx)
+		asm.ins(movq, rbx, rax.displace(off))
 		off += ptrSize
 	}
 
@@ -421,10 +420,10 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 	// Generate condition
 	genExpr(asm, n.left, 0, false, fn) // Left stores condition
 
-	asm.ins(cmpq, op(_true, rax), na)    // Pop result from stack to rax
-	asm.ins(jne, op(labelOp(exit)), na)  // Jump over block if not true
+	asm.ins(cmpq, _true, rax)    // Pop result from stack to rax
+	asm.ins(jne, labelOp(exit))  // Jump over block if not true
 	genStmtList(asm, n.stmts, fn)        // Generate stmts block
-	asm.ins(jmp, op(labelOp(start)), na) // Jump to start of loop
+	asm.ins(jmp, labelOp(start)) // Jump to start of loop
 	asm.label(exit)                      // Declare exit point
 }
 
@@ -432,7 +431,7 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Evaluate expression & save result to rcx
 	genExpr(asm, n.right, 0, false, fn)
-	asm.ins(movq, op(rax, rcx), na) // TODO: This is not safe because this register is used to pass parameters!
+	asm.ins(movq, rax, rcx) // TODO: This is not safe because this register is used to pass parameters!
 
 	// Evaluate mem location to store
 	slot := n.left
@@ -440,14 +439,14 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Check if int -> byte cast required
 	if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
-		asm.ins(movsbq, op(rcx._8bit(), rcx), na) // rcx = cl (sign extend lowest 8-bits into same reg), na)
+		asm.ins(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
 	}
 
 	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
 	if slot.sym.Type.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
-		asm.ins(movb, op(cl, rax.deref()), na) // [rax] = cl
+		asm.ins(movb, cl, rax.deref()) // [rax] = cl
 	} else {
-		asm.ins(movq, op(rcx, rax.deref()), na) // [rax] = rcx
+		asm.ins(movq, rcx, rax.deref()) // [rax] = rcx
 	}
 
 	// If decl & assign start tracking as gc root
@@ -470,11 +469,11 @@ func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 			// Create new label
 			next := asm.newLabel("else")
 
-			asm.ins(cmpq, op(_true, rax), na)   // Compare (true), na) to rax
-			asm.ins(jne, op(labelOp(next)), na) // Jump over block if not equal
+			asm.ins(cmpq, _true, rax)   // Compare (true) to rax
+			asm.ins(jne, labelOp(next)) // Jump over block if not equal
 
 			genStmtList(asm, cur.stmts, fn)     // Generate if (true) stmt block
-			asm.ins(jmp, op(labelOp(exit)), na) // Exit if/elseif/else block completely
+			asm.ins(jmp, labelOp(exit)) // Exit if/elseif/else block completely
 			asm.label(next)                     // Label to jump if false
 		} else {
 			genStmtList(asm, cur.stmts, fn) // Generate block without condition (else block)
@@ -500,7 +499,7 @@ func genPrepareResult(asm asmWriter, n *Node, fn *function) {
 
 	// Check if int -> byte cast required
 	if n.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
-		asm.ins(movsbq, op(rax._8bit(), rax), na)
+		asm.ins(movsbq, rax._8bit(), rax)
 	}
 }
 
@@ -513,7 +512,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		s = n.sym
 		fn = s.Type.AsFunction()
 	} else {
-		asm.ins(movq, op(rax, r15), na) // TODO: This is a callee saved register. If we use it, we should save it!
+		asm.ins(movq, rax, r15) // TODO: This is a callee saved register. If we use it, we should save it!
 		fn = n.left.typ.AsFunction()
 	}
 
@@ -531,29 +530,29 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
 		// means the value can be directly supplied to other libc functions without modification.
 		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal {
-			asm.ins(leaq, op(rax.displace(8), regs[i]), na)
+			asm.ins(leaq, rax.displace(8), regs[i])
 		} else {
-			asm.ins(movq, op(rax, regs[i]), na)
+			asm.ins(movq, rax, regs[i])
 		}
 
 		// Check if int -> byte cast required
 		if i < len(fn.Args) && arg.typ.Is(Integer) && fn.Args[i].Is(Byte) {
-			asm.ins(movsbq, op(regs[i]._8bit(), regs[i]), na)
+			asm.ins(movsbq, regs[i]._8bit(), regs[i])
 		}
 	}
 
 	// Variadic functions must set rax to number of floating point parameters
 	if fn.isVariadic {
-		asm.ins(movq, op(intOp(0), rax), na) // No floating-point register usage yet...
+		asm.ins(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
 	// Call function
 	if s == nil {
-		asm.ins(call, op(r15.indirect()), na) // anonymous func call: register indirect
+		asm.ins(call, r15.indirect()) // anonymous func call: register indirect
 	} else if s.IsStack {
-		asm.ins(call, op(rbp.displace(-s.Addr).indirect()), na) // Parameter func call: memory indirect
+		asm.ins(call, rbp.displace(-s.Addr).indirect()) // Parameter func call: memory indirect
 	} else {
-		asm.ins(call, op(fnOp(fn.AsmName(s.Name))), na) // Named func call
+		asm.ins(call, fnOp(fn.AsmName(s.Name))) // Named func call
 	}
 
 	// Only generate GC function addresses for Clara functions
@@ -570,17 +569,17 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	// Post-fix, depth first search!
 	if expr.right != nil {
 		genExpr(asm, expr.right, regsInUse, false, fn)
-		asm.ins(pushq, op(rax), na) // Push acc to stack
+		asm.ins(pushq, rax) // Push acc to stack
 
 		// ALIGNMENT: Ensure alignment is correct before evaluating left (as it may contain fn calls)
-		asm.ins(subq, op(intOp(8), rsp), na)
+		asm.ins(subq, intOp(8), rsp)
 	}
 	if expr.left != nil {
 		genExpr(asm, expr.left, regsInUse, false, fn)
 
 		// ALIGNMENT: Correct alignment now 'left' has been calculated
 		if expr.right != nil {
-			asm.ins(addq, op(intOp(8), rsp), na)
+			asm.ins(addq, intOp(8), rsp)
 		}
 	}
 
@@ -591,7 +590,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opLit:
 		switch expr.sym.Type.Kind {
 		case String:
-			asm.ins(movabs, op(stringOps[expr.sym.Name], rax), na)
+			asm.ins(movabs, stringOps[expr.sym.Name], rax)
 
 		case Byte, Integer:
 			// Parse
@@ -604,14 +603,14 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			if i > math.MaxInt32 {
 				ins = movabs
 			}
-			asm.ins(ins, op(strOp(expr.sym.Name), rax), na) // Push onto top of stack
+			asm.ins(ins, strOp(expr.sym.Name), rax) // Push onto top of stack
 
 		case Boolean:
 			v := _false
 			if expr.token.Val == "true" {
 				v = _true
 			}
-			asm.ins(movq, op(v, rax), na) // Push onto top of stack
+			asm.ins(movq, v, rax) // Push onto top of stack
 
 		default:
 			panic(fmt.Sprintf("Unknown type for literal: %v", expr.sym.Type.Kind))
@@ -619,66 +618,66 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	case opAdd:
 
-		asm.ins(addq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na)
+		asm.ins(addq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp)
 
 	case opSub:
 
-		asm.ins(subq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na)
+		asm.ins(subq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp)
 
 	case opMul:
 
 		// Result is: rdx(high-64 bits):rax(low 64-bits) TODO: We ignore high bits!
-		asm.ins(imulq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na)
+		asm.ins(imulq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp)
 
 	case opDiv:
 
 		// Result is: rdx(remainder):rax(quotient) TODO: We ignore remainder!
-		asm.ins(movq, op(_false, rdx), na)
-		asm.ins(idivq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na)
+		asm.ins(movq, _false, rdx)
+		asm.ins(idivq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp)
 
 	case opNot:
 
-		asm.ins(notq, op(rax), na)
-		asm.ins(andq, op(_true, rax), na)
+		asm.ins(notq, rax)
+		asm.ins(andq, _true, rax)
 
 	case opNeg:
 
-		asm.ins(negq, op(rax), na)
+		asm.ins(negq, rax)
 
 	case opGt:
 
-		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(setg, op(al), na)
-		asm.ins(andq, op(_true, rax), na) // Clear top bits
-		asm.ins(addq, op(intOp(8), rsp), na) // Pop
+		asm.ins(cmpq, rsp.deref(), rax)
+		asm.ins(setg, al)
+		asm.ins(andq, _true, rax) // Clear top bits
+		asm.ins(addq, intOp(8), rsp) // Pop
 
 	case opLt:
 
-		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(setl, op(al), na)
-		asm.ins(andq, op(_true, rax), na) // Clear top bits
-		asm.ins(addq, op(intOp(8), rsp), na) // Pop
+		asm.ins(cmpq, rsp.deref(), rax)
+		asm.ins(setl, al)
+		asm.ins(andq, _true, rax) // Clear top bits
+		asm.ins(addq, intOp(8), rsp) // Pop
 
 	case opEq:
 
-		asm.ins(cmpq, op(rsp.deref(), rax), na)
-		asm.ins(sete, op(al), na)
-		asm.ins(andq, op(_true, rax), na) // Clear top bits
-		asm.ins(addq, op(intOp(8), rsp), na) // Pop
+		asm.ins(cmpq, rsp.deref(), rax)
+		asm.ins(sete, al)
+		asm.ins(andq, _true, rax) // Clear top bits
+		asm.ins(addq, intOp(8), rsp) // Pop
 
 	case opAnd:
 
-		asm.ins(andq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na) // Pop
+		asm.ins(andq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp) // Pop
 
 	case opOr:
 
-		asm.ins(orq, op(rsp.deref(), rax), na)
-		asm.ins(addq, op(intOp(8), rsp), na) // Pop
+		asm.ins(orq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp) // Pop
 
 	case opIdentifier:
 
@@ -689,13 +688,13 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			if takeAddr {
 				inst = leaq
 			}
-			asm.ins(inst, op(rbp.displace(-v.Addr), rax), na)
+			asm.ins(inst, rbp.displace(-v.Addr), rax)
 
 		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
-			asm.ins(movabs, op(symOp(v.Type.AsFunction().AsmName(v.Name)), rax), na)
+			asm.ins(movabs, symOp(v.Type.AsFunction().AsmName(v.Name)), rax)
 
 		default: // Struct field operand
-			asm.ins(movq, op(intOp(v.Addr), rax), na)
+			asm.ins(movq, intOp(v.Addr), rax)
 		}
 
 	case opFuncCall:
@@ -708,31 +707,31 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		if takeAddr {
 			inst = leaq
 		}
-		asm.ins(popq, op(rbx), na)
-		asm.ins(inst, op(rax.offset(rbx), rax), na)
+		asm.ins(popq, rbx)
+		asm.ins(inst, rax.offset(rbx), rax)
 
 	case opArray:
 
 		width := expr.typ.Width()
 
-		asm.ins(popq, op(rbx), na) // stack(index), na) -> rbx
+		asm.ins(popq, rbx) // stack(index) -> rbx
 
 		// Bounds check
 		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
-		asm.ins(cmpq, op(rax.deref(), rbx), na) // index - array.length
-		asm.ins(jae, op(labelOp("ioob")), na)   // Defined in runtime.c
+		asm.ins(cmpq, rax.deref(), rbx) // index - array.length
+		asm.ins(jae, labelOp("ioob"))   // Defined in runtime.c
 
 		// Displace + 8 to skip over length
 		if takeAddr {
-			asm.ins(leaq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = [rax + rbx * width + 8]
+			asm.ins(leaq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = [rax + rbx * width + 8]
 		} else {
 
 			// Read value according to width
 			switch width {
 			case 1:
-				asm.ins(movsbq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8)]
+				asm.ins(movsbq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			case 8:
-				asm.ins(movq, op(rax.offset(rbx).multiplier(width).displace(8), rax), na) // rax = load[rax(*array) + (rbx(index) * width + 8)]
+				asm.ins(movq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			default:
 				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
 			}
@@ -747,11 +746,11 @@ func restore(asm asmWriter, regPos int) {
 	if regPos > 0 {
 		asm.raw("#----------------------------- Restore")
 		for i := regPos; i > 0; i-- {
-			asm.ins(popq, op(regs[i-1]), na) // Pop stack into reg
+			asm.ins(popq, regs[i-1]) // Pop stack into reg
 		}
 		// ALIGNMENT: Restore $rsp after function call
 		if regPos % 2 != 0 {
-			asm.ins(addq, op(intOp(8), rsp), na)
+			asm.ins(addq, intOp(8), rsp)
 		}
 		asm.raw("#------------------------------------#")
 	}
@@ -762,15 +761,11 @@ func spill(asm asmWriter, regPos int) {
 		asm.raw("#------------------------------- Spill")
 		// ALIGNMENT: Ensure even $rsp before function call
 		if regPos % 2 != 0 {
-			asm.ins(subq, op(intOp(8), rsp), na)
+			asm.ins(subq, intOp(8), rsp)
 		}
 		for i := 0; i < regPos; i++ {
-			asm.ins(pushq, op(regs[i]), na) // Push reg onto stack
+			asm.ins(pushq, regs[i]) // Push reg onto stack
 		}
 		asm.raw("#------------------------------------#")
 	}
-}
-
-func op(ops ...operand) []operand {
-	return ops
 }
