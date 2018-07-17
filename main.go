@@ -202,10 +202,10 @@ func stdSyms() []*Symbol {
 			&FunctionType{ Args: []*Type{}, ret: nothingType} } },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: []*Type { stringType, stringType }, ret: nothingType, isVariadic: true, IsExternal: true }}},
+			&FunctionType{ Args: []*Type { stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
 		// printf (from libc)
 		{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-		&FunctionType{ Args: []*Type { stringType }, ret: nothingType, isVariadic: true, IsExternal: true }}},
+		&FunctionType{ Args: []*Type { stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
 	}
 }
 

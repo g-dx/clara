@@ -129,7 +129,10 @@ loop:
 
 func processFnType(n *Node, symName string, symtab *SymTab) (error) {
 	// Add actual symbol and link to existing symbol if already present
-	fnType := &FunctionType{IsExternal: n.op == opExternFnDcl}
+	fnType := &FunctionType{Kind: Normal}
+	if n.op == opExternFnDcl {
+		fnType.Kind = External
+	}
 	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
 	if s, found := symtab.Define(sym); found {
 		for ; s.Next != nil; s = s.Next { /* ... */ }
@@ -239,8 +242,10 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 			clFn.sym.Name = clFn.token.Val
 			rootNode.Add(clFn)
 
-			// Store GC func for closure struct as part of closure func. This is used during codegen.
-			clFn.typ.AsFunction().gcFunc = cl.Type.GcName()
+			// Update function type information to record closure info
+			fnType := clFn.sym.Type.AsFunction()
+			fnType.Kind = Closure
+			fnType.Data = &ClosureFunc{ gcFunc: cl.Type.GcName() } // GC func used during code gen
 
 			// Build AST to capture free variables
 			var envArgs []*Node
@@ -463,7 +468,7 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 
 	// Create & define symbol
 	fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
-	&FunctionType{ Args: args, isConstructor: true, ret: n.sym.Type, }}}
+	&FunctionType{ Args: args, ret: n.sym.Type, Kind: StructCons }}}
 	root.symtab.Define(fnSym)
 
 	// Add AST node

@@ -93,7 +93,7 @@ func genFunc(asm asmWriter, n *Node) {
 	fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction(), gcRoots: &GcState{}, gcFns: make(map[string]GcRoots) }
 
 	// Ensure we only generate code for "our" functions
-	if !fn.Type.IsExternal {
+	if !fn.Type.IsExternal() {
 
 		// Assign stack offsets for temporaries
 		temps := len(fn.Type.Args)
@@ -107,8 +107,8 @@ func genFunc(asm asmWriter, n *Node) {
 		})
 
 		// If this function is a closure output the address of the tracing function before it
-		if len(fn.Type.gcFunc) > 0 {
-			asm.addr(fnOp(fn.Type.gcFunc))
+		if fn.Type.IsClosure() {
+			asm.addr(fnOp(fn.Type.AsClosure().gcFunc))
 		}
 
 		// Generate standard entry sequence
@@ -124,7 +124,7 @@ func genFunc(asm asmWriter, n *Node) {
 		}
 
 		// Generate functions
-		if fn.Type.isConstructor {
+		if fn.Type.IsStructCons() {
 			genConstructor(asm, fn, n.params)
 		} else {
 			// Generate code for all statements
@@ -529,7 +529,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 
 		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
 		// means the value can be directly supplied to other libc functions without modification.
-		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal {
+		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal() {
 			asm.ins(leaq, rax.displace(8), regs[i])
 		} else {
 			asm.ins(movq, rax, regs[i])
@@ -556,7 +556,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 	}
 
 	// Only generate GC function addresses for Clara functions
-	if !fn.IsExternal {
+	if !fn.IsExternal() {
 		asm.addr(fnOp(f.NewGcFunction()))
 	}
 

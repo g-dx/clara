@@ -206,18 +206,25 @@ func (st *StructType) Size() int {
 
 //----------------------------------------------------------------------------------------------------------------------
 
+type FuncKind byte
+const (
+	Normal = FuncKind(iota)
+	External // Provided at linktime - no code gen required
+	Closure
+	StructCons
+)
+
 type FunctionType struct {
+	Kind          FuncKind
+	Data          interface{}
 	Args          []*Type
 	ret           *Type
-	gcFunc        string  // stores name of GC func for closure
 	isVariadic    bool
-	isConstructor bool
-	IsExternal 	  bool  // Provided at linktime - no code gen required
 }
 
 // Used during codegen to avoid clashes with shared library functions
 func (ft *FunctionType) AsmName(name string) string {
-	if ft.IsExternal {
+	if ft.IsExternal() {
 		return name
 	}
 	if name == "main" {
@@ -235,7 +242,7 @@ func (ft *FunctionType) AsmName(name string) string {
 }
 
 func (ft *FunctionType) Describe(name string) string {
-	if ft.IsExternal {
+	if ft.IsExternal() {
 		return fmt.Sprintf("%v (external)", name)
 	}
 
@@ -249,6 +256,28 @@ func (ft *FunctionType) Describe(name string) string {
 	buf.WriteString(strings.Join(types, ", "))
 	buf.WriteString(")")
 	return buf.String()
+}
+
+func (ft *FunctionType) IsExternal() bool {
+	return ft.Kind == External
+}
+
+func (ft *FunctionType) IsStructCons() bool {
+	return ft.Kind == StructCons
+}
+
+func (ft *FunctionType) IsClosure() bool {
+	return ft.Kind == Closure
+}
+
+func (ft *FunctionType) AsClosure() *ClosureFunc {
+	return ft.Data.(*ClosureFunc)
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type ClosureFunc struct {
+	gcFunc string  // stores name of GC func for closure
 }
 
 //----------------------------------------------------------------------------------------------------------------------
