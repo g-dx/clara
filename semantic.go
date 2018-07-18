@@ -444,7 +444,7 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 	if _, found := root.symtab.Resolve(constructorName); found {
 		var n *Node
 		for _, x := range root.stmts {
-			if (x.op == opBlockFnDcl || x.op == opExprFnDcl || x.op == opExternFnDcl) && x.token.Val == constructorName {
+			if x.isFuncDcl() && x.token.Val == constructorName {
 				n = x
 				break
 			}
@@ -472,7 +472,7 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 	root.symtab.Define(fnSym)
 
 	// Add AST node
-	root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opBlockFnDcl, params: params, sym: fnSym})
+	root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opConsFnDcl, params: params, sym: fnSym})
 	return fnSym, nil
 }
 

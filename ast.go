@@ -54,6 +54,15 @@ func (n *Node) isReadOnly() bool {
 	}
 }
 
+func (n *Node) isFuncDcl() bool {
+	switch n.op {
+	case opBlockFnDcl, opExprFnDcl, opExternFnDcl, opConsFnDcl:
+		return true
+	default:
+		return false
+	}
+}
+
 func (n *Node) isTerminating() bool {
 
 	switch n.op {
@@ -189,6 +198,7 @@ const (
 	opBlockFnDcl  = iota
 	opExprFnDcl
 	opExternFnDcl
+	opConsFnDcl
 	opFuncCall
 	opLit
 	opAdd

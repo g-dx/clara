@@ -307,7 +307,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 	case opStructDcl:
 		// Nothing to do...
 
-	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
+	case opBlockFnDcl, opExternFnDcl, opExprFnDcl, opConsFnDcl:
 
 		// Closures will not have been annotated yet. Do it now.
 		if n.sym == nil {

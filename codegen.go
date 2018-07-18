@@ -69,7 +69,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Output func calls
 	asm.tab(".text")
 	for _, n := range tree {
-		if n.op == opBlockFnDcl || n.op == opExprFnDcl {
+		if n.isFuncDcl() {
 			genFunc(asm, n)
 		}
 	}
