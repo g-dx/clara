@@ -117,7 +117,7 @@ loop:
 
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
-			err := processFnType(n, n.token.Val, symtab)
+			_, err := processFnType(n, n.token.Val, symtab, true)
 			if err != nil {
 				errs = append(errs, err)
 				continue loop
@@ -127,7 +127,7 @@ loop:
 	return errs
 }
 
-func processFnType(n *Node, symName string, symtab *SymTab) (error) {
+func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) (*FunctionType, error) {
 	// Add actual symbol and link to existing symbol if already present
 	fnType := &FunctionType{Kind: Normal}
 	if n.op == opExternFnDcl {
@@ -135,6 +135,9 @@ func processFnType(n *Node, symName string, symtab *SymTab) (error) {
 	}
 	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
 	if s, found := symtab.Define(sym); found {
+		if !allowOverload {
+			return nil, semanticError(errRedeclaredMsg, n.token)
+		}
 		for ; s.Next != nil; s = s.Next { /* ... */ }
 		s.Next = sym
 	}
@@ -146,13 +149,13 @@ func processFnType(n *Node, symName string, symtab *SymTab) (error) {
 	for _, param := range n.params {
 		paramType, err := createType(child, param.left)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		sym, found := child.Define(&Symbol{Name: param.token.Val, Type: paramType})
 		param.sym = sym
 		param.typ = paramType
 		if found {
-			return semanticError(errRedeclaredMsg, param.token)
+			return nil, semanticError(errRedeclaredMsg, param.token)
 		}
 		fnType.Args = append(fnType.Args, paramType)
 	}
@@ -162,16 +165,16 @@ func processFnType(n *Node, symName string, symtab *SymTab) (error) {
 	if n.left != nil {
 		retType, err := createType(child, n.left)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		fnType.ret = retType
 	}
 
 	// Check for termination
 	if n.op == opBlockFnDcl && !fnType.ret.Is(Nothing) && !n.isTerminating() {
-		return semanticError(errMissingReturnMsg, n.token)
+		return nil, semanticError(errMissingReturnMsg, n.token)
 	}
-	return nil
+	return fnType, nil
 }
 
 func createType(symtab *SymTab, n *Node) (*Type, error) {

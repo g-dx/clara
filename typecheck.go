@@ -311,7 +311,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Closures will not have been annotated yet. Do it now.
 		if n.sym == nil {
-			err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab)
+			_, err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab, false)
 			if err != nil {
 				errs = append(errs, err)
 				goto end
