@@ -22,6 +22,7 @@ var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
 type TypeKind byte
 const (
 	Struct = TypeKind(iota)
+	Enum
 	Function
 	Integer
 	Byte
@@ -33,6 +34,7 @@ const (
 
 var typeKindNames = map[TypeKind]string {
 	Struct:   "struct",
+	Enum:     "enum",
 	Function: "function",
 	Integer:  "int",
 	Byte:     "byte",
@@ -61,6 +63,8 @@ func (t *Type) Matches(x *Type) bool {
 	switch t.Kind {
 	case Struct:
 		return x.Kind == Struct && t.AsStruct().Name == x.AsStruct().Name
+	case Enum:
+		return x.Kind == Enum && t.AsEnum().Name == x.AsEnum().Name
 	case Integer, Byte:
 		return x.Kind == Integer || x.Kind == Byte // Int & bytes can be used interchangeably...
 	case Boolean, String, Nothing:
@@ -110,11 +114,15 @@ func (t *Type) IsFunction(kind TypeKind) bool {
 }
 
 func (t *Type) IsPointer() bool {
-	return t.Is(Array) || t.Is(Struct) || t.Is(String) || t.Is(Function)
+	return t.Is(Array) || t.Is(Struct) || t.Is(String) || t.Is(Function) || t.Is(Enum)
 }
 
 func (t *Type) AsStruct() *StructType {
 	return t.Data.(*StructType)
+}
+
+func (t *Type) AsEnum() *EnumType {
+	return t.Data.(*EnumType)
 }
 
 func (t *Type) AsFunction() *FunctionType {
@@ -129,6 +137,7 @@ func (t *Type) String() string {
 	switch t.Kind {
 	case Array: return t.Kind.String() + t.AsArray().Elem.String()
 	case Struct: return t.AsStruct().Name
+	case Enum: return t.AsEnum().Name
 	case Function:
 		var types []string
 		fn := t.AsFunction()
@@ -152,6 +161,7 @@ func (t *Type) AsmName() string {
 	switch t.Kind {
 	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
 	case Struct: return t.AsStruct().Name
+	case Enum: return t.AsEnum().Name
 	case Function:
 		fn := t.AsFunction()
 		buf := bytes.NewBufferString("fn")
@@ -172,7 +182,7 @@ func (t *Type) Width() int {
 	switch x := t.Data.(type) {
 	case *IntType: return x.Width
 	case *BoolType: return x.Width
-	case *StructType, *StringType, *ArrayType: return ptrSize
+	case *StructType, *EnumType, *StringType, *ArrayType: return ptrSize
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
@@ -200,8 +210,11 @@ func (st *StructType) HasField(name string) bool {
 	return st.GetField(name) != nil
 }
 
-func (st *StructType) Size() int {
-	return len(st.Fields) * ptrSize
+//----------------------------------------------------------------------------------------------------------------------
+
+type EnumType struct {
+	Name    string
+	Members []*FunctionType
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -212,6 +225,7 @@ const (
 	External // Provided at linktime - no code gen required
 	Closure
 	StructCons
+	EnumCons
 )
 
 type FunctionType struct {
@@ -266,6 +280,10 @@ func (ft *FunctionType) IsStructCons() bool {
 	return ft.Kind == StructCons
 }
 
+func (ft *FunctionType) IsEnumCons() bool {
+	return ft.Kind == EnumCons
+}
+
 func (ft *FunctionType) IsClosure() bool {
 	return ft.Kind == Closure
 }
@@ -274,10 +292,20 @@ func (ft *FunctionType) AsClosure() *ClosureFunc {
 	return ft.Data.(*ClosureFunc)
 }
 
+func (ft *FunctionType) AsEnumCons() *EnumConsFunc {
+	return ft.Data.(*EnumConsFunc)
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type ClosureFunc struct {
 	gcFunc string  // stores name of GC func for closure
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type EnumConsFunc struct {
+	Tag int
 }
 
 //----------------------------------------------------------------------------------------------------------------------

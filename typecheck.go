@@ -304,7 +304,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 		n.typ = boolType
 
-	case opStructDcl:
+	case opStructDcl, opEnumDcl:
 		// Nothing to do...
 
 	case opBlockFnDcl, opExternFnDcl, opExprFnDcl, opConsFnDcl:

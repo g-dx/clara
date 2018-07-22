@@ -130,7 +130,7 @@ func (n *Node) isNonGlobalFnCall() bool {
 
 func (n *Node) typeName() string {
 	switch n.op {
-	case opStructDcl:
+	case opStructDcl, opEnumDcl:
 		return n.token.Val
 		
 	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
@@ -228,12 +228,14 @@ const (
 	opError
 	opRoot
 	opStructDcl
+	opEnumDcl
 )
 
 var nodeTypes = map[int]string{
 	opBlockFnDcl:  "Block Fn Decl",
 	opExternFnDcl: "Extern Fn Decl",
 	opExprFnDcl:   "Expr Fn Decl",
+	opConsFnDcl:   "Cons Fn Decl",
 	opFuncCall:    "Func Call",
 	opFuncType:    "Func Type",
 	opArrayType:   "Array Type",
@@ -262,6 +264,7 @@ var nodeTypes = map[int]string{
 	opError:      "(error)",
 	opRoot:       "<none>",
 	opStructDcl:  "Struct",
+	opEnumDcl:    "Enum",
 	opWhile:      "While",
 }
 

@@ -64,30 +64,62 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 }
 
 func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
-	// Add types and check for redeclares
 	for _, n := range rootNode.stmts {
+		var topType *Type
 		switch n.op {
+		case opEnumDcl:
+			topType = &Type{Kind: Enum, Data: &EnumType{Name: n.token.Val}}
+
 		case opStructDcl:
-			sym := &Symbol{Name: n.typeName(), IsGlobal: true, Type: &Type{Kind: Struct, Data: &StructType{Name: n.token.Val}}}
-			n.sym = sym
-			if _, found := symtab.Define(sym); found {
-				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
-			}
+			topType = &Type{Kind: Struct, Data: &StructType{Name: n.token.Val}}
+
 		case opBlockFnDcl, opExprFnDcl, opExternFnDcl:
-			// NOTE: This is simply a "marker" symbol used to check for redeclaration
-			if _, found := symtab.Define(&Symbol{Name: n.typeName(), Type: &Type{Kind: Nothing}}); found {
-				errs = append(errs, semanticError(errRedeclaredMsg, n.token))
-			}
+			// NOTE: This type is unimportant as function symbols created here
+			// are intended only to check for redeclares. The real function symbols
+			// are created later.
+			topType = &Type{Kind: Nothing}
+
+		default:
+			continue
+		}
+
+		// Build symbol & ensure unique
+		n.sym = &Symbol{Name: n.typeName(), IsGlobal: true, Type: topType}
+		if _, found := symtab.Define(n.sym); found {
+			errs = append(errs, semanticError(errRedeclaredMsg, n.token))
 		}
 	}
 	if len(errs) > 0 {
 		return errs
 	}
 
-	// Process structs & funcs
+	// Process structs, enums & funcs
 loop:
 	for _, n := range rootNode.stmts {
 		switch n.op {
+		case opEnumDcl:
+
+			// Process each member constructor
+			enumType := n.sym.Type.AsEnum()
+			for i, cons := range n.stmts {
+
+				// Build type info
+				consType, err := processFnType(cons, cons.token.Val, symtab, false) // Add to root symtab
+				if err != nil {
+					errs = append(errs, err)
+					continue loop
+				}
+
+				// Update function type information to record enum info
+				consType.Kind = EnumCons
+				consType.Data = &EnumConsFunc{ Tag: i }
+				enumType.Members = append(enumType.Members, consType)
+
+				// Move to root AST node
+				rootNode.Add(cons)
+			}
+			n.stmts = nil // Clear constructors
+
 		case opStructDcl:
 			s, _ := symtab.Resolve(n.token.Val)
 			strt := s.Type.AsStruct()

@@ -70,6 +70,7 @@ const (
 	Or
 	Struct
 	While
+	Enum
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -157,6 +158,7 @@ var key = map[string]Kind{
 	"or":     Or,
 	"struct": Struct,
 	"while":  While,
+	"enum":   Enum,
 }
 
 var KindValues = map[Kind]string{
@@ -196,6 +198,7 @@ var KindValues = map[Kind]string{
 	EOF:        "<EOF>",
 	Struct:     "struct",
 	While:      "while",
+	Enum:       "enum",
 	Err:        "<error>",
 }
 

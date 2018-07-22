@@ -20,3 +20,4 @@ DONE:
 - add single register stack machine in code gen
 - Add support for anonymous functions
 - Add support for closures
+- Add enums

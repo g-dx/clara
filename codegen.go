@@ -124,7 +124,7 @@ func genFunc(asm asmWriter, n *Node) {
 		}
 
 		// Generate functions
-		if fn.Type.IsStructCons() {
+		if fn.Type.IsStructCons() || fn.Type.IsEnumCons() {
 			genConstructor(asm, fn, n.params)
 		} else {
 			// Generate code for all statements
@@ -246,8 +246,57 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 				}
 			}
 		}
+	case Enum:
+
+		// Jump to switch start
+		gcEnumStart := asm.newLabel("gc_enum_start")
+		asm.ins(jmp, labelOp(gcEnumStart))
+
+		// Generate tracing code for each member
+		var entries []string
+		for _, cons := range t.AsEnum().Members {
+
+			// Output label
+			tag := cons.AsEnumCons().Tag
+			gcEnumCase := asm.newLabel(fmt.Sprintf("gc_enum_case_%v", tag))
+			entries = append(entries, gcEnumCase)
+			asm.label(gcEnumCase)
+
+			// Process pointer args
+			for i, arg := range cons.Args {
+				if arg.IsPointer() {
+					asm.ins(movq, rbp.displace(-ptrSize), rdi)
+					asm.ins(addq, intOp((i+1) * ptrSize), rdi)
+					if arg.Is(Function) {
+						asm.ins(call, fnOp(closureGc))
+					} else {
+						asm.ins(call, fnOp(arg.GcName()))
+					}
+				}
+			}
+
+			// Finish
+			asm.ins(jmp, labelOp(exit))
+		}
+
+		// Create jump table
+		gcJmpTable := asm.newLabel("gc_enum_case_jmp_table")
+		asm.label(gcJmpTable)
+		for _, enumCase := range entries {
+			asm.raw(fmt.Sprintf("   .8byte   %v", enumCase)) // TODO: Fix symbol addressing in general!
+		}
+
+		// Jump to correct enum case
+		asm.label(gcEnumStart)
+		asm.ins(movq, rbp.displace(-ptrSize), rax) // Load pointer to enum
+		asm.ins(movq, rax.deref(), rax)            // Deref to get tag value
+		asm.ins(imulq, intOp(ptrSize), rax)        // Multiply tag by 8 to generate offset
+		asm.ins(movabs, litOp(gcJmpTable), rbx)    // Load 64-bit address of jump table
+		asm.ins(addq, rbx, rax)                    // Add offset to jump table base address
+		asm.ins(jmp, rax.deref().indirect())       // Go!
+
 	default:
-		panic(fmt.Sprintf("Unexpected type for GC: %v\n", t.AsmName()))
+		panic(fmt.Sprintf("Unexpected type for GC: %v (%v)\n", t.AsmName(), typeKindNames[t.Kind]))
 	}
 
 	// Exit
@@ -368,13 +417,25 @@ func genIoobHandler(asm asmWriter) {
 
 func genConstructor(asm asmWriter, f *function, params []*Node) {
 
+	size := ptrSize * len(params)
+	if f.Type.IsEnumCons() {
+		size += ptrSize // space for tag
+	}
+
 	// Malloc memory of appropriate size
-	asm.ins(movq, intOp(f.Type.ret.AsStruct().Size()), rdi)
+	asm.ins(movq, intOp(size), rdi)
 	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
 	asm.addr(fnOp(f.NewGcFunction()))
 
-	// Copy stack values into fields
 	off := 0
+
+	// Set tag (if required)
+	if f.Type.IsEnumCons() {
+		asm.ins(movq, intOp(f.Type.AsEnumCons().Tag), rax.displace(off))
+		off += ptrSize
+	}
+
+	// Copy stack values into fields
 	for _, param := range params {
 		id := param.sym
 		// Can't move mem -> mem. Must go through a register.

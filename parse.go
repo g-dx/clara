@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/g-dx/clarac/lex"
+	"strings"
 )
 
 const errSyntaxMsg = "%v:%d:%d: syntax error, Unexpected '%v', expected: '%v'"
@@ -41,14 +42,32 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 		case lex.Struct:
 			root.Add(p.parseStruct())
 
+		case lex.Enum:
+			root.Add(p.parseEnum())
+
 		default:
-			p.syntaxError(lex.KindValues[lex.Fn] + " or " + lex.KindValues[lex.Struct])
+			kinds := []string{lex.KindValues[lex.Fn], lex.KindValues[lex.Struct], lex.KindValues[lex.Enum]}
+			p.syntaxError(strings.Join(kinds, " or "))
 			p.next()
-			// TODO: p.sync(lex.Fn, lex.Struct)
+			// TODO: p.sync(lex.Fn, lex.Struct, lex.Enum)
 		}
 	}
 	p.need(lex.EOF)
 	return p.errs
+}
+
+func (p *Parser) parseEnum() *Node {
+	p.need(lex.Enum)
+	id := p.need(lex.Identifier)
+	p.need(lex.LBrace)
+	var cons []*Node
+	for p.isNot(lex.RBrace) {
+		cons = append(cons,
+			&Node{op: opConsFnDcl, token: p.need(lex.Identifier), params: p.parseParameters(),
+				left: &Node{op: opNamedType, token: id}})
+	}
+	p.need(lex.RBrace)
+	return &Node{op: opEnumDcl, token: id, stmts: cons}
 }
 
 func (p *Parser) parseStruct() *Node {
