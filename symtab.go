@@ -217,6 +217,15 @@ type EnumType struct {
 	Members []*FunctionType
 }
 
+func (et *EnumType) HasMember(fn *FunctionType) bool {
+	for _, con := range et.Members {
+		if con == fn {
+			return true
+		}
+	}
+	return false
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type FuncKind byte

@@ -18,3 +18,5 @@ cannot be found by examining the 'main' stackframe (it will be once we enter fun
 
 To fix this GC root tracking must also be mark any pointer values which have been spilled to the stack as
 live.
+- Ensure all matching is exhaustive. To support ignoring cases we are not interested in a new 'remaining'
+keyword will likely be required.

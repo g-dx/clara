@@ -1,0 +1,68 @@
+fn main() {
+
+    // Check standard usage
+    eval(Case1(2, 4, 8))                       // EXPECT: 64
+    eval(Case2("Hello".append(" "), "World!")) // EXPECT: Hello World!
+    eval(Case3(S(true, 10, "Yo!")))            // EXPECT: true,10,Yo!
+    eval(Case4(Basic("Another enum!")))        // EXPECT: Another enum!
+    eval(Case5(fn() {
+        printf("Bonjour!\n")                   // EXPECT: Bonjour!
+    }))
+    x := 10
+    eval(Case5(fn() {
+        printf("x = %d\n", x)                  // EXPECT: x = 10
+    }))
+
+
+    // Check no output
+    match(Case1(1, 2, 3)) {
+        case Case3(st):
+            // Not evaluated...
+    }
+}
+
+fn eval(e: enum1) {
+    match e {
+        case Case1(x, y, z):
+            printf("%d\n", x * y * z)
+
+        case Case2(s1, s2):
+            printf("%s\n", s1.append(s2))
+
+        case Case3(st):
+            printf("%s,%d,%s\n", st.b.toString(), st.i, st.s)
+
+        case Case4(e):
+            match e {
+                case Basic(s):
+                    printf("%s\n", s)
+            }
+        case Case5(f):
+            f()
+    }
+}
+
+enum enum1 {
+    Case1(x: int, y: int, z: int)
+    Case2(s1: string, s2: string)
+    Case3(st1: s)
+    Case4(e: enum2)
+    Case5(f: fn())
+}
+
+enum enum2 {
+    Basic(s: string)
+}
+
+struct s {
+    b: bool
+    i: int
+    s: string
+}
+
+fn toString(b: bool) string {
+    if b {
+        return "true"
+    }
+    return "false"
+}

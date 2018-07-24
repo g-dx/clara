@@ -1,0 +1,15 @@
+
+// Runtime representation of enums
+struct enum_ {
+   tag: int
+    _0: int
+    _1: int
+    _2: int
+    _3: int
+    _4: int
+    // Max of 5 fields/parameters
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// External Functions
+fn asEnum(ptr: int) enum_

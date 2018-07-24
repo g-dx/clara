@@ -71,6 +71,8 @@ const (
 	Struct
 	While
 	Enum
+	Match
+	Case
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -159,6 +161,8 @@ var key = map[string]Kind{
 	"struct": Struct,
 	"while":  While,
 	"enum":   Enum,
+	"match":  Match,
+	"case":   Case,
 }
 
 var KindValues = map[Kind]string{
@@ -199,6 +203,8 @@ var KindValues = map[Kind]string{
 	Struct:     "struct",
 	While:      "while",
 	Enum:       "enum",
+	Match:      "match",
+	Case:       "case",
 	Err:        "<error>",
 }
 

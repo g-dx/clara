@@ -107,6 +107,8 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Post-typecheck AST rewrite
+	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, declareCaseVars)...)
+	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, lowerMatchStatement)...)
 	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, rewriteAnonFnAndClosures)...)
 	if len(errs) > 0 {
 		return "", errs

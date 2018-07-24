@@ -493,6 +493,83 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// TODO: Decide what to do here...
 		goto end
 
+	case opMatch:
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		// Handle cases
+		for _, caseBlock := range n.stmts {
+			errs = append(errs, typeCheck(caseBlock, symtab, fn, debug)...)
+		}
+
+		// Ensure enum type
+		if !left.typ.Is(Enum) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, "<enum>"))
+			goto end
+		}
+
+		enum := left.typ.AsEnum()
+		cases := make(map[*FunctionType]bool)
+		for _, cons := range n.stmts {
+			if cons.sym == nil {
+				continue
+			}
+
+			// Ensure cons function belong to this enum
+			if !enum.HasMember(cons.sym.Type.AsFunction()){
+				errs = append(errs, semanticError2(errUnknownEnumCaseMsg, cons.token, cons.token.Val, left.typ))
+				continue
+			}
+
+			// Check no repeated cases
+			fn := cons.sym.Type.AsFunction()
+			if _, ok := cases[fn]; ok {
+				errs = append(errs, semanticError2(errRedeclaredMsg, cons.token, cons.token.Val))
+				continue
+			}
+			cases[fn] = true
+		}
+
+		// TODO: Check all cases are handled or "remaining" keyword has been used
+
+	case opCase:
+
+		// Attempt to find constructor
+		sym, ok := symtab.Resolve(n.token.Val)
+		if !ok || !sym.Type.Is(Function) || !sym.Type.AsFunction().IsEnumCons() {
+			errs = append(errs, semanticError(errNotAnEnumCaseMsg, n.token))
+			goto end
+		}
+		n.sym = sym
+
+		// Ensure correct number of args
+		cons := sym.Type.AsFunction()
+		if len(cons.Args) != len(n.params) {
+			errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.params), len(cons.Args)))
+			goto end
+		}
+
+		// Assign types and check for redeclares
+		child := symtab.Child()
+		n.symtab = child
+		for i, arg := range n.params {
+			sym := &Symbol{Name: arg.token.Val, Type: cons.Args[i], IsStack: true}
+			if _, ok := child.Define(sym); ok {
+				errs = append(errs, semanticError(errRedeclaredMsg, arg.token))
+				continue
+			}
+			arg.sym = sym
+			arg.typ = sym.Type
+		}
+
+		// Type check statements
+		for _, stmt := range n.stmts {
+			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
+		}
+
 	default:
 		panic(fmt.Sprintf("Node type [%v] not processed during type check!", nodeTypes[n.op]))
 	}

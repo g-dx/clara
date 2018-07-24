@@ -31,6 +31,10 @@ const (
 	errNotWritableAssignMsg    = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
 	errMissingReturnMsg 	   = "%v:%d:%d: error, missing return for function '%v'"
 	errIntegerOverflowMsg 	   = "%v:%d:%d: error, constant '%v' overflow integer type"
+	errUnknownEnumCaseMsg      = "%v:%d:%d: error, unknown case '%v' for enum '%v'"
+	errNotAnEnumCaseMsg        = "%v:%d:%d: error, '%v' is not an enum case"
+	errTooManyCaseArgsMsg      = "%v:%d:%d: error, '%v' exceeds maximum argument count"
+	maxCaseArgCount            = 5
 
 	// Debug messages
 	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"
@@ -108,6 +112,10 @@ loop:
 				if err != nil {
 					errs = append(errs, err)
 					continue loop
+				}
+				if len(consType.Args) > maxCaseArgCount {
+					errs = append(errs, semanticError(errTooManyCaseArgsMsg, cons.token))
+					continue
 				}
 
 				// Update function type information to record enum info
@@ -448,6 +456,103 @@ func foldConstants(root *Node, symtab *SymTab, n *Node) error {
 		if err != nil {
 			return semanticError(errIntegerOverflowMsg, n.token)
 		}
+	}
+	return nil
+}
+
+func declareCaseVars(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opMatch {
+
+		// AST: case <ident>(<var1>, <var2>, etc...): -> <var1> = asEnum(e)._1, <var2> = asEnum(e)._2, etc...
+		asEnum := symtab.MustResolve("asEnum")
+		enum := symtab.MustResolve("enum_").Type.AsStruct()
+		for _, cas := range n.stmts {
+			var vars []*Node
+			for i, v := range cas.params {
+				field := fmt.Sprintf("_%v", i)
+				vars = append(vars,
+					&Node {op: opDas, left: v, right:
+						&Node {op: opDot,
+							left: &Node {op: opFuncCall, sym: asEnum, stmts: []*Node{n.left}},
+							right: &Node {op: opIdentifier, sym: enum.GetField(field)},
+						},
+					})
+			}
+			cas.stmts = append(vars, cas.stmts...)
+			cas.params = nil
+		}
+	}
+	return nil
+}
+
+
+func lowerMatchStatement(root *Node, symtab *SymTab, n *Node) error {
+	if n.op == opMatch {
+
+		// AST:
+		// match <expr> {
+		//   case First(...):
+		//
+		//   case Second(...):
+		//
+		// }
+		//
+		// ->
+		//
+		// {
+		//   $tmp1 := <expr>
+		//   if asEnum($tmp1).Tag == First.Tag {
+		//
+		//   } else if asEnum($tmp1).Tag == Second.Tag {
+		//
+		//   }
+		// }
+
+		// Declare var for match expression result
+		matchVar := &Node{op: opIdentifier, sym: &Symbol{Name: "$tmp", Type: n.left.typ, IsStack: true}, typ: n.left.typ}
+		matchExpr := &Node{op: opDas, left: matchVar, right: n.left}
+
+		// Convert cases to if/else if
+		asEnum := symtab.MustResolve("asEnum")
+		enum := symtab.MustResolve("enum_").Type.AsStruct()
+		var cur *Node
+		for i, cas := range n.stmts {
+
+			// Create expr to compare tags
+			tag := cas.sym.Type.AsFunction().AsEnumCons().Tag
+			caseExpr := &Node{op: opEq,
+				left: &Node{op: opDot,
+					left: &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{matchVar}},
+					right: &Node{op: opIdentifier, sym: enum.GetField("tag")},
+				},
+				right: &Node{op: opLit, sym: &Symbol{Name: strconv.Itoa(tag), Type: intType}},
+				typ: boolType,
+			}
+
+			// opCase -> opIf/ElseIf
+			cas.left = caseExpr
+			cas.typ = nil
+			cas.sym = nil
+			cas.token = nil
+			cas.op = opElseIf
+			if i == 0 {
+				cas.op = opIf
+				cur = cas
+			} else {
+				cur.right = cas
+			}
+			cur = cas
+		}
+
+		// opMatch -> opBlock
+		n.op = opBlock
+		if len(n.stmts) > 0 {
+			n.stmts = []*Node{matchExpr, n.stmts[0]}
+		} else {
+			n.stmts = []*Node{matchExpr}
+		}
+		n.left = nil
+		n.token = nil
 	}
 	return nil
 }

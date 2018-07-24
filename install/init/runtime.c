@@ -95,3 +95,10 @@ intptr_t toHeader(intptr_t pointer) { return pointer; }
 // NOTE: codegen always increments the pointer by 8 when passing an array or string to an external function. This allows
 // printf to work. As such reverse that when returning the same pointer!
 intptr_t asString(intptr_t byteArray) { return byteArray - 8; }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// lib/enums.clara
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Casting support
+intptr_t asEnum(intptr_t pointer) { return pointer; }

@@ -156,6 +156,9 @@ func (p *Parser) parseStatement() *Node {
 			return expr
 		}
 
+	case kind == lex.Match:
+		return p.parseMatch()
+
 	default:
 		p.syntaxError("<statement>")
 		return &Node{op: opError, token: p.next()}
@@ -184,6 +187,27 @@ func (p *Parser) parseIf() *Node {
 		cur.right = &Node{op: opElse, token: p.need(lex.Else), stmts: p.parseBlock()}
 	}
 	return n
+}
+
+func (p *Parser) parseMatch() *Node {
+	tok := p.need(lex.Match)
+	expr := p.parseExpr(0)
+
+	// Parse each case block
+	var caseBlocks []*Node
+	p.need(lex.LBrace)
+	for p.isNot(lex.RBrace) {
+
+		p.need(lex.Case)
+		caseBlock := &Node{op: opCase, token: p.need(lex.Identifier), params: p.parseIdentifiers()}
+		p.need(lex.Colon)
+		for p.isNot(lex.Case, lex.RBrace) {
+			caseBlock.stmts = append(caseBlock.stmts, p.parseStatement())
+		}
+		caseBlocks = append(caseBlocks, caseBlock)
+	}
+	p.need(lex.RBrace)
+	return &Node{op: opMatch, token: tok, left: expr, stmts: caseBlocks}
 }
 
 func (p *Parser) parseAssignment(n *Node) *Node {
@@ -325,12 +349,22 @@ func (p *Parser) parseIndex() (*Node, *lex.Token) {
 	return idx, start
 }
 
-func (p *Parser) parseParameters() (x []*Node) {
+func (p *Parser) parseIdentifiers() []*Node {
+	return p.parseParenList(func() *Node {
+		return &Node{op: opIdentifier, token: p.need(lex.Identifier)}
+	})
+}
+
+func (p *Parser) parseParameters() []*Node {
+	return p.parseParenList(p.parseParameter)
+}
+
+func (p *Parser) parseParenList(n func() *Node) (x []*Node) {
 	p.need(lex.LParen)
 	if p.isNot(lex.RParen) {
-		x = append(x, p.parseParameter())
+		x = append(x, n())
 		for p.match(lex.Comma) {
-			x = append(x, p.parseParameter())
+			x = append(x, n())
 		}
 	}
 	p.need(lex.RParen)
