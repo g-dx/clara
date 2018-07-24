@@ -59,7 +59,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Does not promote type...
 
-	case opElse:
+	case opElse, opBlock:
 		// Type check body
 		child := symtab.Child()
 		for _, stmt := range n.stmts {

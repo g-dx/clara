@@ -464,6 +464,9 @@ func genStmtList(asm asmWriter, stmts []*Node, fn *function) {
 		case opWhile:
 			genWhileStmt(asm, stmt, fn)
 
+		case opBlock:
+			genStmtList(asm, stmt.stmts, fn)
+
 		default:
 			genExpr(asm, stmt, 0, false, fn)
 		}
