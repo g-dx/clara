@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
 	"math/rand"
+	"strings"
 )
 
 //---------------------------------------------------------------------------------------------------------------
@@ -188,108 +188,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		n.typ = n.sym.Type
 
 	case opFuncCall:
-		// Type check args
-		for _, arg := range n.stmts {
-			errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
-			if !arg.hasType() {
-				goto end
-			}
-		}
-
-		// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
-		if n.token.Val == "printf" || n.token.Val == "debug" {
-			s, _ := symtab.Resolve(n.token.Val)
-			n.sym = s
-			n.typ = nothingType
-			return
-		}
-
-		// 2 cases, either the function call is a named call (global, parameter, etc) or is
-		// an "anonymous" call from some expression evaluation (f(x)(y), etc)
-
-		if left != nil {
-
-			// Subexpression yields function
-			errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-			if !left.hasType() {
-				goto end
-			}
-
-			// Check we have a function
-			if !left.typ.Is(Function) {
-				var types []string
-				for _, arg := range n.stmts {
-					types = append(types, arg.typ.String())
-				}
-				errs = append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, fmt.Sprintf("fn(%v)", strings.Join(types, ","))))
-				goto end
-			}
-
-			// Check correct number of args
-			fn := left.typ.AsFunction()
-			if len(n.stmts) != len(fn.Args) {
-				errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Args)))
-				goto end
-			}
-
-			// Check all types match
-			for i, arg := range fn.Args {
-				if !n.stmts[i].typ.Matches(arg) {
-					errs = append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[i].token, n.stmts[i].typ, arg))
-					goto end
-				}
-			}
-			n.typ = fn.ret
-
-		} else {
-
-			// Attempt to resolve symbol
-			var match *Symbol
-		loop:
-			for s, _ := symtab.Resolve(n.token.Val); s != nil; s = s.Next {
-
-				// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
-				if s.Type == nil {
-					goto end
-				}
-
-				// Check is a function
-				if !s.Type.Is(Function) {
-					continue
-				}
-
-				// Check correct number of args
-				fn := s.Type.AsFunction()
-				if len(n.stmts) != len(fn.Args) {
-					continue
-				}
-
-				// Check all types match
-				for i, arg := range fn.Args {
-					if !n.stmts[i].typ.Matches(arg) {
-						continue loop
-					}
-				}
-
-				// Match found
-				match = s
-				break
-			}
-
-			// Couldn't resolve function
-			if match == nil {
-				var types []string = nil
-				for _, p := range n.stmts {
-					types = append(types, p.typ.String())
-				}
-				errs = append(errs, semanticError2(errResolveFunctionMsg, n.token, fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(types, ", "))))
-				goto end
-			}
-
-			// Finally set symbol on node
-			n.sym = match
-			n.typ = match.Type.AsFunction().ret
-		}
+		errs = append(errs, typeCheckFuncCall(n, symtab, symtab, fn, debug)...)
 
 	case opGt, opLt, opEq:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
@@ -580,6 +479,111 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 	}
 
 end:
+	return errs
+}
+
+func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+
+	left := n.left
+
+	// Type check args
+	for _, arg := range n.stmts {
+		errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
+		if !arg.hasType() {
+			return errs
+		}
+	}
+
+	// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
+	if n.token.Val == "printf" || n.token.Val == "debug" {
+		s, _ := fnSymtab.Resolve(n.token.Val)
+		n.sym = s
+		n.typ = nothingType
+		return errs
+	}
+
+	// 2 cases, either the function call is a named call (global, parameter, etc) or is
+	// an "anonymous" call from some expression evaluation (f(x)(y), etc)
+
+	if left != nil {
+
+		// Subexpression yields function
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		if !left.hasType() {
+			return errs
+		}
+
+		// Check we have a function
+		if !left.typ.Is(Function) {
+			var types []string
+			for _, arg := range n.stmts {
+				types = append(types, arg.typ.String())
+			}
+			return append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, fmt.Sprintf("fn(%v)", strings.Join(types, ","))))
+		}
+
+		// Check correct number of args
+		fn := left.typ.AsFunction()
+		if len(n.stmts) != len(fn.Args) {
+			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Args)))
+		}
+
+		// Check all types match
+		for i, arg := range fn.Args {
+			if !n.stmts[i].typ.Matches(arg) {
+				return append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[i].token, n.stmts[i].typ, arg))
+			}
+		}
+		n.typ = fn.ret
+
+	} else {
+
+		// Attempt to resolve symbol
+		var match *Symbol
+	loop:
+		for s, _ := fnSymtab.Resolve(n.token.Val); s != nil; s = s.Next {
+
+			// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
+			if s.Type == nil {
+				return errs
+			}
+
+			// Check is a function
+			if !s.Type.Is(Function) {
+				continue
+			}
+
+			// Check correct number of args
+			fn := s.Type.AsFunction()
+			if len(n.stmts) != len(fn.Args) {
+				continue
+			}
+
+			// Check all types match
+			for i, arg := range fn.Args {
+				if !n.stmts[i].typ.Matches(arg) {
+					continue loop
+				}
+			}
+
+			// Match found
+			match = s
+			break
+		}
+
+		// Couldn't resolve function
+		if match == nil {
+			var types []string = nil
+			for _, p := range n.stmts {
+				types = append(types, p.typ.String())
+			}
+			return append(errs, semanticError2(errResolveFunctionMsg, n.token, fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(types, ", "))))
+		}
+
+		// Finally set symbol on node
+		n.sym = match
+		n.typ = match.Type.AsFunction().ret
+	}
 	return errs
 }
 
