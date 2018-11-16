@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"math"
+	"strconv"
 )
 
 var stringOps = make(map[string]operand)
@@ -22,7 +22,7 @@ var stringOps = make(map[string]operand)
 
 */
 
-var claralloc = "clara_claralloc.int" // NOTE: keep in sync with ASM name generation!
+var claralloc = "clara_ROOT.claralloc.int" // NOTE: keep in sync with ASM name generation!
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
@@ -73,19 +73,21 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 			genFunc(asm, n)
 		}
 	}
+	return nil
+}
 
+func codegen2(symtab *SymTab, asm asmWriter) {
+	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
+	asm.spacer()
 	genIoobHandler(asm);
 	asm.spacer()
 	genFramePointerAccess(asm)
-	asm.spacer()
-	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
 	asm.spacer()
 	genNoTraceGcFunc(asm) 	// No trace GC function
 	asm.spacer()
 	genInvokeDynamic(asm) // Closure invocation support
 	asm.spacer()
 	genClosureGc(asm) // Closure GC tracing support
-	return nil
 }
 
 func genFunc(asm asmWriter, n *Node) {

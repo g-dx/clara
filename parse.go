@@ -22,7 +22,7 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
+func (p *Parser) Parse(pkgs *Packages, tokens []*lex.Token) (errs []error) {
 
 	// Setup handler to recover from unexpected EOF
 	defer p.onUnexpectedEof(&errs)
@@ -33,17 +33,24 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 	p.errs = p.errs[:0]
 	p.discard = false
 
+	// Check for module declaration
+	pkg := p.parsePackage(pkgs)
+	p.parseImports(pkgs, pkg)
+
 	// loop over tokens
 	for p.isNot(lex.EOF) {
 		switch p.Kind() {
 		case lex.Fn:
-			root.Add(p.parseFn(false))
+			pkg.root.Add(p.parseFn(false))
 
 		case lex.Struct:
-			root.Add(p.parseStruct())
+			pkg.root.Add(p.parseStruct())
 
 		case lex.Enum:
-			root.Add(p.parseEnum())
+			pkg.root.Add(p.parseEnum())
+
+		case lex.Import, lex.Module:
+			// TODO: Error!
 
 		default:
 			kinds := []string{lex.KindValues[lex.Fn], lex.KindValues[lex.Struct], lex.KindValues[lex.Enum]}
@@ -54,6 +61,22 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 	}
 	p.need(lex.EOF)
 	return p.errs
+}
+
+func (p *Parser) parsePackage(pkgs *Packages) *Package {
+	pkg := pkgs.lookup("ROOT") // If none specified
+	if p.is(lex.Module) {
+		p.next()
+		pkg = pkgs.lookup(p.need(lex.Identifier).Val)
+	}
+	return pkg
+}
+
+func (p *Parser) parseImports(pkgs *Packages, pkg *Package) {
+	for p.is(lex.Import) {
+		p.next()
+		pkg.add(pkgs.lookup(p.need(lex.Identifier).Val))
+	}
 }
 
 func (p *Parser) parseEnum() *Node {
@@ -400,7 +423,16 @@ func (p *Parser) parseType() *Node {
 		p.need(lex.RBrack)
 		return &Node{op: opArrayType, token: t, left: p.parseType()}
 	case lex.Identifier:
-		return &Node{op: opNamedType, token: p.next()}
+		n := &Node{op: opNamedType, token: p.next()}
+		if p.is(lex.Dot) {
+			p.next()
+			// Convert to qualified type
+			n.left = n
+			n.left.op = opIdentifier
+			n.right = &Node{op: opIdentifier, token: p.need(lex.Identifier)}
+			n.op = opQualType
+		}
+		return n
 	default:
 		p.syntaxError("<type>")
 		return &Node{op: opError, token: p.next()}

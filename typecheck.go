@@ -10,14 +10,14 @@ import (
 
 //---------------------------------------------------------------------------------------------------------------
 
-func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+func typeCheck(pkg *Package, n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
 
 	left := n.left
 	right := n.right
 
 	switch n.op {
 	case opWhile:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -31,11 +31,11 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Type check body
 		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, stmt, child, fn, debug)...)
 		}
 
 	case opIf, opElseIf:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -49,12 +49,12 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Type check body
 		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, stmt, child, fn, debug)...)
 		}
 
 		// Type check next elseif case (if any)
 		if right != nil {
-			errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
 		}
 
 		// Does not promote type...
@@ -63,7 +63,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Type check body
 		child := symtab.Child()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, stmt, child, fn, debug)...)
 		}
 
 		// Does not promote type...
@@ -76,7 +76,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Check expression if any
 		if left != nil {
-			errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 			if !left.hasType() {
 				goto end
 			}
@@ -92,8 +92,8 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 
 	case opAnd, opOr, opAdd, opMul, opSub, opDiv:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -123,7 +123,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 	case opNot:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -137,7 +137,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 
 	case opNeg:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -188,11 +188,11 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		n.typ = n.sym.Type
 
 	case opFuncCall:
-		errs = append(errs, typeCheckFuncCall(n, symtab, symtab, fn, debug)...)
+		errs = append(errs, typeCheckFuncCall(pkg, n, symtab, symtab, fn, debug)...)
 
 	case opGt, opLt, opEq:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -210,7 +210,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Closures will not have been annotated yet. Do it now.
 		if n.sym == nil {
-			_, err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab, false)
+			_, err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), pkg, false)
 			if err != nil {
 				errs = append(errs, err)
 				goto end
@@ -221,7 +221,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Type check stmts
 		fn := n.sym.Type.AsFunction()
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, stmt, n.symtab, fn, debug)...)
 		}
 
 		// Check expression function return type
@@ -234,7 +234,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 	case opDot:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -253,13 +253,24 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 				n.stmts = right.stmts
 				n.left = &Node{ op: opDot, token: lex.WithVal(n.token, "."), left: left, right:
 					&Node{ op: opIdentifier, token: right.token }}
+			} else if left.sym.IsPackage {
+
+				n.stmts = right.stmts
+				n.left = nil
+
+				// Type check func call
+				pkgSymtab := left.sym.Pkg.root.symtab
+				errs = append(errs, typeCheckFuncCall(pkg, n, pkgSymtab, symtab, fn, debug)...)
+
 			} else {
+				// Get package of left type & set as
 				n.stmts = append([]*Node{n.left}, right.stmts...)
 				n.left = nil
+
+				// Type check func call
+				errs = append(errs, typeCheck(pkg, n, symtab, fn, debug)...)
 			}
 
-			// Type check func call
-			errs = append(errs, typeCheck(n, symtab, fn, debug)...)
 
 			// Handle field access on right
 		} else if right.op == opIdentifier {
@@ -305,8 +316,8 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 
 	case opArray:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
 
 		if !left.hasType() || !right.hasType() {
 			goto end
@@ -329,7 +340,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 	case opDas:
-		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
 
 		if !right.hasType() {
 			goto end
@@ -356,8 +367,8 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		// Does not promote type...
 
 	case opAs:
-		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, right, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !right.hasType() || !left.hasType() {
 			goto end
@@ -383,17 +394,23 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Does not promote type...
 
-	case opRoot:
-		for _, n := range n.stmts {
-			errs = append(errs, typeCheck(n, symtab, nil, debug)...)
+	case opRoot, opPackage:
+
+		// HORRIBLE HACK!
+		if n.params != nil {
+			return
 		}
+		for _, n := range n.stmts {
+			errs = append(errs, typeCheck(pkg, n, symtab, nil, debug)...)
+		}
+		n.params = make([]*Node, 1) // HORRIBLE HACK!
 
 	case opError:
 		// TODO: Decide what to do here...
 		goto end
 
 	case opMatch:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 
 		if !left.hasType() {
 			goto end
@@ -401,7 +418,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Handle cases
 		for _, caseBlock := range n.stmts {
-			errs = append(errs, typeCheck(caseBlock, symtab, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, caseBlock, symtab, fn, debug)...)
 		}
 
 		// Ensure enum type
@@ -466,7 +483,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Type check statements
 		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, child, fn, debug)...)
+			errs = append(errs, typeCheck(pkg, stmt, child, fn, debug)...)
 		}
 
 	default:
@@ -482,13 +499,13 @@ end:
 	return errs
 }
 
-func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+func typeCheckFuncCall(pkg *Package, n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
 
 	left := n.left
 
 	// Type check args
 	for _, arg := range n.stmts {
-		errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, arg, symtab, fn, debug)...)
 		if !arg.hasType() {
 			return errs
 		}
@@ -508,7 +525,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	if left != nil {
 
 		// Subexpression yields function
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+		errs = append(errs, typeCheck(pkg, left, symtab, fn, debug)...)
 		if !left.hasType() {
 			return errs
 		}

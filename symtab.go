@@ -1,7 +1,7 @@
 package main
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -56,9 +56,11 @@ func (tk TypeKind) String() string {
 
 type Type struct {
 	Kind TypeKind
+	Pkg *Package
 	Data interface{}
 }
 
+// TODO: type equality should compare packages!
 func (t *Type) Matches(x *Type) bool {
 	switch t.Kind {
 	case Struct:
@@ -243,6 +245,7 @@ type FunctionType struct {
 	Args          []*Type
 	ret           *Type
 	isVariadic    bool
+	pkg           string
 }
 
 // Used during codegen to avoid clashes with shared library functions
@@ -256,6 +259,10 @@ func (ft *FunctionType) AsmName(name string) string {
 
 	// Build name safe for usage in ASM
 	buf := bytes.NewBufferString(fnPrefix)
+	if len(ft.pkg) != 0 {
+		buf.WriteString(ft.pkg)
+		buf.WriteString(".")
+	}
 	buf.WriteString(name)
 	for _, arg := range ft.Args {
 		buf.WriteString(".")
@@ -354,6 +361,8 @@ type Symbol struct {
 	IsStack   bool
 	IsGlobal  bool
 	IsLiteral bool
+	IsPackage bool
+	Pkg       *Package
 	Type      *Type
 	Next 	  *Symbol // Only valid for function symbols!
 }

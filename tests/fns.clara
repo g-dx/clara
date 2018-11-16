@@ -58,83 +58,83 @@ fn main() {
         }
         return s.append(x(s))
     }
-    eval(a3("a")) // EXPECT: aaaa
-
-    // Anon return global
-    a4 := fn() fn(int) int = cube
-    eval(a4()(4)) // EXPECT: 64
-
-    // ------------------------------------------------------------------
-    // Closures
-    // ------------------------------------------------------------------
-    x := 8
-    y := 9
-    z := 10
-    str := "<closure>"
-
-    // Simple
-    c1 := fn(z: int) int = x * y * z // Ensure 'z' is not captured
-    eval(c1(5)) // EXPECT: 360
-    c2 := fn(a: string) string = a.append(str).append(a)
-    eval(c2("*")) // EXPECT: *<closure>*
-    c3 := fn(s: string) = printf("%s\n", s)
-    c3("Hello!")  // EXPECT: Hello!
-
-    // Immediate invocation
-    fn(i: int) { printf("%s - %d\n", str, i) }(1234) // EXPECT: <closure> - 1234
-
-    // Switch closure for global
-    c1 = square
-    eval(c1(3)) // EXPECT: 9
-
-    // Nested
-    _0 := "a"
-    c4 := fn(a: string) string {
-        x := fn(b: string) string {
-            y := fn(c: string) string {
-                z := fn(d: string) string = c.append("e")
-                return b.append(z("d"))
-            }
-            return a.append(y("c"))
-        }
-        return _0.append(x("b"))
-    }
-    eval(c4("a")) // EXPECT: aabce
-
-    // Capture by value (immutable)
-    a := 1
-    c5 := fn() int {
-        a = a + 1
-        return a
-    }
-    a = 10
-    eval(c5()) // EXPECT: 2
-
-    // Capture by value (mutable)
-    s := S(1)
-    c6 := fn() int {
-        s.i = s.i + 1
-        return s.i
-    }
-    // NOTE: The expression evaluation order is right _then_ left at present!
-    eval(s.i + c6()) // EXPECT: 4
-    s.i = 10
-    eval(s.i + c6()) // EXPECT: 22
-
-    // ------------------------------------------------------------------
-    // Functional
-    // ------------------------------------------------------------------
-
-    // Currying
-    add := fn(a: int) fn(int) int = fn(b: int) int = a + b
-    add3 := add(3)
-    eval(add3(2)) // EXPECT: 5
-
-    // Composition
-    compose := fn(f: fn(int) int, g: fn(int) int) fn(int) int {
-        return fn(x: int) int = g(f(x))
-    }
-    eval(compose(cube, square)(2)) // EXPECT: 64
+//    eval(a3("a")) // EXPECT: aaaa
+//
+//    // Anon return global
+//    a4 := fn() fn(int) int = cube
+//    eval(a4()(4)) // EXPECT: 64
+//
+//    // ------------------------------------------------------------------
+//    // Closures
+//    // ------------------------------------------------------------------
+//    x := 8
+//    y := 9
+//    z := 10
+//    str := "<closure>"
+//
+//    // Simple
+//    c1 := fn(z: int) int = x * y * z // Ensure 'z' is not captured
+//    eval(c1(5)) // EXPECT: 360
+//    c2 := fn(a: string) string = a.append(str).append(a)
+//    eval(c2("*")) // EXPECT: *<closure>*
+//    c3 := fn(s: string) = printf("%s\n", s)
+//    c3("Hello!")  // EXPECT: Hello!
+//
+//    // Immediate invocation
+//    fn(i: int) { printf("%s - %d\n", str, i) }(1234) // EXPECT: <closure> - 1234
+//
+//    // Switch closure for global
+//    c1 = square
+//    eval(c1(3)) // EXPECT: 9
+//
+//    // Nested
+//    _0 := "a"
+//    c4 := fn(a: string) string {
+//        x := fn(b: string) string {
+//            y := fn(c: string) string {
+//                z := fn(d: string) string = c.append("e")
+//                return b.append(z("d"))
+//            }
+//            return a.append(y("c"))
+//        }
+//        return _0.append(x("b"))
+//    }
+//    eval(c4("a")) // EXPECT: aabce
+//
+//    // Capture by value (immutable)
+//    a := 1
+//    c5 := fn() int {
+//        a = a + 1
+//        return a
+//    }
+//    a = 10
+//    eval(c5()) // EXPECT: 2
+//
+//    // Capture by value (mutable)
+//    s := S(1)
+//    c6 := fn() int {
+//        s.i = s.i + 1
+//        return s.i
+//    }
+//    // NOTE: The expression evaluation order is right _then_ left at present!
+//    eval(s.i + c6()) // EXPECT: 4
+//    s.i = 10
+//    eval(s.i + c6()) // EXPECT: 22
+//
+//    // ------------------------------------------------------------------
+//    // Functional
+//    // ------------------------------------------------------------------
+//
+//    // Currying
+//    add := fn(a: int) fn(int) int = fn(b: int) int = a + b
+//    add3 := add(3)
+//    eval(add3(2)) // EXPECT: 5
+//
+//    // Composition
+//    compose := fn(f: fn(int) int, g: fn(int) int) fn(int) int {
+//        return fn(x: int) int = g(f(x))
+//    }
+//    eval(compose(cube, square)(2)) // EXPECT: 64
 }
 
 fn eval(i: int) = printf("%d\n", i)

@@ -1,4 +1,29 @@
+import strings
+
 // Entry point
 fn main() {
-  printf("Hello %s%s\n", "world", "!")
+  buf := strings.NewStringBuffer(1024)
+  buf.append("Yo!")
+//  s2 := 1024.strings.NewBuffer()
+//  x := S("yo!").strings // Should ref string
+//  t := strings.Case1(1)
+//  match t {
+//    case Case1(i):
+//
+//    case Case2(s):
+//  }
+  printf("Buffer: %s\n", buf.toString())
+}
+
+fn x() strings.test {
+    return strings.Case1(1)
+}
+
+
+fn y(f io.File, x io.File) io.File {
+
+}
+
+struct s {
+    strings: string
 }

@@ -1,18 +1,18 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
-	"os"
-    "strings"
-    "io/ioutil"
-    "flag"
-	"path/filepath"
 	"github.com/g-dx/clarac/lex"
+	"io"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"os/user"
-	"io"
-	"errors"
+	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func main() {
@@ -67,6 +67,8 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	rootSymtab := NewSymtab()
 	rootNode := &Node{op: opRoot, symtab: rootSymtab}
 
+	pkgs := NewPackages(rootNode)
+
 	// Add any global symbols
 	for _, s := range stdSyms() {
 		rootSymtab.Define(s)
@@ -80,16 +82,26 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 		if err != nil {
 			return "", []error{err}
 		}
-		errs = append(errs, lexAndParse(string(bytes), f, rootNode, options.showLex, out)...)
+		errs = append(errs, lexAndParse(pkgs, string(bytes), f, options.showLex, out)...)
 	}
 	if len(errs) > 0 {
 		return "", errs
 	}
 
+	// Add symbols for all packages
+	for _, pkg := range pkgs.pkgs {
+		for _, im := range pkg.imports {
+			// TODO: Check if this type info ever gets used
+			pkg.root.symtab.Define(&Symbol{Name: im.name, Pkg: pkg, IsPackage: true})
+		}
+	}
+
 	// Handle top level types first
-	errs = append(errs, processTopLevelTypes(rootNode, rootSymtab)...)
-	if len(errs) > 0 {
-		return "", errs
+	for _, pkg := range pkgs.pkgs {
+		errs = append(errs, processTopLevelTypes(pkg)...)
+		if len(errs) > 0 {
+			return "", errs
+		}
 	}
 
 	// Pre-typecheck AST rewrite
@@ -101,9 +113,11 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Type check
-	errs = append(errs, typeCheck(rootNode, rootSymtab, nil, options.showTypes)...)
-	if len(errs) > 0 {
-		return "", errs
+	for _, pkg := range pkgs.pkgs {
+		errs = append(errs, typeCheck(pkg, pkg.root, pkg.root.symtab, nil, options.showTypes)...)
+		if len(errs) > 0 {
+			return "", errs
+		}
 	}
 
 	// Post-typecheck AST rewrite
@@ -122,7 +136,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	// Create assembly file
 	basename := filepath.Base(progPath)
 	progName := strings.TrimSuffix(basename, filepath.Ext(basename))
-	asmPath := fmt.Sprintf("%v/%v.S", os.TempDir(), progName)
+	asmPath := fmt.Sprintf("/tmp/%v.S", progName)
 	os.Remove(asmPath) // Ignore error
 	f, err := os.Create(asmPath)
 	if err != nil {
@@ -131,10 +145,14 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Generate assembly
 	asm := NewGasWriter(f, options.showAsm)
-	err = codegen(rootSymtab, rootNode.stmts, asm)
-	if err != nil {
-		return "", []error{errors.New(fmt.Sprintf("\nCode Gen Errors:\n %v\n", err))}
+	defer f.Close()
+	for _, pkg := range pkgs.pkgs {
+		err = codegen(pkg.root.symtab, pkg.root.stmts, asm)
+		if err != nil {
+			return "", []error{errors.New(fmt.Sprintf("\nCode Gen Errors:\n %v\n", err))}
+		}
 	}
+	codegen2(rootSymtab, asm)
 	f.Close()
 
 	// Invoke gcc to link files
@@ -156,7 +174,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	return outputPath, nil
 }
 
-func lexAndParse(code string, path string, root *Node, showLex bool, out io.Writer) (errs []error) {
+func lexAndParse(pkgs *Packages, code string, path string, showLex bool, out io.Writer) (errs []error) {
 
 	// Lex
 	var tokens []*lex.Token
@@ -184,7 +202,7 @@ func lexAndParse(code string, path string, root *Node, showLex bool, out io.Writ
 	}
 
 	// Parse
-	return NewParser().Parse(tokens, root)
+	return NewParser().Parse(pkgs, tokens)
 }
 
 func stdSyms() []*Symbol {

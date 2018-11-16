@@ -1,11 +1,11 @@
 package main
 import (
+	"bytes"
 	"fmt"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
-	"strings"
-	"bytes"
 	"io"
+	"strings"
 )
 
 // AST
@@ -213,6 +213,7 @@ const (
 	opAnd
 	opIdentifier
 	opNamedType
+	opQualType
 	opFuncType
 	opArray
 	opArrayType
@@ -228,6 +229,7 @@ const (
 	opOr
 	opError
 	opRoot
+	opPackage
 	opStructDcl
 	opEnumDcl
 	opMatch
@@ -243,6 +245,7 @@ var nodeTypes = map[int]string{
 	opFuncType:    "Func Type",
 	opArrayType:   "Array Type",
 	opNamedType:   "Named Type",
+	opQualType:    "Qualified Type",
 	opLit:         "Literal",
 	opAdd:         "Binary Op [Add]",
 	opSub:         "Binary Op [Min]",
@@ -266,6 +269,7 @@ var nodeTypes = map[int]string{
 	opOr:         "Logical [or]",
 	opError:      "(error)",
 	opRoot:       "<none>",
+	opPackage:    "Package",
 	opStructDcl:  "Struct",
 	opEnumDcl:    "Enum",
 	opMatch:      "Match",

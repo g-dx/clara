@@ -1,3 +1,12 @@
+module strings
+
+import default
+
+enum test {
+  Case1(i: int)
+  Case2(s: string)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct stringBuffer {

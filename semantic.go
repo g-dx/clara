@@ -3,8 +3,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/g-dx/clarac/lex"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 //
@@ -14,6 +14,8 @@ import (
 const (
 	errRedeclaredMsg           = "%v:%d:%d: error, '%v' redeclared"
 	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
+	errUnknownModuleMsg        = "%v:%d:%d: error, unknown module '%v'"
+	errUnexpectedModuleImportDeclMsg = "%v:%d:%d: error, unexpected module or import declaration '%v'"
 	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
 	errAmbiguousVarMsg         = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
 	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
@@ -67,21 +69,21 @@ func (ot OperatorTypes) isValid(op int, tk TypeKind) bool {
 	return false
 }
 
-func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
-	for _, n := range rootNode.stmts {
+func processTopLevelTypes(pkg *Package) (errs []error) {
+	for _, n := range pkg.root.stmts {
 		var topType *Type
 		switch n.op {
 		case opEnumDcl:
-			topType = &Type{Kind: Enum, Data: &EnumType{Name: n.token.Val}}
+			topType = &Type{Kind: Enum, Pkg: pkg, Data: &EnumType{Name: n.token.Val}}
 
 		case opStructDcl:
-			topType = &Type{Kind: Struct, Data: &StructType{Name: n.token.Val}}
+			topType = &Type{Kind: Struct, Pkg: pkg, Data: &StructType{Name: n.token.Val}}
 
 		case opBlockFnDcl, opExprFnDcl, opExternFnDcl:
 			// NOTE: This type is unimportant as function symbols created here
 			// are intended only to check for redeclares. The real function symbols
 			// are created later.
-			topType = &Type{Kind: Nothing}
+			topType = &Type{Pkg: pkg, Kind: Nothing}
 
 		default:
 			continue
@@ -89,7 +91,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 
 		// Build symbol & ensure unique
 		n.sym = &Symbol{Name: n.typeName(), IsGlobal: true, Type: topType}
-		if _, found := symtab.Define(n.sym); found {
+		if _, found := pkg.root.symtab.Define(n.sym); found {
 			errs = append(errs, semanticError(errRedeclaredMsg, n.token))
 		}
 	}
@@ -99,7 +101,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 
 	// Process structs, enums & funcs
 loop:
-	for _, n := range rootNode.stmts {
+	for _, n := range pkg.root.stmts {
 		switch n.op {
 		case opEnumDcl:
 
@@ -108,7 +110,7 @@ loop:
 			for i, cons := range n.stmts {
 
 				// Build type info
-				consType, err := processFnType(cons, cons.token.Val, symtab, false) // Add to root symtab
+				consType, err := processFnType(cons, cons.token.Val, pkg, false) // Add to root symtab
 				if err != nil {
 					errs = append(errs, err)
 					continue loop
@@ -124,17 +126,17 @@ loop:
 				enumType.Members = append(enumType.Members, consType)
 
 				// Move to root AST node
-				rootNode.Add(cons)
+				pkg.root.Add(cons)
 			}
 			n.stmts = nil // Clear constructors
 
 		case opStructDcl:
-			s, _ := symtab.Resolve(n.token.Val)
+			s, _ := pkg.root.symtab.Resolve(n.token.Val)
 			strt := s.Type.AsStruct()
 
 			// Calculate field information
 			x := 0
-			child := symtab.Child()
+			child := pkg.root.symtab.Child()
 			for _, n := range n.stmts {
 
 				// Look up type
@@ -157,7 +159,7 @@ loop:
 
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
-			_, err := processFnType(n, n.token.Val, symtab, true)
+			_, err := processFnType(n, n.token.Val, pkg, true)
 			if err != nil {
 				errs = append(errs, err)
 				continue loop
@@ -167,14 +169,14 @@ loop:
 	return errs
 }
 
-func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) (*FunctionType, error) {
+func processFnType(n *Node, symName string, pkg *Package, allowOverload bool) (*FunctionType, error) {
 	// Add actual symbol and link to existing symbol if already present
 	fnType := &FunctionType{Kind: Normal}
 	if n.op == opExternFnDcl {
 		fnType.Kind = External
 	}
-	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
-	if s, found := symtab.Define(sym); found {
+	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Pkg: pkg, Data: fnType}}
+	if s, found := pkg.root.symtab.Define(sym); found {
 		if !allowOverload {
 			return nil, semanticError(errRedeclaredMsg, n.token)
 		}
@@ -184,7 +186,7 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 	n.sym = sym
 
 	// Process parameters
-	child := symtab.Child()
+	child := pkg.root.symtab.Child()
 	n.symtab = child // Required during typecheck
 	for _, param := range n.params {
 		paramType, err := createType(child, param.left)
@@ -224,6 +226,23 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 		if !ok {
 			return nil, semanticError(errUnknownTypeMsg, n.token)
 		}
+		return s.Type, nil
+
+	case opQualType:
+
+		s, ok := symtab.Resolve(n.left.token.Val)
+		if !ok {
+			return nil, semanticError(errUnknownModuleMsg, n.token)
+		}
+		n.left.sym = s
+
+		// Resolve symbol in package
+		// TODO: Maybe say no type found in package?
+		s, ok = s.Pkg.root.symtab.Resolve(n.right.token.Val)
+		if !ok {
+			return nil, semanticError(errUnknownVarMsg, n.token)
+		}
+		n.right.sym = s
 		return s.Type, nil
 
 	case opArrayType:

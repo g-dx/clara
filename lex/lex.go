@@ -2,10 +2,10 @@ package lex
 
 import (
 	"fmt"
-	"strings"
-	"unicode/utf8"
-	"unicode"
 	"github.com/g-dx/clarac/console"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Kind of lex tokens we emit
@@ -73,6 +73,8 @@ const (
 	Enum
 	Match
 	Case
+	Module
+	Import
 )
 
 func (k Kind) IsBinaryOperator() bool {
@@ -163,6 +165,8 @@ var key = map[string]Kind{
 	"enum":   Enum,
 	"match":  Match,
 	"case":   Case,
+	"import": Import,
+	"module": Module,
 }
 
 var KindValues = map[Kind]string{
