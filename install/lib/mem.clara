@@ -14,7 +14,7 @@ fn claralloc(size: int) block {
     if size == 0 {
         panic("Cannot allocate zero memory!")
     }
-    b := malloc(size+16) // +8 for header, +8 for next
+    b := calloc(size+16, 1) // 16 = 8 byte header (GC info, etc) & 8 byte pointer to next block, 1 = byte elements
     if not b.isValidBlock() {
         panic("Failed to allocate memory!")
     }
@@ -33,8 +33,8 @@ fn clarafree(b: block) {
 // ---------------------------------------------------------------------------------------------------------------------
 fn panic(cause: string) nothing
 
-// Source: libc, https://www.gnu.org/software/libc/manual/html_node/Basic-Allocation.html#index-malloc
-fn malloc(size: int) block
+// Source: libc, https://www.gnu.org/software/libc/manual/html_node/Allocating-Cleared-Space.html#Allocating-Cleared-Space
+fn calloc(count: int, eltsize: int) block
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Freeing-after-Malloc.html#Freeing-after-Malloc
 fn free(b: block) nothing

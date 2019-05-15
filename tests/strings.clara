@@ -1,7 +1,6 @@
 fn main() {
     // Basic operations
-    // TODO: Re-enable this test once string concat on OSX is fixed!
-//    eval("Hello".append(" ").append("world!")) // EXPECT: Hello world!
+    eval("Hello".append(" ").append("world!")) // EXPECT: Hello world!
 
     // Length
     s := "<string>"
