@@ -29,3 +29,12 @@ addr2line -e <binary> <address> -f
 
 // Dump debug symbols
 nm --debug-syms <name>
+
+// LLDB - dump all symbols
+image dump symtab strings
+
+// LLDB - set breakpoint on clara functions
+breakpoint set --func-regex clara_asEnum.int
+
+Cheatsheet:
+https://www.nesono.com/sites/default/files/lldb%20cheat%20sheet.pdf
