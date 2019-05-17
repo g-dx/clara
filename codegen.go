@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"math"
+	"strconv"
 )
 
 var stringOps = make(map[string]operand)
@@ -32,7 +32,12 @@ type function struct {
 	Type    *FunctionType
 	gcRoots *GcState
 	gcFns   map[string]GcRoots
+	sp      int
 }
+
+func (f *function) incSp(i int) { f.sp += i }
+func (f *function) decSp(i int) { f.sp -= i }
+func (f *function) isSpAligned() bool { return f.sp % 2 == 0 }
 
 func (f *function) AsmName() string {
 	return f.Type.AsmName(f.AstName)
@@ -112,7 +117,7 @@ func genFunc(asm asmWriter, n *Node) {
 		}
 
 		// Generate standard entry sequence
-		genFnEntry(asm, fn.AsmName(), temps)
+		fn.incSp(genFnEntry(asm, fn.AsmName(), temps))
 
 		// Copy register values into stack slots
 		for i, param := range n.params {
@@ -386,12 +391,16 @@ func genFramePointerAccess(asm asmWriter) {
 	asm.ins(ret, )
 }
 
-func genFnEntry(asm asmWriter, name string, temps int) {
+func genFnEntry(asm asmWriter, name string, temps int) int {
+	// Ensure an even number of slack slots. This means $rsp is 16 byte
+	// aligned as part of the function prologue. Wasting an extra 8-bytes
+	// of space here means less $rsp manipulation in the generated code
 	if temps % 2 != 0 {
-		temps += 1 // ALIGNMENT: Ensure even $rsp increment
+		temps += 1
 	}
 	asm.function(name)
 	asm.ins(enter, intOp(temps*8), intOp(0))
+	return temps
 }
 
 func genFnExit(asm asmWriter, skipGc bool) {
@@ -581,6 +590,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 	}
 
 	spill(asm, regsInUse) // Spill any in use registers to the stack
+	f.incSp(regsInUse)
 
 	// Generate arg code
 	for i, arg := range n.stmts {
@@ -610,6 +620,11 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		asm.ins(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
+	// Align stack as per ABI
+	if !f.isSpAligned() {
+		asm.ins(subq, intOp(8), rsp)
+	}
+
 	// Call function
 	if s == nil {
 		asm.ins(call, r15.indirect()) // anonymous func call: register indirect
@@ -624,8 +639,14 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		asm.addr(fnOp(f.NewGcFunction()))
 	}
 
+	// Correct stack pointer (if required)
+	if !f.isSpAligned() {
+		asm.ins(addq, intOp(8), rsp)
+	}
+
 	// Restore registers previously in use
 	restore(asm, regsInUse)
+	f.decSp(regsInUse)
 }
 
 func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *function) {
@@ -634,17 +655,10 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	if expr.right != nil {
 		genExpr(asm, expr.right, regsInUse, false, fn)
 		asm.ins(pushq, rax) // Push acc to stack
-
-		// ALIGNMENT: Ensure alignment is correct before evaluating left (as it may contain fn calls)
-		asm.ins(subq, intOp(8), rsp)
+		fn.incSp(1)
 	}
 	if expr.left != nil {
 		genExpr(asm, expr.left, regsInUse, false, fn)
-
-		// ALIGNMENT: Correct alignment now 'left' has been calculated
-		if expr.right != nil {
-			asm.ins(addq, intOp(8), rsp)
-		}
 	}
 
 	// Implements stack machine
@@ -684,17 +698,20 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 		asm.ins(addq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp)
+		fn.decSp(1)
 
 	case opSub:
 
 		asm.ins(subq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp)
+		fn.decSp(1)
 
 	case opMul:
 
 		// Result is: rdx(high-64 bits):rax(low 64-bits) TODO: We ignore high bits!
 		asm.ins(imulq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp)
+		fn.decSp(1)
 
 	case opDiv:
 
@@ -702,6 +719,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(movq, _false, rdx)
 		asm.ins(idivq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp)
+		fn.decSp(1)
 
 	case opNot:
 
@@ -718,6 +736,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(setg, al)
 		asm.ins(andq, _true, rax) // Clear top bits
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
 
 	case opLt:
 
@@ -725,6 +744,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(setl, al)
 		asm.ins(andq, _true, rax) // Clear top bits
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
 
 	case opEq:
 
@@ -732,16 +752,19 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(sete, al)
 		asm.ins(andq, _true, rax) // Clear top bits
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
 
 	case opAnd:
 
 		asm.ins(andq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
 
 	case opOr:
 
 		asm.ins(orq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
 
 	case opIdentifier:
 
@@ -772,6 +795,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 			inst = leaq
 		}
 		asm.ins(popq, rbx)
+		fn.decSp(1)
 		asm.ins(inst, rax.offset(rbx), rax)
 
 	case opArray:
@@ -779,6 +803,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		width := expr.typ.Width()
 
 		asm.ins(popq, rbx) // stack(index) -> rbx
+		fn.decSp(1)
 
 		// Bounds check
 		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
@@ -812,10 +837,6 @@ func restore(asm asmWriter, regPos int) {
 		for i := regPos; i > 0; i-- {
 			asm.ins(popq, regs[i-1]) // Pop stack into reg
 		}
-		// ALIGNMENT: Restore $rsp after function call
-		if regPos % 2 != 0 {
-			asm.ins(addq, intOp(8), rsp)
-		}
 		asm.raw("#------------------------------------#")
 	}
 }
@@ -823,10 +844,6 @@ func restore(asm asmWriter, regPos int) {
 func spill(asm asmWriter, regPos int) {
 	if regPos > 0 {
 		asm.raw("#------------------------------- Spill")
-		// ALIGNMENT: Ensure even $rsp before function call
-		if regPos % 2 != 0 {
-			asm.ins(subq, intOp(8), rsp)
-		}
 		for i := 0; i < regPos; i++ {
 			asm.ins(pushq, regs[i]) // Push reg onto stack
 		}

@@ -1,6 +1,5 @@
 - Move int -> byte casting into the AST rather than outputting them during code gen
 - Type check arithmetic operators (more generally, define operator rules better or more succinctly)
-- Track current stack alignment in the code generator so as to minimise superfluous push/pop/addq/subq
 - Move invokeDynamic() into Clara. It would look something like this:
 
 fn invokeDynamic(ptr : int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) {
