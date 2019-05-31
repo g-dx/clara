@@ -168,24 +168,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		n.typ = n.sym.Type
 
 	case opIdentifier:
-		// If no symbol - try to find identifier declaration
-		if n.sym == nil {
-			sym, found := symtab.Resolve(n.token.Val)
-			if !found {
-				errs = append(errs, semanticError(errUnknownVarMsg, n.token))
-				goto end
-			}
-			if sym.Next != nil {
-				var types []string
-				for s := sym; s != nil; s = s.Next {
-					types = append(types, s.Type.String())
-				}
-				errs = append(errs, semanticError2(errAmbiguousVarMsg, n.token, n.token.Val, strings.Join(types, "\n\t* ")))
-				goto end
-			}
-			n.sym = sym
-		}
-		n.typ = n.sym.Type
+		errs = append(errs, typeCheckIdentifier(n, symtab, fn, debug)...)
 
 	case opFuncCall:
 		errs = append(errs, typeCheckFuncCall(n, symtab, symtab, fn, debug)...)
@@ -584,6 +567,27 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		n.sym = match
 		n.typ = match.Type.AsFunction().ret
 	}
+	return errs
+}
+
+func typeCheckIdentifier(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+
+	// If no symbol - try to find identifier declaration
+	if n.sym == nil {
+		sym, found := symtab.Resolve(n.token.Val)
+		if !found {
+			return append(errs, semanticError(errUnknownVarMsg, n.token))
+		}
+		if sym.Next != nil {
+			var types []string
+			for s := sym; s != nil; s = s.Next {
+				types = append(types, s.Type.String())
+			}
+			return append(errs, semanticError2(errAmbiguousVarMsg, n.token, n.token.Val, strings.Join(types, "\n\t* ")))
+		}
+		n.sym = sym
+	}
+	n.typ = n.sym.Type
 	return errs
 }
 
