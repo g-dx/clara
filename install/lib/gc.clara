@@ -43,6 +43,10 @@ fn gcSweep() {
     }
 }
 
+fn noGc() nothing {
+    // Called by the GC when tracing a GC root which is not in the heap (integers, bools, etc)
+}
+
 // TODO: this function _should_ be clearing bits in header!
 fn clearMark(b: block) {
     if b.header == 1 {

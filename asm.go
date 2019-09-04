@@ -1,15 +1,15 @@
 package main
 
 import (
-	"io"
 	"bufio"
-	"fmt"
-	"strings"
-	"encoding/binary"
-	"math"
-	"strconv"
 	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"math"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 type operand interface {
@@ -311,7 +311,7 @@ type asmWriter interface {
 	label(s string)
 	newLabel(s string) string
 	raw(s string) // Remove me!
-	addr(sym fnOp)
+	addr(op operand)
 	function(name string)
 	ins(i inst, ops ...operand)
 }
@@ -335,8 +335,8 @@ func (gw *gasWriter) write(asm string, a...interface{}) {
 	gw.w.Flush()
 }
 
-func (gw *gasWriter) addr(sym fnOp) {
-	gw.write(fmt.Sprintf("   .8byte   %v\n", sym.Print()))
+func (gw *gasWriter) addr(op operand) {
+	gw.write(fmt.Sprintf("   .8byte   %v\n", op.Print()))
 }
 
 func (gw *gasWriter) tab(s ... string) {

@@ -33,8 +33,15 @@ type function struct {
 	gcRoots *GcState
 	gcFns   map[string]GcRoots
 	sp      int
+	noGc    operand
 }
 
+func (f *function) reset(n *Node) {
+	f.AstName = n.sym.Name
+	f.Type = n.sym.Type.AsFunction()
+	f.gcRoots = &GcState{}
+	f.gcFns = make(map[string]GcRoots)
+}
 func (f *function) incSp(i int) { f.sp += i }
 func (f *function) decSp(i int) { f.sp -= i }
 func (f *function) isSpAligned() bool { return f.sp % 2 == 0 }
@@ -43,14 +50,14 @@ func (f *function) AsmName() string {
 	return f.Type.AsmName(f.AstName)
 }
 
-func (f *function) NewGcFunction() string {
+func (f *function) NewGcFunction() operand {
 	roots := f.gcRoots.Snapshot()
 	if len(roots) == 0 {
-		return noGc
+		return f.noGc
 	}
 	name := fmt.Sprintf("%v_gc%v", f.AsmName(), roots.String())
 	f.gcFns[name] = roots
-	return name
+	return fnOp(name)
 }
 
 func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
@@ -73,9 +80,19 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 
 	// Output func calls
 	asm.tab(".text")
+
+	// Runtime functions declared in Clara code
+	noGc := symtab.MustResolve("noGc")
+
+	// Holds compilation state for current function
+	fn := &function{
+		noGc: fnOp(noGc.Type.AsFunction().AsmName(noGc.Name)),
+	}
+
 	for _, n := range tree {
 		if n.isFuncDcl() {
-			genFunc(asm, n)
+			fn.reset(n)
+			genFunc(asm, n, fn)
 		}
 	}
 
@@ -85,17 +102,13 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
 	asm.spacer()
-	genNoTraceGcFunc(asm) 	// No trace GC function
-	asm.spacer()
-	genInvokeDynamic(asm) // Closure invocation support
+	genInvokeDynamic(asm, fn.noGc) // Closure invocation support
 	asm.spacer()
 	genClosureGc(asm) // Closure GC tracing support
 	return nil
 }
 
-func genFunc(asm asmWriter, n *Node) {
-
-	fn := &function{ AstName: n.sym.Name, Type: n.sym.Type.AsFunction(), gcRoots: &GcState{}, gcFns: make(map[string]GcRoots) }
+func genFunc(asm asmWriter, n *Node, fn *function) {
 
 	// Ensure we only generate code for "our" functions
 	if !fn.Type.IsExternal() {
@@ -150,11 +163,6 @@ func genFunc(asm asmWriter, n *Node) {
 		// Generate stack frame GC functions
 		genStackFrameGcFuncs(asm, fn)
 	}
-}
-
-func genNoTraceGcFunc(asm asmWriter) {
-	genFnEntry(asm, noGc, 0)
-	genFnExit(asm, false)
 }
 
 func genStackFrameGcFuncs(asm asmWriter, fn *function) {
@@ -348,7 +356,7 @@ func genClosureGc(asm asmWriter) {
 	genFnExit(asm, true) // assembly defined caller
 }
 
-func genInvokeDynamic(asm asmWriter) {
+func genInvokeDynamic(asm asmWriter, noGc operand) {
 	genFnEntry(asm, fnPrefix + "invokeDynamic", 1)
 	callLabel := asm.newLabel("call")
 	fnPtrLabel := asm.newLabel("fnPtr")
@@ -380,7 +388,7 @@ func genInvokeDynamic(asm asmWriter) {
 	// Make call
 	asm.label(callLabel)
 	asm.ins(call, rbp.displace(-ptrSize).indirect())
-	asm.addr(fnOp(noGc))
+	asm.addr(noGc)
 	genFnExit(asm, false) // Called from Clara code
 }
 
@@ -434,7 +442,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node) {
 	// Malloc memory of appropriate size
 	asm.ins(movq, intOp(size), rdi)
 	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
-	asm.addr(fnOp(f.NewGcFunction()))
+	asm.addr(f.NewGcFunction())
 
 	off := 0
 
@@ -636,7 +644,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 
 	// Only generate GC function addresses for Clara functions
 	if !fn.IsExternal() {
-		asm.addr(fnOp(f.NewGcFunction()))
+		asm.addr(f.NewGcFunction())
 	}
 
 	// Correct stack pointer (if required)
