@@ -3,8 +3,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/g-dx/clarac/lex"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 //
@@ -113,7 +113,7 @@ loop:
 					errs = append(errs, err)
 					continue loop
 				}
-				if len(consType.Args) > maxCaseArgCount {
+				if len(consType.Params) > maxCaseArgCount {
 					errs = append(errs, semanticError(errTooManyCaseArgsMsg, cons.token))
 					continue
 				}
@@ -197,7 +197,7 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 		if found {
 			return nil, semanticError(errRedeclaredMsg, param.token)
 		}
-		fnType.Args = append(fnType.Args, paramType)
+		fnType.Params = append(fnType.Params, paramType)
 	}
 
 	// Process return
@@ -234,15 +234,15 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 		return &Type{ Kind: Array, Data: &ArrayType{Elem: s.Type} }, nil
 
 	case opFuncType:
-		var argTypes []*Type
+		var paramTypes []*Type
 		for _, arg := range n.stmts {
 			t, err := createType(symtab, arg)
 			if err != nil {
 				return nil, err
 			}
-			argTypes = append(argTypes, t)
+			paramTypes = append(paramTypes, t)
 		}
-		fnType := &FunctionType{ Args: argTypes }
+		fnType := &FunctionType{ Params: paramTypes}
 		fnType.ret = nothingType
 		if n.left != nil {
 			t, err := createType(symtab, n.left)
@@ -376,7 +376,7 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 	envVar := fmt.Sprintf("$env$")
 	n.params = append([]*Node{{op: opIdentifier, token: &lex.Token{Val: envVar}, sym: env, typ: env.Type}}, n.params...)
 	fn := n.sym.Type.AsFunction()
-	fn.Args = append([]*Type{env.Type}, fn.Args...)
+	fn.Params = append([]*Type{env.Type}, fn.Params...)
 
 	walk(postOrder, nil, nil, n, func(root *Node, symTab *SymTab, e *Node) error {
 		if e.op == opIdentifier || e.op == opFuncCall {
@@ -608,7 +608,7 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 
 	// Create & define symbol
 	fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
-	&FunctionType{ Args: args, ret: n.sym.Type, Kind: StructCons }}}
+	&FunctionType{ Params: args, ret: n.sym.Type, Kind: StructCons }}}
 	root.symtab.Define(fnSym)
 
 	// Add AST node

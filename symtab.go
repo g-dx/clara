@@ -1,7 +1,7 @@
 package main
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -87,11 +87,11 @@ func (t *Type) Matches(x *Type) bool {
 		}
 		xf := x.AsFunction()
 		tf := t.AsFunction()
-		if len(xf.Args) != len(tf.Args) {
+		if len(xf.Params) != len(tf.Params) {
 			return false
 		}
-		for i, arg := range xf.Args {
-			if !arg.Matches(tf.Args[i]) {
+		for i, param := range xf.Params {
+			if !param.Matches(tf.Params[i]) {
 				return false
 			}
 		}
@@ -141,8 +141,8 @@ func (t *Type) String() string {
 	case Function:
 		var types []string
 		fn := t.AsFunction()
-		for _, t := range fn.Args {
-			types = append(types, t.String())
+		for _, param := range fn.Params {
+			types = append(types, param.String())
 		}
 		return fmt.Sprintf("fn(%v) %v", strings.Join(types, ","), fn.ret.String())
 	default:
@@ -165,10 +165,10 @@ func (t *Type) AsmName() string {
 	case Function:
 		fn := t.AsFunction()
 		buf := bytes.NewBufferString("fn")
-		if len(fn.Args) > 0 {
-			buf.WriteString(fmt.Sprintf("$%v", fn.Args[0].AsmName()))
-			for i := 1; i < len(fn.Args); i += 1 {
-				buf.WriteString(fmt.Sprintf(".%v", fn.Args[i].AsmName()))
+		if len(fn.Params) > 0 {
+			buf.WriteString(fmt.Sprintf("$%v", fn.Params[0].AsmName()))
+			for i := 1; i < len(fn.Params); i += 1 {
+				buf.WriteString(fmt.Sprintf(".%v", fn.Params[i].AsmName()))
 			}
 			buf.WriteString("$")
 		}
@@ -238,11 +238,11 @@ const (
 )
 
 type FunctionType struct {
-	Kind          FuncKind
-	Data          interface{}
-	Args          []*Type
-	ret           *Type
-	isVariadic    bool
+	Kind       FuncKind
+	Data       interface{}
+	Params     []*Type
+	ret        *Type
+	isVariadic bool
 }
 
 // Used during codegen to avoid clashes with shared library functions
@@ -257,9 +257,9 @@ func (ft *FunctionType) AsmName(name string) string {
 	// Build name safe for usage in ASM
 	buf := bytes.NewBufferString(fnPrefix)
 	buf.WriteString(name)
-	for _, arg := range ft.Args {
+	for _, param := range ft.Params {
 		buf.WriteString(".")
-		buf.WriteString(arg.AsmName())
+		buf.WriteString(param.AsmName())
 	}
 	return buf.String()
 }
@@ -273,8 +273,8 @@ func (ft *FunctionType) Describe(name string) string {
 	buf := bytes.NewBufferString(name)
 	buf.WriteString("(")
 	var types []string
-	for _, arg := range ft.Args {
-		types = append(types, arg.String())
+	for _, param := range ft.Params {
+		types = append(types, param.String())
 	}
 	buf.WriteString(strings.Join(types, ", "))
 	buf.WriteString(")")

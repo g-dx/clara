@@ -101,7 +101,7 @@ func genFunc(asm asmWriter, n *Node) {
 	if !fn.Type.IsExternal() {
 
 		// Assign stack offsets for temporaries
-		temps := len(fn.Type.Args)
+		temps := len(fn.Type.Params)
 		walk(postOrder, n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
 			// Look for symbols which should be on the stack but have no address
 			if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
@@ -268,14 +268,14 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 			asm.label(gcEnumCase)
 
 			// Process pointer args
-			for i, arg := range cons.Args {
-				if arg.IsPointer() {
+			for i, param := range cons.Params {
+				if param.IsPointer() {
 					asm.ins(movq, rbp.displace(-ptrSize), rdi)
 					asm.ins(addq, intOp((i+1) * ptrSize), rdi)
-					if arg.Is(Function) {
+					if param.Is(Function) {
 						asm.ins(call, fnOp(closureGc))
 					} else {
-						asm.ins(call, fnOp(arg.GcName()))
+						asm.ins(call, fnOp(param.GcName()))
 					}
 				}
 			}
@@ -610,7 +610,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		}
 
 		// Check if int -> byte cast required
-		if i < len(fn.Args) && arg.typ.Is(Integer) && fn.Args[i].Is(Byte) {
+		if i < len(fn.Params) && arg.typ.Is(Integer) && fn.Params[i].Is(Byte) {
 			asm.ins(movsbq, regs[i]._8bit(), regs[i])
 		}
 	}

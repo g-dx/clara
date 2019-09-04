@@ -429,8 +429,8 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Ensure correct number of args
 		cons := sym.Type.AsFunction()
-		if len(cons.Args) != len(n.params) {
-			errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.params), len(cons.Args)))
+		if len(cons.Params) != len(n.params) {
+			errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.params), len(cons.Params)))
 			goto end
 		}
 
@@ -438,7 +438,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		child := symtab.Child()
 		n.symtab = child
 		for i, arg := range n.params {
-			sym := &Symbol{Name: arg.token.Val, Type: cons.Args[i], IsStack: true}
+			sym := &Symbol{Name: arg.token.Val, Type: cons.Params[i], IsStack: true}
 			if _, ok := child.Define(sym); ok {
 				errs = append(errs, semanticError(errRedeclaredMsg, arg.token))
 				continue
@@ -507,12 +507,12 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 
 		// Check correct number of args
 		fn := left.typ.AsFunction()
-		if len(n.stmts) != len(fn.Args) {
-			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Args)))
+		if len(n.stmts) != len(fn.Params) {
+			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Params)))
 		}
 
 		// Check all types match
-		for i, arg := range fn.Args {
+		for i, arg := range fn.Params {
 			if !n.stmts[i].typ.Matches(arg) {
 				return append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[i].token, n.stmts[i].typ, arg))
 			}
@@ -538,13 +538,13 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 
 			// Check correct number of args
 			fn := s.Type.AsFunction()
-			if len(n.stmts) != len(fn.Args) {
+			if len(n.stmts) != len(fn.Params) {
 				continue
 			}
 
 			// Check all types match
-			for i, arg := range fn.Args {
-				if !n.stmts[i].typ.Matches(arg) {
+			for i, param := range fn.Params {
+				if !n.stmts[i].typ.Matches(param) {
 					continue loop
 				}
 			}

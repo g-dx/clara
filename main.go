@@ -1,18 +1,18 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
-	"os"
-    "strings"
-    "io/ioutil"
-    "flag"
-	"path/filepath"
 	"github.com/g-dx/clarac/lex"
+	"io"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"os/user"
-	"io"
-	"errors"
+	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func main() {
@@ -201,13 +201,13 @@ func stdSyms() []*Symbol {
 		{ Name: "nothing", Type: nothingType },
 		// invokeDynamic (implemented in assembly)
 		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: []*Type{}, ret: nothingType} } },
+			&FunctionType{ Params: []*Type{}, ret: nothingType} } },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Args: []*Type { stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
+			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
 		// printf (from libc)
 		{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-		&FunctionType{ Args: []*Type { stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
+		&FunctionType{ Params: []*Type {stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
 	}
 }
 
