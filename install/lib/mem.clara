@@ -31,7 +31,6 @@ fn clarafree(b: block) {
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
-fn panic(cause: string) nothing
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Allocating-Cleared-Space.html#Allocating-Cleared-Space
 fn calloc(count: int, eltsize: int) block

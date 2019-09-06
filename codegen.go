@@ -83,6 +83,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 
 	// Runtime functions declared in Clara code
 	noGc := symtab.MustResolve("noGc")
+	ioob := symtab.MustResolve("indexOutOfBounds")
 
 	// Holds compilation state for current function
 	fn := &function{
@@ -96,7 +97,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 		}
 	}
 
-	genIoobHandler(asm);
+	genIoobTrampoline(asm, fnOp(ioob.Type.AsFunction().AsmName(ioob.Name)));
 	asm.spacer()
 	genFramePointerAccess(asm)
 	asm.spacer()
@@ -424,12 +425,13 @@ func genFnExit(asm asmWriter, skipGc bool) {
 	asm.ins(jmp, rbx.indirect())
 }
 
-func genIoobHandler(asm asmWriter) {
+func genIoobTrampoline(asm asmWriter, ioob operand) {
 
 	// rbx is index register. See: codegen.go:647
 	asm.label("ioob")
 	asm.ins(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
-	asm.ins(call, fnOp("indexOutOfBounds"))
+	asm.ins(call, ioob)
+	// NOTE: Never returns so no need for GC word, return, etc
 }
 
 func genConstructor(asm asmWriter, f *function, params []*Node) {
