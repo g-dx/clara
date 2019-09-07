@@ -35,6 +35,7 @@ type function struct {
 	sp           int
 	noGc         operand
 	gcTraceFrame operand
+	gcMarkType   operand
 }
 
 func (f *function) reset(n *Node) {
@@ -86,11 +87,13 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	noGc := symtab.MustResolve("noGc")
 	ioob := symtab.MustResolve("indexOutOfBounds")
 	gcTraceFrame := symtab.MustResolve("gcTraceFrame")
+	gcMarkType := symtab.MustResolve("gcMarkType")
 
 	// Holds compilation state for current function
 	fn := &function{
 		noGc: fnOp(noGc.Type.AsFunction().AsmName(noGc.Name)),
 		gcTraceFrame: fnOp(gcTraceFrame.Type.AsFunction().AsmName(gcTraceFrame.Name)),
+		gcMarkType: fnOp(gcMarkType.Type.AsFunction().AsmName(gcMarkType.Name)),
 	}
 
 	for _, n := range tree {
@@ -104,7 +107,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genFramePointerAccess(asm)
 	asm.spacer()
-	genTypeGcFuncs(asm, symtab.allTypes()) 	// Generate per-type GC functions
+	genTypeGcFuncs(asm, symtab.allTypes(), fn) 	// Generate per-type GC functions
 	asm.spacer()
 	genInvokeDynamic(asm, fn.noGc) // Closure invocation support
 	asm.spacer()
@@ -202,16 +205,16 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 	}
 }
 
-func genTypeGcFuncs(asm asmWriter, types []*Type) {
+func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
 	for _, typ := range types {
 		if typ.IsPointer() && !typ.Is(Function) { // closureGc handles functions
 			asm.spacer()
-			genTypeGcFunc(asm, typ)
+			genTypeGcFunc(asm, typ, fn)
 		}
 	}
 }
 
-func genTypeGcFunc(asm asmWriter, t *Type) {
+func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 
 	//
 	// GC functions take a single parameter which is the stack address of the slot to trace
@@ -219,16 +222,21 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 
 	// TODO: Delay writing string literals until end of assembly generation
 	asm.tab(".data")
-	debug := asm.stringLit(fmt.Sprintf("\"  - (0x%%lx) '%v' \\n\"", t))
+	typeName := asm.stringLit(fmt.Sprintf("\"%v\"", t))
 	asm.tab(".text")
 
 	genFnEntry(asm, t.GcName(), 1)
 	asm.ins(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
 	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
 
+	// --------------------------------------------------------------------------
+	// GC TRACING
 	// Calculate pointer to block from type
 	asm.ins(leaq, rdi.displace(-16), rsi) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
-	genDebugGcPrintf(asm, debug)
+	asm.ins(movabs, typeName, rdi)
+	asm.ins(call, fn.gcMarkType)
+	asm.addr(fn.noGc)
+	// --------------------------------------------------------------------------
 
 	// Labels
 	exit := asm.newLabel("exit")
@@ -324,22 +332,6 @@ func genTypeGcFunc(asm asmWriter, t *Type) {
 	// Exit
 	asm.label(exit)
 	genFnExit(asm, true) // assembly defined caller
-}
-
-// printf args must already be setup in appropriate registers
-func genDebugGcPrintf(asm asmWriter, template operand) {
-
-	exit := asm.newLabel("exit")
-	asm.ins(movabs, symOp("debugGc"), rax) // Defined in runtime.c!
-	asm.ins(movq, rax.deref(), rax)       // Get value
-	asm.ins(cmpq, _true, rax)
-	asm.ins(jne, labelOp(exit))
-	asm.ins(movabs, template, rdi)
-	asm.ins(leaq, rdi.displace(8), rdi) // Skip past length!
-	asm.ins(movq, intOp(0), rax)
-	asm.ins(call, fnOp("printf"))
-	asm.label(exit)
-
 }
 
 func genClosureGc(asm asmWriter) {

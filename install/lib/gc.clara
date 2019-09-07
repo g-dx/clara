@@ -54,6 +54,13 @@ fn gcTraceFrame(fnDescription: string) {
     }
 }
 
+// Called by the GC when marking a heap address as in use. IMPORTANT: This function cannot allocate!
+fn gcMarkType(typeDescription: string, addr: int) {
+    if isGcDebug() {
+        printf("  - (0x%lx) '%s' \n", addr, typeDescription)
+    }
+}
+
 // TODO: this function _should_ be clearing bits in header!
 fn clearMark(b: block) {
     if b.header == 1 {
