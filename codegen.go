@@ -28,12 +28,13 @@ var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
 // Current function being compiled
 type function struct {
-	AstName string
-	Type    *FunctionType
-	gcRoots *GcState
-	gcFns   map[string]GcRoots
-	sp      int
-	noGc    operand
+	AstName      string
+	Type         *FunctionType
+	gcRoots      *GcState
+	gcFns        map[string]GcRoots
+	sp           int
+	noGc         operand
+	gcTraceFrame operand
 }
 
 func (f *function) reset(n *Node) {
@@ -84,10 +85,12 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Runtime functions declared in Clara code
 	noGc := symtab.MustResolve("noGc")
 	ioob := symtab.MustResolve("indexOutOfBounds")
+	gcTraceFrame := symtab.MustResolve("gcTraceFrame")
 
 	// Holds compilation state for current function
 	fn := &function{
 		noGc: fnOp(noGc.Type.AsFunction().AsmName(noGc.Name)),
+		gcTraceFrame: fnOp(gcTraceFrame.Type.AsFunction().AsmName(gcTraceFrame.Name)),
 	}
 
 	for _, n := range tree {
@@ -171,13 +174,18 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 
 		// TODO: Delay writing string literals until end of assembly generation
 		asm.tab(".data")
-		debug := asm.stringLit(fmt.Sprintf("\"\\n%v\\n\"", fn.Type.Describe(fn.AstName)))
+		fnDesc := asm.stringLit(fmt.Sprintf("\"%v\"", fn.Type.Describe(fn.AstName)))
 		asm.tab(".text")
 
 		genFnEntry(asm, name, 1)
 		asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
 
-		genDebugGcPrintf(asm, debug)
+		// --------------------------------------------------------------------------
+		// GC TRACING
+		asm.ins(movabs, fnDesc, rdi)
+		asm.ins(call, fn.gcTraceFrame)
+		asm.addr(fn.noGc)
+		// --------------------------------------------------------------------------
 
 		// Invoke GC function for type of each root
 		for _, root := range roots {

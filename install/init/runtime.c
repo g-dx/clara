@@ -80,3 +80,10 @@ intptr_t asString(intptr_t byteArray) { return byteArray - 8; }
 
 // Casting support
 intptr_t asEnum(intptr_t pointer) { return pointer; }
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// lib/gc.clara
+// ---------------------------------------------------------------------------------------------------------------------
+
+int isGcDebug() { return debugGc; }

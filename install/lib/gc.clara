@@ -47,6 +47,13 @@ fn noGc() nothing {
     // Called by the GC when tracing a GC root which is not in the heap (integers, bools, etc)
 }
 
+// Called by the GC when starting to trace a frame. IMPORTANT: This function cannot allocate!
+fn gcTraceFrame(fnDescription: string) {
+    if isGcDebug() {
+        printf("\n%s\n", fnDescription)
+    }
+}
+
 // TODO: this function _should_ be clearing bits in header!
 fn clearMark(b: block) {
     if b.header == 1 {
