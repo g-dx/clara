@@ -20,7 +20,7 @@ import (
 
 */
 
-var claralloc = "clara_claralloc.int" // NOTE: keep in sync with ASM name generation!
+var claralloc = "clara_claralloc.int.string" // NOTE: keep in sync with ASM name generation!
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
@@ -135,7 +135,7 @@ func genFunc(asm asmWriter, n *Node, fn *function) {
 
 		// Generate functions
 		if fn.Type.IsStructCons() || fn.Type.IsEnumCons() {
-			genConstructor(asm, fn, n.params)
+			genConstructor(asm, fn, n.params, n.token.Val)
 		} else {
 			// Generate code for all statements
 			genStmtList(asm, n.stmts, fn)
@@ -407,7 +407,7 @@ func genIoobTrampoline(asm asmWriter, ioob operand) {
 	// NOTE: Never returns so no need for GC word, return, etc
 }
 
-func genConstructor(asm asmWriter, f *function, params []*Node) {
+func genConstructor(asm asmWriter, f *function, params []*Node, name string) {
 
 	size := ptrSize * len(params)
 	if f.Type.IsEnumCons() {
@@ -416,6 +416,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node) {
 
 	// Malloc memory of appropriate size
 	asm.ins(movq, intOp(size), rdi)
+	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", f.Type.Describe(name))), rsi)
 	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
 	asm.addr(f.NewGcFunction())
 

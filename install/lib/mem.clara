@@ -6,7 +6,7 @@ struct block {
     // ... data ...
 }
 
-fn claralloc(size: int) block {
+fn claralloc(size: int, description: string) block {
     gc()
     // -----------------------------------------------------------------------------------------------------------------
     // NOTE: No constructors can be invoked below this line!!!
@@ -21,7 +21,7 @@ fn claralloc(size: int) block {
     b.next = getBlocks()
     setBlocks(b)
     b = b.inc(16) // Skip past next & header
-    debug("gc", "Allocated (0x%lx) @ size: %d\n", b, size)
+    debug("gc", "🚧\n - Type   : %s\n - Size   : %d bytes\n - Address: 0x%lx\n", description, size, b)
     return b
 }
 
