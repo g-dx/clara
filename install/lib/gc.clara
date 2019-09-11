@@ -21,7 +21,7 @@ fn gcMark() {
 
 // http://journal.stuffwithstuff.com/2013/12/08/babys-first-garbage-collector/
 fn gcSweep() {
-    debug("gc", "\n🗑️🧹 Sweep:\n")
+    debug("gc", "\n\n🗑️🧹 Sweep:\n")
     b := getBlocks()
     prev := emptyBlock() // TODO: This is unfortunate! Block.None would be much nicer here!
     while b.isValidBlock() {
@@ -50,14 +50,14 @@ fn noGc() nothing {
 // Called by the GC when starting to trace a frame. IMPORTANT: This function cannot allocate!
 fn gcTraceFrame(fnDescription: string) {
     if isGcDebug() {
-        printf("\n%s\n", fnDescription)
+        printf("\n▶ %s", fnDescription)
     }
 }
 
 // Called by the GC when marking a heap address as in use. IMPORTANT: This function cannot allocate!
 fn gcMarkType(addr: int, typeDescription: string) {
     if isGcDebug() {
-        printf("  - (0x%lx) '%s' \n", addr, typeDescription)
+        printf("\n  - (0x%lx) '%s'", addr, typeDescription)
     }
 }
 
