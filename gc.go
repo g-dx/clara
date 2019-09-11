@@ -5,7 +5,7 @@ import (
 )
 
 const closureGc = fnPrefix + "closure_gc"
-const gcHeaderSize = 8
+const gcHeaderSize = ptrSize
 // ---------------------------------------------------------------------------------------------------------------------
 
 type GcState struct {

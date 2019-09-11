@@ -18,10 +18,11 @@ fn claralloc(size: int) block {
     if not b.isValidBlock() {
         panic("Failed to allocate memory!")
     }
-    debug("gc", "Allocated (0x%lx) @ size: %d\n", b, size+16)
     b.next = getBlocks()
     setBlocks(b)
-    return b.inc(16) // Skip past next & header
+    b = b.inc(16) // Skip past next & header
+    debug("gc", "Allocated (0x%lx) @ size: %d\n", b, size)
+    return b
 }
 
 fn clarafree(b: block) {

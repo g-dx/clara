@@ -206,10 +206,7 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 
 	// --------------------------------------------------------------------------
 	// GC TRACING
-	// Calculate pointer to block from type
-	typeName := asm.stringLit(fmt.Sprintf("\"%v\"", t))
-	asm.ins(leaq, rdi.displace(-16), rsi) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
-	asm.ins(movabs, typeName, rdi)
+	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", t)), rsi)
 	asm.ins(call, fn.gcMarkType)
 	asm.addr(fn.noGc)
 	// --------------------------------------------------------------------------

@@ -36,7 +36,7 @@ fn gcSweep() {
             } else {
                 setBlocks(unreached.next)
             }
-            debug("gc", "  - (0x%lx) ✘\n", b)
+            debug("gc", "  - (0x%lx) ✘\n", b.inc(16)) // Increment pointer to point to start of user mem
             b = unreached.next
             clarafree(unreached)
         }
@@ -55,7 +55,7 @@ fn gcTraceFrame(fnDescription: string) {
 }
 
 // Called by the GC when marking a heap address as in use. IMPORTANT: This function cannot allocate!
-fn gcMarkType(typeDescription: string, addr: int) {
+fn gcMarkType(addr: int, typeDescription: string) {
     if isGcDebug() {
         printf("  - (0x%lx) '%s' \n", addr, typeDescription)
     }
