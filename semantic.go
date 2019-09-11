@@ -452,7 +452,7 @@ func foldConstants(root *Node, symtab *SymTab, n *Node) error {
 
 	// Check for overflow
 	if n.op == opLit && n.token.Kind == lex.Integer {
-		_, err := strconv.ParseInt(n.token.Val, 10, 64)
+		_, err := strconv.ParseInt(n.token.Val, 0, 64)
 		if err != nil {
 			return semanticError(errIntegerOverflowMsg, n.token)
 		}

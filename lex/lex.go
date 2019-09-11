@@ -2,10 +2,10 @@ package lex
 
 import (
 	"fmt"
-	"strings"
-	"unicode/utf8"
-	"unicode"
 	"github.com/g-dx/clarac/console"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Kind of lex tokens we emit
@@ -325,8 +325,10 @@ func lexText(l *Lexer) stateFn {
 				return lexComment
 			}
 			l.emit(Div)
-		case isNumeric(r):
-			return lexInteger
+		case r == '0':
+			return lexHexOrDecInteger
+		case '1' <= r  && r <= '9':
+			return lexDecInteger
 		case isAlphabetic(r):
 			return lexIdentifier
 		case isEndOfLine(r):
@@ -364,12 +366,29 @@ func lexString(l *Lexer) stateFn {
 }
 
 // Opening digit or negation sign has already been consumed
-func lexInteger(l *Lexer) stateFn {
-	for l.peek() != eof && isNumeric(l.peek()) {
+func lexInteger(pred func(rune) bool, l *Lexer) stateFn {
+	for l.peek() != eof && pred(l.peek()) {
 		l.next()
 	}
 	l.emit(Integer)
 	return lexText
+}
+
+func lexHexOrDecInteger(l *Lexer) stateFn {
+	switch r := l.peek(); {
+	case r == 'x':
+		l.next()
+		if !isHexadecimal(l.peek()) {
+			return l.errorf("Hexadecimal literal has no digits")
+		}
+		return lexInteger(isHexadecimal, l)
+	default:
+		return lexInteger(isNumeric, l)
+	}
+}
+
+func lexDecInteger(l *Lexer) stateFn {
+	return lexInteger(isNumeric, l)
 }
 
 // A single space character has been consumed already.
@@ -459,6 +478,11 @@ func isAlphabetic(r rune) bool {
 
 func isNumeric(r rune) bool {
 	return unicode.IsDigit(r)
+}
+
+func isHexadecimal(r rune) bool {
+	return isNumeric(r) || r == 'a' || r == 'b' || r == 'c' || r == 'd' || r == 'e' || r == 'f' ||
+		r == 'A' || r == 'B' || r == 'C' || r == 'D' || r == 'E' || r == 'F'
 }
 
 func isEndOfLine(r rune) bool {

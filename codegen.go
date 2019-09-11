@@ -682,7 +682,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 		case Byte, Integer:
 			// Parse
-			i, err := strconv.ParseInt(expr.sym.Name, 10, 64)
+			i, err := strconv.ParseInt(expr.sym.Name, 0, 64)
 			if err != nil {
 				panic(err) // NOTE: Should never happen as has been checked on front end
 			}

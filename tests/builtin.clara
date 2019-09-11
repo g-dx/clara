@@ -1,6 +1,7 @@
 fn main() {
     // Basic types
     printf("i: %d\n", 1234567890)  // EXPECT: i: 1234567890
+    printf("i: %#x\n", 0xDEADBEEF) // EXPECT: i: 0xdeadbeef
     printf("s: %s\n", "<string>")  // EXPECT: s: <string>
     printf("b: %d\n", byte(255))   // EXPECT: b: -1
     printf("true: %d\n", true)     // EXPECT: true: 1
