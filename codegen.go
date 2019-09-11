@@ -204,13 +204,6 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 	asm.ins(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
 	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
 
-	// --------------------------------------------------------------------------
-	// GC TRACING
-	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", t)), rsi)
-	asm.ins(call, fn.gcMarkType)
-	asm.addr(fn.noGc)
-	// --------------------------------------------------------------------------
-
 	// Labels
 	exit := asm.newLabel("exit")
 
@@ -232,6 +225,13 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 
 	// header.marked = true
 	asm.ins(orq, intOp(1), rax.deref())
+
+	// --------------------------------------------------------------------------
+	// GC TRACING
+	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", t)), rsi)
+	asm.ins(call, fn.gcMarkType)
+	asm.addr(fn.noGc)
+	// --------------------------------------------------------------------------
 
 	switch t.Kind {
 	case String, Array:
