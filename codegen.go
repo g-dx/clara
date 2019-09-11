@@ -6,8 +6,6 @@ import (
 	"strconv"
 )
 
-var stringOps = make(map[string]operand)
-
 /*
 
  System V AMD64 ABI:
@@ -68,21 +66,6 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Assembly Generation Start
 	// ---------------------------------------------------------------------------------------
 
-	asm.tab(".data")
-
-	// Output strings
-	// TODO: Delay writing string literals until end of assembly generation
-	symtab.Walk(func(s *Symbol) {
-		if s.Type.Is(String) && s.IsLiteral {
-			stringOps[s.Name] = asm.stringLit(s.Name)
-		}
-	})
-
-	asm.spacer()
-
-	// Output func calls
-	asm.tab(".text")
-
 	// Runtime functions declared in Clara code
 	noGc := symtab.MustResolve("noGc")
 	ioob := symtab.MustResolve("indexOutOfBounds")
@@ -112,6 +95,8 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	genInvokeDynamic(asm, fn.noGc) // Closure invocation support
 	asm.spacer()
 	genClosureGc(asm) // Closure GC tracing support
+	asm.spacer()
+	asm.flush() // Write final values
 	return nil
 }
 
@@ -174,17 +159,12 @@ func genFunc(asm asmWriter, n *Node, fn *function) {
 
 func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 	for name, roots := range fn.gcFns {
-
-		// TODO: Delay writing string literals until end of assembly generation
-		asm.tab(".data")
-		fnDesc := asm.stringLit(fmt.Sprintf("\"%v\"", fn.Type.Describe(fn.AstName)))
-		asm.tab(".text")
-
 		genFnEntry(asm, name, 1)
 		asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
 
 		// --------------------------------------------------------------------------
 		// GC TRACING
+		fnDesc := asm.stringLit(fmt.Sprintf("\"%v\"", fn.Type.Describe(fn.AstName)))
 		asm.ins(movabs, fnDesc, rdi)
 		asm.ins(call, fn.gcTraceFrame)
 		asm.addr(fn.noGc)
@@ -220,11 +200,6 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 	// GC functions take a single parameter which is the stack address of the slot to trace
 	//
 
-	// TODO: Delay writing string literals until end of assembly generation
-	asm.tab(".data")
-	typeName := asm.stringLit(fmt.Sprintf("\"%v\"", t))
-	asm.tab(".text")
-
 	genFnEntry(asm, t.GcName(), 1)
 	asm.ins(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
 	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
@@ -232,6 +207,7 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 	// --------------------------------------------------------------------------
 	// GC TRACING
 	// Calculate pointer to block from type
+	typeName := asm.stringLit(fmt.Sprintf("\"%v\"", t))
 	asm.ins(leaq, rdi.displace(-16), rsi) // *type-16 -> *block TODO: Is this safe if the pointer is NULL?
 	asm.ins(movabs, typeName, rdi)
 	asm.ins(call, fn.gcMarkType)
@@ -678,7 +654,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 	case opLit:
 		switch expr.sym.Type.Kind {
 		case String:
-			asm.ins(movabs, stringOps[expr.sym.Name], rax)
+			asm.ins(movabs, asm.stringLit(expr.sym.Name), rax)
 
 		case Byte, Integer:
 			// Parse

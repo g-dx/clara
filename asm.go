@@ -314,17 +314,19 @@ type asmWriter interface {
 	addr(op operand)
 	function(name string)
 	ins(i inst, ops ...operand)
+	flush()
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
 type gasWriter struct {
-	w *bufio.Writer
-	debug bool
+	w              *bufio.Writer
+	debug          bool
 	sIndex, lIndex int
+	literals       map[string]string
 }
 
 func NewGasWriter(io io.Writer, debug bool) *gasWriter {
-	return &gasWriter { w : bufio.NewWriter(io), debug: debug }
+	return &gasWriter { w : bufio.NewWriter(io), debug: debug, literals: make(map[string]string) }
 }
 
 func (gw *gasWriter) write(asm string, a...interface{}) {
@@ -349,7 +351,8 @@ func (gw *gasWriter) spacer() {
 
 func (gw *gasWriter) function(name string) {
 
-	gw.write("   .8byte   0x2\n") // "Read-only" GC header
+	gw.tab(".text")
+	gw.tab(".8byte", "0x2") // "Read-only" GC header
 
 	if runtime.GOOS == "darwin" {
 		name = "_" + name
@@ -362,27 +365,40 @@ func (gw *gasWriter) function(name string) {
 }
 
 func (gw *gasWriter) stringLit(s string) operand {
+	const suffix = "+8" // Ensure the address points _after_ the header
+	if label, ok := gw.literals[s]; ok {
+		return litOp(label + suffix)
+	}
 
+	// Create new label
 	label := fmt.Sprintf(".LC%v", gw.sIndex)
 	gw.sIndex++
+	gw.literals[s] = label
+	return litOp(label + suffix)
+}
 
-	// Encode length in little endian format
-	b := make([]byte, 8)
-	raw, err := strconv.Unquote(s)
-	if err != nil {
-		panic(err)
+func (gw *gasWriter) flush() {
+	gw.tab(".data")
+	for s, label := range gw.literals {
+
+		// Encode length in little endian format
+		b := make([]byte, 8)
+		raw, err := strconv.Unquote(s)
+		if err != nil {
+			panic(err)
+		}
+		binary.LittleEndian.PutUint64(b, uint64(len(raw)))
+
+		// Generate escaped Go string of raw octal values
+		size := fmt.Sprintf("\\%o\\%o\\%o\\%o\\%o\\%o\\%o\\%o",
+			b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
+
+		// string literal GC header (2 == readonly)
+		header := "\\2\\0\\0\\0\\0\\0\\0\\0"
+
+		gw.write("%s:\n   .ascii \"%v\",\"%v\",\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
 	}
-	binary.LittleEndian.PutUint64(b, uint64(len(raw)))
-
-	// Generate escaped Go string of raw octal values
-	size := fmt.Sprintf("\\%o\\%o\\%o\\%o\\%o\\%o\\%o\\%o",
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
-
-	// string literal GC header (2 == readonly)
-	header := "\\2\\0\\0\\0\\0\\0\\0\\0"
-
-	gw.write("%s:\n   .ascii \"%v\",\"%v\",\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
-	return litOp(label+"+8") // Ensure the address points _after_ the header
+	gw.literals = make(map[string]string) // Clear values
 }
 
 func (gw *gasWriter) newLabel(s string) string {
