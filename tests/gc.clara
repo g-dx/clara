@@ -4,7 +4,7 @@
 fn main() {
     x := 100000
     while x > 0 {
-        intArray(214748364)
+        intArray(0xCCCCCCC)
         x = x - 1
     }
 }

@@ -1,16 +1,16 @@
 package main
 
 import (
-	"testing"
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
-	"strings"
-	"fmt"
 	"path/filepath"
-	"log"
-	"io/ioutil"
 	"regexp"
-	"bytes"
+	"strings"
+	"testing"
 )
 
 var regex = regexp.MustCompile("^.*?//\\sEXPECT:\\s(.*)$")
@@ -29,6 +29,8 @@ func TestE2E(t *testing.T) {
 	// Process each test case
 	for _, f := range files {
 		t.Run(filepath.Base(f), func(t *testing.T) {
+			f := f
+			t.Parallel()
 			// Read file
 			bytes, err := ioutil.ReadFile(f)
 			if err != nil {
