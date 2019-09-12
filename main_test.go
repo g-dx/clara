@@ -102,8 +102,7 @@ func CompileAndRun(progPath string, t *testing.T) string {
 
 	// Execute binary
 	cmd := exec.Command(binary)
-	cmd.Stderr = os.Stderr
-	outBytes, err := cmd.Output()
+	outBytes, err := cmd.CombinedOutput()
 	out := string(outBytes)
 	if err != nil {
 		t.Log(out)

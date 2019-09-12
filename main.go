@@ -148,10 +148,9 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	args = append(args, asmPath)
 	args = append(args, cLibPaths...)
 	cmd := exec.Command("gcc", args...)
-	cmd.Stderr = os.Stderr
-	stdOut, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", []error{errors.New(fmt.Sprintf("Link failure: %v\n%v\n", err, string(stdOut)))}
+		return "", []error{errors.New(fmt.Sprintf("Link failure: %v\n%v\n", err, string(output)))}
 	}
 	return outputPath, nil
 }
