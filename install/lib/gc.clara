@@ -43,8 +43,11 @@ fn gcSweep() {
     }
 }
 
+// Called by the GC when the current stack frame has no GC roots which require tracing.
 fn noGc() nothing {
-    // Called by the GC when tracing a GC root which is not in the heap (integers, bools, etc)
+    if isGcDebug() {
+        printf("\n▶ <no GC for frame>")
+    }
 }
 
 // Called by the GC when starting to trace a frame. IMPORTANT: This function cannot allocate!
