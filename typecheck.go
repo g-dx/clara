@@ -485,6 +485,18 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		return errs
 	}
 
+	// SPECIAL CASE: Allow anything into the unsafe function
+	if n.token.Val == "unsafe" {
+		s, _ := fnSymtab.Resolve(n.token.Val)
+		unsafe := s.Type.AsFunction()
+		if len(n.stmts) != 3 {
+			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(unsafe.Params)))
+		}
+		n.sym = s
+		n.typ = n.stmts[len(n.stmts)-1].typ
+		return errs
+	}
+
 	// 2 cases, either the function call is a named call (global, parameter, etc) or is
 	// an "anonymous" call from some expression evaluation (f(x)(y), etc)
 

@@ -90,6 +90,8 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genFramePointerAccess(asm)
 	asm.spacer()
+	genUnsafe(asm)
+	asm.spacer()
 	genTypeGcFuncs(asm, symtab.allTypes(), fn) 	// Generate per-type GC functions
 	asm.spacer()
 	genInvokeDynamic(asm, fn.noGc) // Closure invocation support
@@ -371,6 +373,13 @@ func genFramePointerAccess(asm asmWriter) {
 	asm.function("getFramePointer")
 	asm.ins(movq, rbp, rax)
 	asm.ins(ret, )
+}
+
+func genUnsafe(asm asmWriter) {
+	genFnEntry(asm, "unsafe", 0) // NOTE: Lie! This function takes 3 parameters!
+	asm.ins(addq, rsi, rdi)
+	asm.ins(movq, rdi, rax)
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
 func genFnEntry(asm asmWriter, name string, temps int) int {

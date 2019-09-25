@@ -42,3 +42,11 @@ fn abort() nothing
 fn getFramePointer() frame // Implemented in assembly by codegen.go
 fn isStackBase(f: frame) bool
 fn setStackBase(f: frame) nothing
+
+// WARNING: Type system escape hatch! Use with extreme caution!
+//
+// ptr: Pointer to heap
+// off: Offset from pointer
+// type: Type of return type
+// Returns the calculated memory location interpreted as the parameterised type
+fn unsafe(ptr: int, off: int, type: int) int // Implemented in assembly by codegen.go
