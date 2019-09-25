@@ -1,11 +1,11 @@
 package main
 import (
+	"bytes"
 	"fmt"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
-	"strings"
-	"bytes"
 	"io"
+	"strings"
 )
 
 // AST
@@ -211,6 +211,11 @@ const (
 	opNeg
 	opDot
 	opAnd
+	opBAnd
+	opBOr
+	opBXor
+	opBLeft
+	opBRight
 	opIdentifier
 	opNamedType
 	opFuncType
@@ -248,6 +253,11 @@ var nodeTypes = map[int]string{
 	opSub:         "Binary Op [Min]",
 	opMul:         "Binary Op [Mul]",
 	opDiv:         "Binary Op [Div]",
+	opBAnd:        "Bitwise Op [&]",
+	opBOr:         "Bitwise Op [|]",
+	opBXor:        "Bitwise Op [^]",
+	opBLeft:       "Bitwise Op [>>]",
+	opBRight:      "Bitwise Op [<<]",
 	opIdentifier:  "Identifier",
 	opArray:       "Array Access",
 	opReturn:      "Return Expr",

@@ -91,7 +91,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		n.typ = rType
 
 
-	case opAnd, opOr, opAdd, opMul, opSub, opDiv:
+	case opAnd, opOr, opAdd, opMul, opSub, opDiv, opBAnd, opBOr, opBXor, opBLeft, opBRight:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 

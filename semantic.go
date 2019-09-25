@@ -44,13 +44,18 @@ const (
 
 type OperatorTypes map[int][]TypeKind
 
-var operatorTypes = OperatorTypes {
-	opAdd: { Integer, Byte },
-	opSub: { Integer, Byte },
-	opMul: { Integer, Byte },
-	opDiv: { Integer, Byte },
-	opOr:  { Boolean },
-	opAnd: { Boolean },
+var operatorTypes = OperatorTypes{
+	opAdd:    {Integer, Byte},
+	opSub:    {Integer, Byte},
+	opMul:    {Integer, Byte},
+	opDiv:    {Integer, Byte},
+	opOr:     {Boolean},
+	opAnd:    {Boolean},
+	opBAnd:   {Integer},
+	opBOr:    {Integer},
+	opBXor:   {Integer},
+	opBLeft:  {Integer},
+	opBRight: {Integer},
 	// TODO: What about unary operators? Operators which return a different type?
 }
 

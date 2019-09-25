@@ -247,11 +247,14 @@ const (
 	notq
 	negq
 	orq
+	xorq
 	andq
 	cmpq
 	setg
 	setl
 	sete
+	shlq
+	sarq
 
 	// Arithmetic
 	addq
@@ -283,6 +286,9 @@ var instNames = map[inst]string{
 	notq:   "notq",
 	negq:   "negq",
 	orq:    "orq",
+	xorq:   "xorq",
+	sarq:   "sarq",
+	shlq:   "shlq",
 	andq:   "andq",
 	cmpq:   "cmpq",
 	setg:   "setg",

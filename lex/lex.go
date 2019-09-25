@@ -41,6 +41,14 @@ const (
 	Min
 
 	// -----------------------------------------------------------------------------------------------------------------
+	// Bitwisre Operators
+	BAnd
+	BOr
+	BXor
+	BLeft
+	BRight
+
+	// -----------------------------------------------------------------------------------------------------------------
 	// Comparison Operators
 	Gt
 	Lt
@@ -77,7 +85,7 @@ const (
 
 func (k Kind) IsBinaryOperator() bool {
 	switch k {
-	case Plus, Gt, Lt, And, Or, Mul, Div, Min, Eq, Dot:
+	case Plus, Gt, Lt, And, Or, Mul, Div, Min, Eq, Dot, BAnd, BOr, BXor, BLeft, BRight:
 		return true
 	default:
 		return false
@@ -107,16 +115,24 @@ func (k Kind) Precedence() int {
 	// TODO: other operators should get added here
 	switch k {
 	case Dot:
-		return 8
+		return 12
 	case Not, Neg:
-		return 7
+		return 11
 	case Mul, Div:
-		return 6
+		return 10
 	case Plus, Min:
-		return 5
+		return 9
+	case BLeft, BRight:
+		return 8
 	case Gt, Lt:
-		return 4
+		return 7
 	case Eq:
+		return 6
+	case BAnd:
+		return 5
+	case BXor:
+		return 4
+	case BOr:
 		return 3
 	case And:
 		return 2
@@ -136,7 +152,7 @@ const (
 
 func (k Kind) Associativity() Associative {
 	switch k {
-	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot, Neg:
+	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot, Neg, BAnd, BOr, BXor, BLeft, BRight:
 		return Left
 	case Not:
 		return Right
@@ -182,6 +198,11 @@ var KindValues = map[Kind]string{
 	Else:       "else",
 	Gt:         ">",
 	Lt:         "<",
+	BAnd:       "&",
+	BOr:        "|",
+	BXor:       "^",
+	BLeft:      "<<",
+	BRight:     ">>",
 	Mul:        "*",
 	Plus:       "+",
 	Div:        "/",
@@ -304,10 +325,26 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Min)
 		case r == '*':
 			l.emit(Mul)
+		case r == '^':
+			l.emit(BXor)
+		case r == '|':
+			l.emit(BOr)
+		case r == '&':
+			l.emit(BAnd)
 		case r == '>':
-			l.emit(Gt)
+			if l.peek() == '>' {
+				l.next()
+				l.emit(BRight)
+			} else {
+				l.emit(Gt)
+			}
 		case r == '<':
-			l.emit(Lt)
+			if l.peek() == '<' {
+				l.next()
+				l.emit(BLeft)
+			} else {
+				l.emit(Lt)
+			}
 		case r == '.':
 			l.emit(Dot)
 		case r == '"':

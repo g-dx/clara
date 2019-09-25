@@ -1,6 +1,5 @@
 (Hopefully these are in the order they should be tackled...)
 
-- Add bitwise operations
 - Allow panic() to operate as a return statement
 - Allow enum constructors to be namespaced by type
 - Escape double quotes in string literals.
@@ -24,3 +23,4 @@ DONE:
 - Add support for anonymous functions
 - Add support for closures
 - Add enums
+- Add bitwise operations

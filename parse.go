@@ -296,6 +296,16 @@ func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 		return opGt, p.next()
 	case lex.Lt:
 		return opLt, p.next()
+	case lex.BAnd:
+		return opBAnd, p.next()
+	case lex.BOr:
+		return opBOr, p.next()
+	case lex.BXor:
+		return opBXor, p.next()
+	case lex.BLeft:
+		return opBLeft, p.next()
+	case lex.BRight:
+		return opBRight, p.next()
 	default:
 		p.syntaxError("<operator>")
 		return opError, p.next()

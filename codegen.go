@@ -738,16 +738,34 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		asm.ins(addq, intOp(8), rsp) // Pop
 		fn.decSp(1)
 
-	case opAnd:
+	case opAnd, opBAnd:
 
 		asm.ins(andq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp) // Pop
 		fn.decSp(1)
 
-	case opOr:
+	case opOr, opBOr:
 
 		asm.ins(orq, rsp.deref(), rax)
 		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
+
+	case opBXor:
+
+		asm.ins(xorq, rsp.deref(), rax)
+		asm.ins(addq, intOp(8), rsp) // Pop
+		fn.decSp(1)
+
+	case opBLeft:
+
+		asm.ins(popq, rcx)
+		asm.ins(shlq, cl, rax)
+		fn.decSp(1)
+
+	case opBRight:
+
+		asm.ins(popq, rcx)
+		asm.ins(sarq, cl, rax)
 		fn.decSp(1)
 
 	case opIdentifier:

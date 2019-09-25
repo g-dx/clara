@@ -43,7 +43,6 @@ func TestLex(t *testing.T) {
 		{"return ", tokens(Return, Space, EOF)},
 
 		// Errors
-		{"&", tokens(Err)}, // Unexpected character
 		{"\"abc", tokens(Err)}, // Unclosed string literal
 
 		// Programs
