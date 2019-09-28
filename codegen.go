@@ -23,6 +23,7 @@ import (
 */
 
 var claralloc = "clara_claralloc.int.string.int" // NOTE: keep in sync with ASM name generation!
+var noGc = labelOp("_noGc")
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
@@ -32,8 +33,9 @@ type function struct {
 	Type         *FunctionType
 	gcRoots      *GcState
 	gcFns        map[string]GcRoots
+	id           int
 	sp           int
-	noGc         operand
+	noGc         operand // TODO: Remove me
 	gcTraceFrame operand
 	gcMarkType   operand
 }
@@ -55,11 +57,12 @@ func (f *function) AsmName() string {
 func (f *function) NewGcFunction() operand {
 	roots := f.gcRoots.Snapshot()
 	if len(roots) == 0 {
-		return f.noGc
+		return noGc
 	}
-	name := fmt.Sprintf("%v_gc%v", f.AsmName(), roots.String())
+	name := fmt.Sprintf(".SM%v", f.id)
 	f.gcFns[name] = roots
-	return fnOp(name)
+	f.id += 1
+	return labelOp(name)
 }
 
 func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
@@ -69,14 +72,14 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// ---------------------------------------------------------------------------------------
 
 	// Runtime functions declared in Clara code
-	noGc := symtab.MustResolve("noGc")
+	_noGc := symtab.MustResolve("noGc")
 	ioob := symtab.MustResolve("indexOutOfBounds")
 	gcTraceFrame := symtab.MustResolve("gcTraceFrame")
 	gcMarkType := symtab.MustResolve("gcMarkType")
 
 	// Holds compilation state for current function
 	fn := &function{
-		noGc: fnOp(noGc.Type.AsFunction().AsmName(noGc.Name)),
+		noGc: fnOp(_noGc.Type.AsFunction().AsmName(_noGc.Name)),
 		gcTraceFrame: fnOp(gcTraceFrame.Type.AsFunction().AsmName(gcTraceFrame.Name)),
 		gcMarkType: fnOp(gcMarkType.Type.AsFunction().AsmName(gcMarkType.Name)),
 	}
@@ -101,7 +104,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genTypeGcFuncs(asm, symtab.allTypes(), fn) 	// Generate per-type GC functions
 	asm.spacer()
-	genInvokeDynamic(asm, fn.noGc) // Closure invocation support
+	genInvokeDynamic(asm, noGc) // Closure invocation support
 	asm.spacer()
 	genClosureGc(asm) // Closure GC tracing support
 	asm.spacer()
@@ -128,6 +131,7 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 		})
 
 		// If this function is a closure output the address of the tracing function before it
+		// TODO: Remove me
 		if fn.Type.IsClosure() {
 			asm.addr(fnOp(fn.Type.AsClosure().gcFunc))
 		}
@@ -169,8 +173,12 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 }
 
 func genStackFrameGcFuncs(asm asmWriter, fn *function) {
+
+	//
+	// // TODO: Remove me
+	//
 	for name, roots := range fn.gcFns {
-		genFnEntry(asm, name, 1)
+		genFnEntry(asm, "_" + name, 1)
 		asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
 
 		// --------------------------------------------------------------------------
@@ -178,7 +186,7 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		fnDesc := asm.stringLit(fmt.Sprintf("\"%v\"", fn.Type.Describe(fn.AstName)))
 		asm.ins(movabs, fnDesc, rdi)
 		asm.ins(call, fn.gcTraceFrame)
-		asm.addr(fn.noGc)
+		asm.addr(noGc)
 		// --------------------------------------------------------------------------
 
 		// Invoke GC function for type of each root
@@ -201,7 +209,7 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 	}
 	asm.tab(".data")
 	for name, roots := range fn.gcFns {
-		buf := bytes.NewBufferString(fmt.Sprintf("%v_sm:\n   .8byte %#x\n .byte ", name, len(roots)))
+		buf := bytes.NewBufferString(fmt.Sprintf("%v:\n   .8byte %#x\n .byte ", name, len(roots)))
 		var offsets []string
 		for _, root := range roots {
 			offsets = append(offsets, strconv.Itoa(root.off/ptrSize))
@@ -266,7 +274,7 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 	// GC TRACING
 	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", t)), rsi)
 	asm.ins(call, fn.gcMarkType)
-	asm.addr(fn.noGc)
+	asm.addr(noGc)
 	// --------------------------------------------------------------------------
 
 	switch t.Kind {
@@ -283,6 +291,7 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 				} else {
 					asm.ins(call, fnOp(f.Type.GcName()))
 				}
+				asm.addr(noGc)
 			}
 		}
 	case Enum:
@@ -311,6 +320,7 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 					} else {
 						asm.ins(call, fnOp(param.GcName()))
 					}
+					asm.addr(noGc)
 				}
 			}
 
@@ -340,9 +350,10 @@ func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
 
 	// Exit
 	asm.label(exit)
-	genFnExit(asm, true) // assembly defined caller
+	genFnExit(asm, false) // Called from both Clara code & assembly
 }
 
+// TODO: Remove me
 func genClosureGc(asm asmWriter) {
 	genFnEntry(asm, closureGc, 1)
 
@@ -361,9 +372,10 @@ func genClosureGc(asm asmWriter) {
 	asm.ins(movq, rax.deref(), rax)
 	asm.ins(movq, rax.displace(-16), rax)
 	asm.ins(call, rax.indirect())
+	asm.addr(noGc)
 
 	asm.label(exit)
-	genFnExit(asm, true) // assembly defined caller
+	genFnExit(asm, false) // Called from Clara & assemblt
 }
 
 func genInvokeDynamic(asm asmWriter, noGc operand) {

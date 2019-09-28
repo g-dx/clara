@@ -432,7 +432,7 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 
 func (gw *gasWriter) labelBlock(name string, f func(w asmWriter)) {
 	gw.tab(".data")
-	gw.tab(labelOp("gcTypeTable:").Print())
+	gw.raw(fnOp("gcTypeTable:").Print())
 	f(gw)
 	gw.tab(".text")
 

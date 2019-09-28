@@ -11,11 +11,47 @@ fn gc() {
 fn gcMark() {
     debug("gc", "🔎 Mark:\n")
     fp := getFramePointer()
-    gc := fp.caller.gc
+    roots := fp.map.roots
+
+    j := 0
     while not fp.isStackBase() {
         fp = fp.next
-        gc(fp)
-        gc = fp.caller.gc
+        debug("gc", "\n▶ (%d) <description>", j)
+
+        i := 0
+        while i < roots.length {
+            gcMarkRoot(fp, roots[i])
+            i = i + 1
+        }
+        roots = fp.map.roots
+        j = j + 1
+    }
+}
+
+struct pointer {
+    deref: int
+}
+
+struct typeInfo {
+    gc: fn(pointer) nothing
+}
+
+fn gcMarkRoot(fp: frame, off: byte) {
+
+    // Chase pointers to get block header
+    root := unsafe(fp, -off * 8, pointer)
+    heapPointer := unsafe(root.deref, -8, pointer)
+    blockHeader := heapPointer.deref
+
+    // Get info from header
+    id := (blockHeader & 0xFFFF << 48) >> 48
+    readOnly := (blockHeader & 0x2) == 0x2
+
+    // Lookup GC tracing function
+    info := unsafe(gcTypeTable, id * 8, typeInfo)
+    debug("gc", "\n  - 0x%lx, id = %2d, readonly = %d", root.deref, id, readOnly)
+    if not readOnly {
+        info.gc(root)
     }
 }
 
@@ -79,3 +115,6 @@ fn isMarked(b: block) bool = (b.header & 0x1) == 0x1
 fn isGcDebug() bool
 fn isValidBlock(b: block) bool
 fn emptyBlock() block
+
+// NOTE: This is not a function! Do not call it! It _should_ be a global symbol.
+fn gcTypeTable() nothing
