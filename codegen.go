@@ -195,8 +195,11 @@ func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
 
 func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	asm.labelBlock("typeInfoTable", func(w asmWriter) {
-		for _, typ := range gt.types {
-			asm.addr(fnOp(typ.GcName()))
+		for _, t := range gt.types {
+			asm.addr(fnOp(t.GcName()))
+			// TODO: Hack! Find a better way of returning a label to a string literatro
+			s := []byte(asm.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
+			asm.addr(labelOp(s[1:]))
 		}
 	})
 }

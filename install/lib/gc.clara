@@ -31,8 +31,10 @@ struct pointer {
     deref: int
 }
 
+// Compile time generated structure holding runtime type information
 struct typeInfo {
     gc: fn(pointer) nothing
+    name: string
 }
 
 fn gcMarkRoot(fp: frame, off: byte) {
@@ -47,8 +49,9 @@ fn gcMarkRoot(fp: frame, off: byte) {
     readOnly := (blockHeader & 0x2) == 0x2
 
     // Lookup GC tracing function
-    info := unsafe(typeInfoTable, id * 8, typeInfo)
-    debug("gc", "\n  - 0x%lx, id = %2d, readonly = %d", root.deref, id, readOnly)
+    infoFields := 2 // Size of typeInfo structure
+    info := unsafe(typeInfoTable, (id * 8) * infoFields, typeInfo)
+    debug("gc", "\n  - 0x%lx, id = %2d, name = '%s', readonly = %d", root.deref, id, info.name, readOnly)
     if not readOnly {
         info.gc(root)
     }
