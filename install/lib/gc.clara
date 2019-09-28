@@ -17,7 +17,6 @@ fn gcMark() {
     while not fp.isStackBase() {
         fp = fp.next
         debug("gc", "\n▶ (%d) <description>", j)
-
         i := 0
         while i < roots.length {
             gcMarkRoot(fp, roots[i])
@@ -76,20 +75,6 @@ fn gcSweep() {
             b = unreached.next
             clarafree(unreached)
         }
-    }
-}
-
-// Called by the GC when the current stack frame has no GC roots which require tracing.
-fn noGc() nothing {
-    if isGcDebug() {
-        printf("\n▶ <no GC for frame>")
-    }
-}
-
-// Called by the GC when starting to trace a frame. IMPORTANT: This function cannot allocate!
-fn gcTraceFrame(fnDescription: string) {
-    if isGcDebug() {
-        printf("\n▶ %s", fnDescription)
     }
 }
 

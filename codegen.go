@@ -35,8 +35,6 @@ type function struct {
 	gcFns        map[string]GcRoots
 	id           int
 	sp           int
-	noGc         operand // TODO: Remove me
-	gcTraceFrame operand
 	gcMarkType   operand
 }
 
@@ -72,15 +70,11 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// ---------------------------------------------------------------------------------------
 
 	// Runtime functions declared in Clara code
-	_noGc := symtab.MustResolve("noGc")
 	ioob := symtab.MustResolve("indexOutOfBounds")
-	gcTraceFrame := symtab.MustResolve("gcTraceFrame")
 	gcMarkType := symtab.MustResolve("gcMarkType")
 
 	// Holds compilation state for current function
 	fn := &function{
-		noGc: fnOp(_noGc.Type.AsFunction().AsmName(_noGc.Name)),
-		gcTraceFrame: fnOp(gcTraceFrame.Type.AsFunction().AsmName(gcTraceFrame.Name)),
 		gcMarkType: fnOp(gcMarkType.Type.AsFunction().AsmName(gcMarkType.Name)),
 	}
 
@@ -166,42 +160,12 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 			genFnExit(asm, n.sym.Name == "main")
 		}
 		asm.spacer()
-
-		// Generate stack frame GC functions
-		genStackFrameGcFuncs(asm, fn)
+		genGcRootMaps(asm, fn)
+		asm.spacer()
 	}
 }
 
-func genStackFrameGcFuncs(asm asmWriter, fn *function) {
-
-	//
-	// // TODO: Remove me
-	//
-	for name, roots := range fn.gcFns {
-		genFnEntry(asm, "_" + name, 1)
-		asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy frame pointer into local slot
-
-		// --------------------------------------------------------------------------
-		// GC TRACING
-		fnDesc := asm.stringLit(fmt.Sprintf("\"%v\"", fn.Type.Describe(fn.AstName)))
-		asm.ins(movabs, fnDesc, rdi)
-		asm.ins(call, fn.gcTraceFrame)
-		asm.addr(noGc)
-		// --------------------------------------------------------------------------
-
-		// Invoke GC function for type of each root
-		for _, root := range roots {
-			asm.ins(movq, rbp.displace(-ptrSize), rax)  // load frame pointer
-			asm.ins(leaq, rax.displace(-root.off), rdi) // load slot stack address
-			if root.typ.Is(Function) {
-				asm.ins(call, fnOp(closureGc))
-			} else {
-				asm.ins(call, fnOp(root.typ.GcName()))
-			}
-		}
-		genFnExit(asm, false) // Called from Clara code -
-		asm.spacer()
-	}
+func genGcRootMaps(asm asmWriter, fn *function) {
 
 	// Output stack maps (if any)
 	if len(fn.gcFns) == 0 {
@@ -218,7 +182,6 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		asm.raw(buf.String())
 	}
 	asm.tab(".text") // TODO: This prevents closure tracing address corruption
-	asm.spacer()
 }
 
 func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
