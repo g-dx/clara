@@ -52,3 +52,34 @@ func (gs *GcState) Add(off int, t *Type) {
 func (gs *GcState) Snapshot() GcRoots {
 	return append([]GcRoot{}, gs.roots...)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type GcTypes struct {
+	types []*Type
+}
+
+func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
+
+	//
+	// NOTE: The following 2 types must appear in this order as their ID is defined in
+	// in arrays.clara source code
+	//
+
+	// Id = 0
+	b := symtab.MustResolve("[]byte")
+	gt.types = append(gt.types, b.Type)
+
+	// Id = 1
+	i := symtab.MustResolve("[]int")
+	gt.types = append(gt.types, i.Type)
+
+	// Id = 2
+	s := symtab.MustResolve("string")
+	gt.types = append(gt.types, s.Type)
+}
+
+func (gt *GcTypes) AssignId(typ *Type) int {
+	gt.types = append(gt.types, typ)
+	return len(gt.types) - 1
+}

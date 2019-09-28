@@ -16,6 +16,8 @@ var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
 var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
 var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
 var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
+var byteArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: byteType } }
+var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
 
 //----------------------------------------------------------------------------------------------------------------------
 

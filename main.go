@@ -188,16 +188,13 @@ func lexAndParse(code string, path string, root *Node, showLex bool, out io.Writ
 
 func stdSyms() []*Symbol {
 	return []*Symbol{
-		// string type
 		{ Name: "string", Type: stringType },
-		// int type
 		{ Name: "int", Type: intType },
-		// byte type
 		{ Name: "byte", Type: byteType },
-		// bool type
 		{ Name: "bool", Type: boolType },
-		// nothing type
 		{ Name: "nothing", Type: nothingType },
+		{ Name: "[]int", Type: intArrayType },
+		{ Name: "[]byte", Type: byteArrayType },
 		// invokeDynamic (implemented in assembly)
 		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Params: []*Type{}, ret: nothingType} } },

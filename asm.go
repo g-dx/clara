@@ -399,8 +399,8 @@ func (gw *gasWriter) flush() {
 		size := fmt.Sprintf("\\%o\\%o\\%o\\%o\\%o\\%o\\%o\\%o",
 			b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
 
-		// string literal GC header (2 == readonly)
-		header := "\\2\\0\\0\\0\\0\\0\\0\\0"
+		// string literal header (2 == readonly, type ID = 2 (string))
+		header := "\\2\\0\\0\\0\\0\\0\\2\\0"
 
 		gw.write("%s:\n   .ascii \"%v\",\"%v\",\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
 	}
