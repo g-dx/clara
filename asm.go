@@ -430,9 +430,10 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 	gw.write("   %-8s%-50s\n", instNames[i], strings.Join(s, ", "))
 }
 
+// TODO: Clean this up!
 func (gw *gasWriter) labelBlock(name string, f func(w asmWriter)) {
 	gw.tab(".data")
-	gw.raw(fnOp("gcTypeTable:").Print())
+	gw.raw(fnOp(name + ":").Print())
 	f(gw)
 	gw.tab(".text")
 

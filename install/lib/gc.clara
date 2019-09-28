@@ -47,7 +47,7 @@ fn gcMarkRoot(fp: frame, off: byte) {
     readOnly := (blockHeader & 0x2) == 0x2
 
     // Lookup GC tracing function
-    info := unsafe(gcTypeTable, id * 8, typeInfo)
+    info := unsafe(typeInfoTable, id * 8, typeInfo)
     debug("gc", "\n  - 0x%lx, id = %2d, readonly = %d", root.deref, id, readOnly)
     if not readOnly {
         info.gc(root)
@@ -102,4 +102,4 @@ fn isValidBlock(b: block) bool
 fn emptyBlock() block
 
 // NOTE: This is not a function! Do not call it! It _should_ be a global symbol.
-fn gcTypeTable() nothing
+fn typeInfoTable() nothing

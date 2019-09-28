@@ -102,7 +102,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genClosureGc(asm) // Closure GC tracing support
 	asm.spacer()
-	genGcTypeTable(asm, gt)
+	genTypeInfoTable(asm, gt)
 	asm.spacer()
 	asm.flush() // Write final values
 	return nil
@@ -193,8 +193,8 @@ func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
 	}
 }
 
-func genGcTypeTable(asm asmWriter, gt *GcTypes) {
-	asm.labelBlock("gcTypeTable", func(w asmWriter) {
+func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
+	asm.labelBlock("typeInfoTable", func(w asmWriter) {
 		for _, typ := range gt.types {
 			asm.addr(fnOp(typ.GcName()))
 		}
