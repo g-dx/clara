@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 )
 
 /*
@@ -94,6 +96,8 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	genFramePointerAccess(asm)
 	asm.spacer()
 	genUnsafe(asm)
+	asm.spacer()
+	genNoGc(asm)
 	asm.spacer()
 	genTypeGcFuncs(asm, symtab.allTypes(), fn) 	// Generate per-type GC functions
 	asm.spacer()
@@ -190,6 +194,23 @@ func genStackFrameGcFuncs(asm asmWriter, fn *function) {
 		genFnExit(asm, false) // Called from Clara code -
 		asm.spacer()
 	}
+
+	// Output stack maps (if any)
+	if len(fn.gcFns) == 0 {
+		return
+	}
+	asm.tab(".data")
+	for name, roots := range fn.gcFns {
+		buf := bytes.NewBufferString(fmt.Sprintf("%v_sm:\n   .8byte %#x\n .byte ", name, len(roots)))
+		var offsets []string
+		for _, root := range roots {
+			offsets = append(offsets, strconv.Itoa(root.off/ptrSize))
+		}
+		buf.WriteString(strings.Join(offsets, ","))
+		asm.raw(buf.String())
+	}
+	asm.tab(".text") // TODO: This prevents closure tracing address corruption
+	asm.spacer()
 }
 
 func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
@@ -393,6 +414,12 @@ func genUnsafe(asm asmWriter) {
 	asm.ins(addq, rsi, rdi)
 	asm.ins(movq, rdi, rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
+func genNoGc(asm asmWriter) {
+	asm.tab(".data")
+	asm.raw("_noGc:\n   .8byte 0x0")
+	asm.tab(".text")
 }
 
 func genFnEntry(asm asmWriter, name string, temps int) int {
