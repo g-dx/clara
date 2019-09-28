@@ -321,6 +321,7 @@ type asmWriter interface {
 	function(name string)
 	ins(i inst, ops ...operand)
 	flush()
+	labelBlock(name string, f func(w asmWriter))
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
@@ -427,4 +428,12 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 		s[i] = ops[i].Print()
 	}
 	gw.write("   %-8s%-50s\n", instNames[i], strings.Join(s, ", "))
+}
+
+func (gw *gasWriter) labelBlock(name string, f func(w asmWriter)) {
+	gw.tab(".data")
+	gw.tab(labelOp("gcTypeTable:").Print())
+	f(gw)
+	gw.tab(".text")
+
 }
