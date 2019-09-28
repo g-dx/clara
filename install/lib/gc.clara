@@ -64,17 +64,14 @@ fn gcMarkType(addr: int, typeDescription: string) {
     }
 }
 
-// TODO: this function _should_ be clearing bits in header!
 fn clearMark(b: block) {
-    if b.header == 1 {
-        b.header = 0
+    if not b.isMarked() {
+        panic("clearMark() called on unmarked block!")
     }
+    b.header = b.header & 0x7FFFFFFFFFFFFFFE
 }
 
-// TODO: This function _should_ be checking bit in header!
-fn isMarked(b: block) bool {
-    return b.header == 1 // GC marked it
-}
+fn isMarked(b: block) bool = (b.header & 0x1) == 0x1
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
