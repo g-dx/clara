@@ -279,7 +279,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 
 			// Generate closure & environment structs
 			env, envCons := generateStruct(rootNode, fmt.Sprintf("env.%X", id), freeVars...)
-			cl, clCons := generateStruct(rootNode, fmt.Sprintf("cl.%X", id), n.sym, env)
+			_, clCons := generateStruct(rootNode, fmt.Sprintf("cl.%X", id), n.sym, env)
 
 			// Rewrite <freevar> -> env.<freevar>
 			clRewriteFreeVars(n, env, freeVars)
@@ -293,7 +293,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 			// Update function type information to record closure info
 			fnType := clFn.sym.Type.AsFunction()
 			fnType.Kind = Closure
-			fnType.Data = &ClosureFunc{ gcFunc: cl.Type.GcName() } // GC func used during code gen
+			fnType.Data = &ClosureFunc{ /* TODO: Check if this is still required */ }
 
 			// Build AST to capture free variables
 			var envArgs []*Node

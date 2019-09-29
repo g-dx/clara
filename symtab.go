@@ -152,13 +152,6 @@ func (t *Type) String() string {
 	}
 }
 
-func (t *Type) GcName() string {
-	if !t.IsPointer() {
-		panic("Non-pointer types cannot have GC functions!")
-	}
-	return fmt.Sprintf("%v%v_gc", fnPrefix, t.AsmName())
-}
-
 func (t *Type) AsmName() string {
 	switch t.Kind {
 	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
@@ -310,7 +303,6 @@ func (ft *FunctionType) AsEnumCons() *EnumConsFunc {
 //----------------------------------------------------------------------------------------------------------------------
 
 type ClosureFunc struct {
-	gcFunc string  // stores name of GC func for closure
 }
 
 //----------------------------------------------------------------------------------------------------------------------

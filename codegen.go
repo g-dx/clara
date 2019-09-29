@@ -35,7 +35,6 @@ type function struct {
 	gcFns        map[string]GcRoots
 	id           int
 	sp           int
-	gcMarkType   operand
 }
 
 func (f *function) reset(n *Node) {
@@ -71,12 +70,9 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 
 	// Runtime functions declared in Clara code
 	ioob := symtab.MustResolve("indexOutOfBounds")
-	gcMarkType := symtab.MustResolve("gcMarkType")
 
 	// Holds compilation state for current function
-	fn := &function{
-		gcMarkType: fnOp(gcMarkType.Type.AsFunction().AsmName(gcMarkType.Name)),
-	}
+	fn := &function{}
 
 	gt := &GcTypes{}
 	gt.AddBuiltins(symtab)
@@ -96,11 +92,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genNoGc(asm)
 	asm.spacer()
-	genTypeGcFuncs(asm, symtab.allTypes(), fn) 	// Generate per-type GC functions
-	asm.spacer()
 	genInvokeDynamic(asm, noGc) // Closure invocation support
-	asm.spacer()
-	genClosureGc(asm) // Closure GC tracing support
 	asm.spacer()
 	genTypeInfoTable(asm, gt)
 	asm.spacer()
@@ -123,12 +115,6 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 			}
 			return nil
 		})
-
-		// If this function is a closure output the address of the tracing function before it
-		// TODO: Remove me
-		if fn.Type.IsClosure() {
-			asm.addr(fnOp(fn.Type.AsClosure().gcFunc))
-		}
 
 		// Generate standard entry sequence
 		fn.incSp(genFnEntry(asm, fn.AsmName(), temps))
@@ -181,16 +167,6 @@ func genGcRootMaps(asm asmWriter, fn *function) {
 		}
 		buf.WriteString(strings.Join(offsets, ","))
 		asm.raw(buf.String())
-	}
-	asm.tab(".text") // TODO: This prevents closure tracing address corruption
-}
-
-func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
-	for _, typ := range types {
-		if typ.IsPointer() && !typ.Is(Function) { // closureGc handles functions
-			asm.spacer()
-			genTypeGcFunc(asm, typ, fn)
-		}
 	}
 }
 
@@ -265,153 +241,12 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 
 	asm.labelBlock("typeInfoTable", func(w asmWriter) {
 		for i, t := range gt.types {
-			asm.addr(fnOp(t.GcName()))
 			// TODO: Hack! Find a better way of returning a label to a string literal
 			s := []byte(asm.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
 			asm.addr(labelOp(s[1:]))
 			asm.addr(roots[i])
 		}
 	})
-}
-
-func genTypeGcFunc(asm asmWriter, t *Type, fn *function) {
-
-	//
-	// GC functions take a single parameter which is the stack address of the slot to trace
-	//
-
-	genFnEntry(asm, t.GcName(), 1)
-	asm.ins(movq, rdi.deref(), rdi)            // Deref stack slot to get pointer into heap
-	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy into local slot
-
-	// Labels
-	exit := asm.newLabel("exit")
-
-	// Dereference pointer & load header into rax.
-	asm.ins(movq, rbp.displace(-ptrSize), rax) // Copy stack slot
-	asm.ins(subq, intOp(gcHeaderSize), rax)    // *type-8 -> *header
-
-	// if header & 1 == 1 (i.e. already marked)
-	asm.ins(movq, rax.deref(), rbx)
-	asm.ins(andq, intOp(1), rbx)
-	asm.ins(cmpq, _true, rbx)
-	asm.ins(je, labelOp(exit))
-
-	// || header & 2 == 2 (i.e. is ready only)
-	asm.ins(movq, rax.deref(), rbx)
-	asm.ins(andq, intOp(2), rbx)
-	asm.ins(cmpq, intOp(2), rbx)
-	asm.ins(je, labelOp(exit))
-
-	// header.marked = true
-	asm.ins(orq, intOp(1), rax.deref())
-
-	// --------------------------------------------------------------------------
-	// GC TRACING
-	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", t)), rsi)
-	asm.ins(call, fn.gcMarkType)
-	asm.addr(noGc)
-	// --------------------------------------------------------------------------
-
-	switch t.Kind {
-	case String, Array:
-		// Nothing to do...
-	case Struct:
-		// Invoke GC for pointer fields
-		for _, f := range t.AsStruct().Fields {
-			if f.Type.IsPointer() {
-				asm.ins(movq, rbp.displace(-ptrSize), rdi)
-				asm.ins(addq, intOp(f.Addr), rdi) // Increment pointer to offset of field
-				if f.Type.Is(Function) {
-					asm.ins(call, fnOp(closureGc))
-				} else {
-					asm.ins(call, fnOp(f.Type.GcName()))
-				}
-				asm.addr(noGc)
-			}
-		}
-	case Enum:
-
-		// Jump to switch start
-		gcEnumStart := asm.newLabel("gc_enum_start")
-		asm.ins(jmp, labelOp(gcEnumStart))
-
-		// Generate tracing code for each member
-		var entries []string
-		for _, cons := range t.AsEnum().Members {
-
-			// Output label
-			tag := cons.AsEnumCons().Tag
-			gcEnumCase := asm.newLabel(fmt.Sprintf("gc_enum_case_%v", tag))
-			entries = append(entries, gcEnumCase)
-			asm.label(gcEnumCase)
-
-			// Process pointer args
-			for i, param := range cons.Params {
-				if param.IsPointer() {
-					asm.ins(movq, rbp.displace(-ptrSize), rdi)
-					asm.ins(addq, intOp((i+1) * ptrSize), rdi)
-					if param.Is(Function) {
-						asm.ins(call, fnOp(closureGc))
-					} else {
-						asm.ins(call, fnOp(param.GcName()))
-					}
-					asm.addr(noGc)
-				}
-			}
-
-			// Finish
-			asm.ins(jmp, labelOp(exit))
-		}
-
-		// Create jump table
-		gcJmpTable := asm.newLabel("gc_enum_case_jmp_table")
-		asm.label(gcJmpTable)
-		for _, enumCase := range entries {
-			asm.raw(fmt.Sprintf("   .8byte   %v", enumCase)) // TODO: Fix symbol addressing in general!
-		}
-
-		// Jump to correct enum case
-		asm.label(gcEnumStart)
-		asm.ins(movq, rbp.displace(-ptrSize), rax) // Load pointer to enum
-		asm.ins(movq, rax.deref(), rax)            // Deref to get tag value
-		asm.ins(imulq, intOp(ptrSize), rax)        // Multiply tag by 8 to generate offset
-		asm.ins(movabs, litOp(gcJmpTable), rbx)    // Load 64-bit address of jump table
-		asm.ins(addq, rbx, rax)                    // Add offset to jump table base address
-		asm.ins(jmp, rax.deref().indirect())       // Go!
-
-	default:
-		panic(fmt.Sprintf("Unexpected type for GC: %v (%v)\n", t.AsmName(), typeKindNames[t.Kind]))
-	}
-
-	// Exit
-	asm.label(exit)
-	genFnExit(asm, false) // Called from both Clara code & assembly
-}
-
-// TODO: Remove me
-func genClosureGc(asm asmWriter) {
-	genFnEntry(asm, closureGc, 1)
-
-	exit := asm.newLabel("exit")
-
-	// Deref stack slot to get pointer
-	asm.ins(movq, rdi.deref(), rax)
-
-	// Check for read-only (header & 2 == 2)
-	asm.ins(movq, rax.displace(-ptrSize), rbx)
-	asm.ins(andq, intOp(2), rbx)
-	asm.ins(cmpq, intOp(2), rbx)
-	asm.ins(je, labelOp(exit))
-
-	// Get function pointer, load & call GC address (stored 16 bytes _behind_)
-	asm.ins(movq, rax.deref(), rax)
-	asm.ins(movq, rax.displace(-16), rax)
-	asm.ins(call, rax.indirect())
-	asm.addr(noGc)
-
-	asm.label(exit)
-	genFnExit(asm, false) // Called from Clara & assemblt
 }
 
 func genInvokeDynamic(asm asmWriter, noGc operand) {

@@ -80,26 +80,18 @@ fn gcSweep() {
     }
 }
 
-// Called by the GC when marking a heap address as in use. IMPORTANT: This function cannot allocate!
-fn gcMarkType(addr: int, typeDescription: string) {
-    if isGcDebug() {
-        printf("\n  - (0x%lx) '%s'", addr, typeDescription)
-    }
-}
-
 struct pointer {
     deref: int
 }
 
 // Compile time generated structure holding runtime type information
 struct typeInfo {
-    gc: fn(pointer) nothing // TODO: Remove me!
     name: string
     roots: []byte
 }
 
 // 3 = slot width of typeInfo struct above
-fn loadTypeInfo(b: block) typeInfo = unsafe(typeInfoTable, (b.typeId() * 8) * 3, typeInfo)
+fn loadTypeInfo(b: block) typeInfo = unsafe(typeInfoTable, (b.typeId() * 8) * 2, typeInfo)
 
 fn setMark(b: block) {
     if b.isMarked() {
