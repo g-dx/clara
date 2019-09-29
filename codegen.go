@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 )
 
 /*
@@ -29,19 +27,19 @@ var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
 // Current function being compiled
 type function struct {
-	AstName      string
-	Type         *FunctionType
-	gcRoots      *GcState
-	gcFns        map[string]GcRoots
-	id           int
-	sp           int
+	AstName string
+	Type    *FunctionType
+	gcRoots *GcState
+	gcMaps  map[string]GcRoots
+	id      int
+	sp      int
 }
 
 func (f *function) reset(n *Node) {
 	f.AstName = n.sym.Name
 	f.Type = n.sym.Type.AsFunction()
 	f.gcRoots = &GcState{}
-	f.gcFns = make(map[string]GcRoots)
+	f.gcMaps = make(map[string]GcRoots)
 }
 func (f *function) incSp(i int) { f.sp += i }
 func (f *function) decSp(i int) { f.sp -= i }
@@ -51,13 +49,13 @@ func (f *function) AsmName() string {
 	return f.Type.AsmName(f.AstName)
 }
 
-func (f *function) NewGcFunction() operand {
+func (f *function) NewGcMap() operand {
 	roots := f.gcRoots.Snapshot()
 	if len(roots) == 0 {
 		return noGc
 	}
 	name := fmt.Sprintf(".SM%v", f.id)
-	f.gcFns[name] = roots
+	f.gcMaps[name] = roots
 	f.id += 1
 	return labelOp(name)
 }
@@ -145,28 +143,17 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 		if !n.IsReturnLastStmt() {
 			genFnExit(asm, n.sym.Name == "main")
 		}
-		asm.spacer()
-		genGcRootMaps(asm, fn)
-		asm.spacer()
-	}
-}
 
-func genGcRootMaps(asm asmWriter, fn *function) {
-
-	// Output stack maps (if any)
-	if len(fn.gcFns) == 0 {
-		return
-	}
-	// TODO: Refactor to use gcMap support in asmWriter
-	asm.tab(".data")
-	for name, roots := range fn.gcFns {
-		buf := bytes.NewBufferString(fmt.Sprintf("%v:\n   .8byte %#x\n .byte ", name, len(roots)))
-		var offsets []string
-		for _, root := range roots {
-			offsets = append(offsets, strconv.Itoa(root.off/ptrSize))
+		// Generate function GC maps
+		asm.spacer()
+		asm.tab(".data")
+		for name, roots := range fn.gcMaps {
+			var off []int
+			for _, root := range roots {
+				off = append(off, root.off/ptrSize)
+			}
+			asm.gcMap(name, off)
 		}
-		buf.WriteString(strings.Join(offsets, ","))
-		asm.raw(buf.String())
 	}
 }
 
@@ -351,7 +338,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", f.Type.Describe(name))), rsi)
 	asm.ins(movabs, intOp(id), rdx)
 	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
-	asm.addr(f.NewGcFunction())
+	asm.addr(f.NewGcMap())
 
 	off := 0
 
@@ -553,7 +540,7 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 
 	// Only generate GC function addresses for Clara functions
 	if !fn.IsExternal() {
-		asm.addr(f.NewGcFunction())
+		asm.addr(f.NewGcMap())
 	}
 
 	// Correct stack pointer (if required)
