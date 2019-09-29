@@ -171,6 +171,7 @@ func genGcRootMaps(asm asmWriter, fn *function) {
 	if len(fn.gcFns) == 0 {
 		return
 	}
+	// TODO: Refactor to use gcMap support in asmWriter
 	asm.tab(".data")
 	for name, roots := range fn.gcFns {
 		buf := bytes.NewBufferString(fmt.Sprintf("%v:\n   .8byte %#x\n .byte ", name, len(roots)))
@@ -194,12 +195,81 @@ func genTypeGcFuncs(asm asmWriter, types []*Type, fn *function) {
 }
 
 func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
+
+	asm.raw(".data")
+	var roots []labelOp // Collect root maps to output at next stage
+	tag := 0
+	var et *Type
+	for _, t := range gt.types {
+		switch t.Kind {
+		case String, Array:
+			roots = append(roots, noGc)
+			tag = 0
+		case Struct:
+
+			// Gather field offsets
+			var off []int
+			for _, f := range t.AsStruct().Fields {
+				if f.Type.IsPointer() {
+					off = append(off, f.Addr/ptrSize)
+				}
+			}
+
+			// Skip if no pointers
+			if len(off) == 0 {
+				roots = append(roots, noGc)
+				continue
+			}
+
+			// Output GC map
+			roots = append(roots, asm.gcMap(t.AsmName(), off))
+			tag = 0
+
+		case Enum:
+			// TODO: Clean this up!
+			// HACK! HACk!
+			if t != et {
+				et = nil
+				tag = 0
+			}
+			et = t
+			cons := t.AsEnum().Members[tag]
+			fmt.Printf("%v, tag = %v\n", t.AsmName(), cons.AsEnumCons().Tag)
+			if cons.AsEnumCons().Tag != tag {
+				panic("out of order!")
+			}
+
+			// Gather field offsets
+			var off []int
+			for i, tp := range cons.Params {
+				if tp.IsPointer() {
+					off = append(off, i + 1) // Skip tag!
+				}
+			}
+
+			// Skip if no pointers
+			if len(off) == 0 {
+				roots = append(roots, noGc)
+				tag += 1
+				continue
+			}
+
+			// Output GC map
+			roots = append(roots, asm.gcMap(t.AsmName() + "_" + strconv.Itoa(tag), off))
+			tag += 1
+
+		default:
+			panic(fmt.Sprintf("Unexpected type for GC: %v (%v)\n", t.AsmName(), typeKindNames[t.Kind]))
+		}
+	}
+
 	asm.labelBlock("typeInfoTable", func(w asmWriter) {
-		for _, t := range gt.types {
+		for i, t := range gt.types {
 			asm.addr(fnOp(t.GcName()))
-			// TODO: Hack! Find a better way of returning a label to a string literatro
+			// TODO: Hack! Find a better way of returning a label to a string literal
 			s := []byte(asm.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
 			asm.addr(labelOp(s[1:]))
+			asm.addr(roots[i])
 		}
 	})
 }

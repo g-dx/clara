@@ -19,7 +19,7 @@ fn gcMark() {
         debug("gc", "\n▶ (%d) <description>", j)
         i := 0
         while i < roots.length {
-            gcMarkRoot(fp, roots[i])
+            gcMarkSlot(fp, roots[i])
             i = i + 1
         }
         roots = fp.map.roots
@@ -27,33 +27,32 @@ fn gcMark() {
     }
 }
 
-struct pointer {
-    deref: int
+fn gcMarkSlot(fp: frame, off: byte) {
+    gcMarkPointer(unsafe(fp, -off * 8, pointer))
 }
 
-// Compile time generated structure holding runtime type information
-struct typeInfo {
-    gc: fn(pointer) nothing
-    name: string
-}
+fn gcMarkPointer(p: pointer) {
+    p = unsafe(p.deref, 0, pointer)
+    block := unsafe(p, -16, block)
+    info := block.loadTypeInfo()
 
-fn gcMarkRoot(fp: frame, off: byte) {
+    debug("gc", "\n  - 0x%lx, (id = %2d, name = '%10s', readonly = %d)", p, block.typeId(),
+                info.name, block.isReadOnly())
 
-    // Chase pointers to get block header
-    root := unsafe(fp, -off * 8, pointer)
-    heapPointer := unsafe(root.deref, -8, pointer)
-    blockHeader := heapPointer.deref
+    if block.isReadOnly() {
+        return
+    }
+    if block.isMarked() {
+        return
+    }
 
-    // Get info from header
-    id := (blockHeader & 0xFFFF << 48) >> 48
-    readOnly := (blockHeader & 0x2) == 0x2
-
-    // Lookup GC tracing function
-    infoFields := 2 // Size of typeInfo structure
-    info := unsafe(typeInfoTable, (id * 8) * infoFields, typeInfo)
-    debug("gc", "\n  - 0x%lx, id = %2d, name = '%s', readonly = %d", root.deref, id, info.name, readOnly)
-    if not readOnly {
-        info.gc(root)
+    // Mark block & walk roots
+    block.setMark()
+    i := 0
+    roots := info.roots // TODO: Fix AST!
+    while i < roots.length {
+        gcMarkPointer(unsafe(p, roots[i] * 8, pointer))
+        i = i + 1
     }
 }
 
@@ -88,14 +87,37 @@ fn gcMarkType(addr: int, typeDescription: string) {
     }
 }
 
+struct pointer {
+    deref: int
+}
+
+// Compile time generated structure holding runtime type information
+struct typeInfo {
+    gc: fn(pointer) nothing // TODO: Remove me!
+    name: string
+    roots: []byte
+}
+
+// 3 = slot width of typeInfo struct above
+fn loadTypeInfo(b: block) typeInfo = unsafe(typeInfoTable, (b.typeId() * 8) * 3, typeInfo)
+
+fn setMark(b: block) {
+    if b.isMarked() {
+        panic("setMark() called on marked block!")
+    }
+    b.header = b.header | 0x1
+}
+
 fn clearMark(b: block) {
     if not b.isMarked() {
         panic("clearMark() called on unmarked block!")
     }
-    b.header = b.header & 0x7FFFFFFFFFFFFFFE
+    b.header = b.header & 0x7FFFFFFFFFFFFFFE // TODO: ~0x1 would be nicer
 }
 
 fn isMarked(b: block) bool = (b.header & 0x1) == 0x1
+fn isReadOnly(b: block) bool = (b.header & 0x2) == 0x2
+fn typeId(b: block) int = (b.header & 0xFFFF << 48) >> 48
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
@@ -105,4 +127,4 @@ fn isValidBlock(b: block) bool
 fn emptyBlock() block
 
 // NOTE: This is not a function! Do not call it! It _should_ be a global symbol.
-fn typeInfoTable() nothing
+fn typeInfoTable() nothing // TODO: Turn this into an array!

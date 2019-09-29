@@ -322,6 +322,7 @@ type asmWriter interface {
 	ins(i inst, ops ...operand)
 	flush()
 	labelBlock(name string, f func(w asmWriter))
+	gcMap(name string, offsets []int) labelOp
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
@@ -437,4 +438,16 @@ func (gw *gasWriter) labelBlock(name string, f func(w asmWriter)) {
 	f(gw)
 	gw.tab(".text")
 
+}
+
+func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
+	l := labelOp(name)
+	gw.tab(l.Print() + ":", ".8byte", strconv.Itoa(len(offsets)))
+	var s []string
+	for _, off := range offsets {
+		s = append(s, strconv.Itoa(off))
+	}
+	gw.tab(".byte", strings.Join(s, ","))
+	gw.spacer()
+	return l
 }
