@@ -9,14 +9,14 @@ fn gc() {
 // Tag-Free Garbage Collection for Strongly Typed Programming Languages
 // https://cs.nyu.edu/goldberg/pubs/gold91.pdf
 fn gcMark() {
-    debug("gc", "🔎 Mark:\n")
+    debug("gc", "🔎 Mark:\n\n")
     fp := getFramePointer()
     roots := fp.map.roots
 
     j := 0
     while not fp.isStackBase() {
         fp = fp.next
-        debug("gc", "\n▶ (%d) <description>", j)
+        debug("gc", "▶ (%d) <description>\n", j)
         i := 0
         while i < roots.length {
             gcMarkSlot(fp, roots[i])
@@ -28,32 +28,37 @@ fn gcMark() {
 }
 
 fn gcMarkSlot(fp: frame, off: byte) {
-    gcMarkPointer(unsafe(fp, -off * 8, pointer))
+    gcMarkPointer(unsafe(fp, -off * 8, pointer), 1)
 }
 
-fn gcMarkPointer(p: pointer) {
+fn gcMarkPointer(p: pointer, level: int) {
     p = unsafe(p.deref, 0, pointer)
     block := unsafe(p, -16, block)
     info := block.loadTypeInfo()
 
-    debug("gc", "\n  - 0x%lx, (id = %2d, name = '%10s', readonly = %d)", p, block.typeId(),
-                info.name, block.isReadOnly())
-
     if block.isReadOnly() {
+        gcMarkDebug(p, level, info.name, "🔐")
         return
     }
     if block.isMarked() {
+        gcMarkDebug(p, level, info.name, "🆗")
         return
     }
 
     // Mark block & walk roots
+    gcMarkDebug(p, level, info.name, "✅")
     block.setMark()
     i := 0
     roots := info.roots // TODO: Fix AST!
     while i < roots.length {
-        gcMarkPointer(unsafe(p, roots[i] * 8, pointer))
+        gcMarkPointer(unsafe(p, roots[i] * 8, pointer), level + 5)
         i = i + 1
     }
+}
+
+fn gcMarkDebug(p: pointer, level: int, typeName: string, icon: string) {
+    debug("gc", " - (0x%lx) %s%*s", p, icon, level, "")
+    debug("gc", "'%s'\n", typeName)
 }
 
 // http://journal.stuffwithstuff.com/2013/12/08/babys-first-garbage-collector/
@@ -73,7 +78,7 @@ fn gcSweep() {
             } else {
                 setBlocks(unreached.next)
             }
-            debug("gc", "  - (0x%lx) ✘\n", b.inc(16)) // Increment pointer to point to start of user mem
+            debug("gc", "  - (0x%lx) 🔥\n", b.inc(16)) // Increment pointer to point to start of user mem
             b = unreached.next
             clarafree(unreached)
         }

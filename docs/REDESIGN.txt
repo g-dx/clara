@@ -24,31 +24,4 @@ fn toFunction(ptr: int) fn(int, int, int, int, int)   // CAST
 
 The important part is to make sure the AST rewrite does not try to wrap c.f(...) in an invokeDynamic call!
 
-- GC tracing of closures can be made more efficient by updating "genClosureGc" to _mark_ the closure pointer & instead
-store the address of the _environment_ struct before the function pointer.
 - Support reuse of closure env & cl structs
-- Support indentation when debugging GC tracing. For example, given the following debug output for marking:
-
-🔎 Mark:
-
-main()
-  - (0x100100340) 'x'
-  - (0x1000033ea) 'string'
-  - (0x1000033c5) 'string'
-  - (0x100102740) 'windowEvent'
-  - (0x1000033fd) 'string'
-  - (0x1000033d8) 'string'
-
-What we would actually like to see is something like the following:
-
-🔎 Mark:
-
-main()
-  - (0x100100340) 'x'
-     - (0x1000033ea) 'string'
-     - (0x1000033c5) 'string'
-  - (0x100102740) 'windowEvent'
-     - (0x1000033fd) 'string'
-     - (0x1000033d8) 'string'
-
-This clearly shows that 'x' is a struct or enum containing two strings which have been also traced.
