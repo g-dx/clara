@@ -477,6 +477,11 @@ end:
 
 func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
 
+	if len(n.stmts) > maxFnArgCount {
+		errs = append(errs, semanticError2(errTooManyArgsMsg, n.token, n.token.Val, maxFnArgCount))
+		return errs
+	}
+
 	left := n.left
 
 	// Type check args

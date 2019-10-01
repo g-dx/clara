@@ -29,12 +29,13 @@ const (
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
 	errNotWritableAssignMsg    = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
-	errMissingReturnMsg 	   = "%v:%d:%d: error, missing return for function '%v'"
-	errIntegerOverflowMsg 	   = "%v:%d:%d: error, constant '%v' overflow integer type"
+	errMissingReturnMsg        = "%v:%d:%d: error, missing return for function '%v'"
+	errIntegerOverflowMsg      = "%v:%d:%d: error, constant '%v' overflow integer type"
 	errUnknownEnumCaseMsg      = "%v:%d:%d: error, unknown case '%v' for enum '%v'"
 	errNotAnEnumCaseMsg        = "%v:%d:%d: error, '%v' is not an enum case"
-	errTooManyCaseArgsMsg      = "%v:%d:%d: error, '%v' exceeds maximum argument count"
+	errTooManyArgsMsg          = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
 	maxCaseArgCount            = 5
+	maxFnArgCount              = 6
 
 	// Debug messages
 	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"
@@ -119,7 +120,7 @@ loop:
 					continue loop
 				}
 				if len(consType.Params) > maxCaseArgCount {
-					errs = append(errs, semanticError(errTooManyCaseArgsMsg, cons.token))
+					errs = append(errs, semanticError2(errTooManyArgsMsg, cons.token, cons.token.Val, maxCaseArgCount))
 					continue
 				}
 

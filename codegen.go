@@ -497,9 +497,6 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 
 	// Generate arg code
 	for i, arg := range n.stmts {
-		if i >= 6 {
-			panic("Calling functions with more than 6 parameters not yet implemented")
-		}
 		genExpr(asm, arg, i, false, f) // Evaluate expression
 
 		// Move result into reg
