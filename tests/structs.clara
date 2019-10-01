@@ -1,0 +1,63 @@
+fn main() {
+    b := byteArray(1)
+    b[0] = 127
+    i := intArray(1)
+    i[0] = 123456789
+    a := Arrays(b, i)
+    f := Fns(fn() string { return "fns.f1" }, fn() arrays { return a })
+
+    // TODO: local variables z & y are required or else we get heap corruption!!! GC roots & registers!
+    z := First(a)
+    y := Second(f)
+    e := Enums(z, y)
+
+    s := Structs(a, f, e)
+
+    eval(s.a.b[0]) // EXPECT: 127
+    eval(s.a.i[0]) // EXPECT: 123456789
+    eval(s.f.f1()) // EXPECT: fns.f1
+    eval(s.f.f2().i[0]) // EXPECT: 123456789
+
+    match s.e.e1 {
+        case First(a):
+            eval(a.i[0]) // EXPECT: 123456789
+    }
+    match s.e.e2 {
+        case Second(f):
+            eval(f.f2().b[0]) // EXPECT: 127
+    }
+
+    // TODO: f1 & f2 are identified as free vars here & result in bad codegen from an "invalid" AST
+//    f1 := Fns(fn() string { return f.f1() }, fn() arrays { return f.f2() })
+//    eval(f1.f1()) // EXPECT: fns.f1
+}
+
+struct structs {
+    a : arrays
+    f : fns
+    e : enums
+}
+
+struct arrays {
+    b: []byte
+    i: []int
+}
+
+struct fns {
+    f1: fn() string
+    f2: fn() arrays
+}
+
+struct enums {
+    e1: e
+    e2: e
+}
+
+enum e {
+    First(a: arrays)
+    Second(f: fns)
+}
+
+fn eval(s: string) = printf("%s\n", s)
+fn eval(i: int) = printf("%d\n", i)
+fn char(b: byte) = printf("%c\n", b)

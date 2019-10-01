@@ -49,9 +49,8 @@ fn gcMarkPointer(p: pointer, level: int) {
     gcMarkDebug(p, level, info.name, "✅")
     block.setMark()
     i := 0
-    roots := info.roots // TODO: Fix AST!
-    while i < roots.length {
-        gcMarkPointer(unsafe(p, roots[i] * 8, pointer), level + 5)
+    while i < info.roots.length {
+        gcMarkPointer(unsafe(p, info.roots[i] * 8, pointer), level + 5)
         i = i + 1
     }
 }

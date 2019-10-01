@@ -244,6 +244,16 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			// Type check func call
 			errs = append(errs, typeCheck(n, symtab, fn, debug)...)
 
+			// Handle array access on right
+		} else if right.op == opArray {
+
+			// Rewrite to array access
+			n.op = opArray
+			n.token = right.token
+			n.left = &Node{op: opDot, token: lex.WithVal(n.token, "."), left: left, right: right.left}
+			n.right = right.right
+			errs = append(errs, typeCheck(n, symtab, fn, debug)...)
+
 			// Handle field access on right
 		} else if right.op == opIdentifier {
 
