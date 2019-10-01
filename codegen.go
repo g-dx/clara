@@ -197,7 +197,6 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 			}
 			et = t
 			cons := t.AsEnum().Members[tag]
-			fmt.Printf("%v, tag = %v\n", t.AsmName(), cons.AsEnumCons().Tag)
 			if cons.AsEnumCons().Tag != tag {
 				panic("out of order!")
 			}
