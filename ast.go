@@ -162,6 +162,35 @@ func (n *Node) typeName() string {
 	}
 }
 
+func generateStruct(root *Node, name string, fields ... *Symbol) (*Symbol, *Symbol) {
+
+	var nodes []*Node
+	var syms []*Symbol
+	for i, f := range fields {
+
+		// Create new symbol & associated AST
+		sym := &Symbol{Name: f.Name, Addr: i * ptrSize, Type: f.Type}
+		syms = append(syms, sym)
+		nodes = append(nodes, &Node{op: opIdentifier, token: &lex.Token{Val: sym.Name}, sym: sym})
+	}
+
+	// Create struct declaration & symbol
+	n := &Node{op: opStructDcl, token: &lex.Token{Val: name}, stmts: nodes}
+	sym := &Symbol{Name: name, IsGlobal: true, Type: &Type{Kind: Struct, Data: &StructType{Name: name, Fields: syms}}}
+	n.sym = sym
+
+	// Add to root node
+	root.Add(n)
+	root.symtab.Define(sym)
+
+	// Generate constructor
+	consSym, err := generateStructConstructor(root, n)
+	if err != nil {
+		panic(fmt.Sprintf("error, failed to generate struct constructor: %v\n", err))
+	}
+	return sym, consSym
+}
+
 func copyNode(n *Node) *Node {
 
 	x := &Node{token: n.token, typ: n.typ, symtab: n.symtab, op: n.op, sym: n.sym}
