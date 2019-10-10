@@ -419,7 +419,7 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 	}
 
 	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
-	if slot.sym.Type.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
+	if slot.typ.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
 		asm.ins(movb, cl, rax.deref()) // [rax] = cl
 	} else {
 		asm.ins(movq, rcx, rax.deref()) // [rax] = rcx
