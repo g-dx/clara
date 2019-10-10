@@ -1,4 +1,5 @@
 package main
+
 import (
 	"errors"
 	"fmt"
@@ -126,7 +127,7 @@ loop:
 
 				// Update function type information to record enum info
 				consType.Kind = EnumCons
-				consType.Data = &EnumConsFunc{ Tag: i }
+				consType.Data = &EnumConsFunc{Tag: i}
 				enumType.Members = append(enumType.Members, consType)
 
 				// Move to root AST node
@@ -140,24 +141,24 @@ loop:
 
 			// Calculate field information
 			x := 0
-			child := symtab.Child()
-			for _, n := range n.stmts {
+			n.symtab = symtab.Child()
+			for _, stmt := range n.stmts {
 
 				// Look up type
-				fieldType, err := createType(child, n.left)
+				fieldType, err := createType(n.symtab, stmt.left)
 				if err != nil {
 					errs = append(errs, err)
 					continue loop
 				}
-				s := &Symbol{Name: n.token.Val, Addr: x * ptrSize, Type: fieldType}
+				s := &Symbol{Name: stmt.token.Val, Addr: x * ptrSize, Type: fieldType}
 
 				// Define field
-				if _, found := child.Define(s); found {
-					errs = append(errs, semanticError(errRedeclaredMsg, n.token))
+				if _, found := n.symtab.Define(s); found {
+					errs = append(errs, semanticError(errRedeclaredMsg, stmt.token))
 					continue loop
 				}
 				strt.Fields = append(strt.Fields, s)
-				n.sym = s
+				stmt.sym = s
 				x += 1
 			}
 
@@ -184,20 +185,20 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 		if !allowOverload {
 			return nil, semanticError(errRedeclaredMsg, n.token)
 		}
-		for ; s.Next != nil; s = s.Next { /* ... */ }
+		for ; s.Next != nil; s = s.Next { /* ... */
+		}
 		s.Next = sym
 	}
 	n.sym = sym
 
 	// Process parameters
-	child := symtab.Child()
-	n.symtab = child // Required during typecheck
+	n.symtab = symtab.Child()
 	for _, param := range n.params {
-		paramType, err := createType(child, param.left)
+		paramType, err := createType(n.symtab, param.left)
 		if err != nil {
 			return nil, err
 		}
-		sym, found := child.Define(&Symbol{Name: param.token.Val, Type: paramType})
+		sym, found := n.symtab.Define(&Symbol{Name: param.token.Val, Type: paramType})
 		param.sym = sym
 		param.typ = paramType
 		if found {
@@ -209,7 +210,7 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 	// Process return
 	fnType.ret = nothingType // Default case
 	if n.left != nil {
-		retType, err := createType(child, n.left)
+		retType, err := createType(n.symtab, n.left)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +238,7 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 		if !ok {
 			return nil, semanticError(errUnknownTypeMsg, n.left.token)
 		}
-		return &Type{ Kind: Array, Data: &ArrayType{Elem: s.Type} }, nil
+		return &Type{Kind: Array, Data: &ArrayType{Elem: s.Type}}, nil
 
 	case opFuncType:
 		var paramTypes []*Type
@@ -248,7 +249,7 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 			}
 			paramTypes = append(paramTypes, t)
 		}
-		fnType := &FunctionType{ Params: paramTypes}
+		fnType := &FunctionType{Params: paramTypes}
 		fnType.ret = nothingType
 		if n.left != nil {
 			t, err := createType(symtab, n.left)
@@ -257,7 +258,7 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 			}
 			fnType.ret = t
 		}
-		return &Type{ Kind: Function, Data: fnType}, nil
+		return &Type{Kind: Function, Data: fnType}, nil
 	default:
 		panic(fmt.Sprintf("AST node [%v]does not represent a type!", nodeTypes[n.op]))
 	}
@@ -265,7 +266,7 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 
 func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opBlockFnDcl && n.token.Val == "main" {
-		n.stmts = append([]*Node{ {op:opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType} }, n.stmts...) // Insert runtime init
+		n.stmts = append([]*Node{{op: opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType}}, n.stmts...) // Insert runtime init
 	}
 	return nil
 }
@@ -275,7 +276,7 @@ func foldConstants(root *Node, symtab *SymTab, n *Node) error {
 	// Rewrite negative literals to single AST nodes
 	if n.op == opNeg && n.left.op == opLit && n.left.token.Kind == lex.Integer {
 		n.op = opLit
-		n.token = lex.WithVal(n.left.token, "-" + n.left.token.Val)
+		n.token = lex.WithVal(n.left.token, "-"+n.left.token.Val)
 		n.left = nil
 	}
 
@@ -300,11 +301,10 @@ func declareCaseVars(root *Node, symtab *SymTab, n *Node) error {
 			for i, v := range cas.params {
 				field := fmt.Sprintf("_%v", i)
 				vars = append(vars,
-					&Node {op: opDas, left: v, right:
-						&Node {op: opDot,
-							left: &Node {op: opFuncCall, sym: asEnum, stmts: []*Node{n.left}},
-							right: &Node {op: opIdentifier, sym: enum.GetField(field)},
-						},
+					&Node{op: opDas, left: v, right: &Node{op: opDot,
+						left:  &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{n.left}},
+						right: &Node{op: opIdentifier, sym: enum.GetField(field)},
+					},
 					})
 			}
 			cas.stmts = append(vars, cas.stmts...)
@@ -313,7 +313,6 @@ func declareCaseVars(root *Node, symtab *SymTab, n *Node) error {
 	}
 	return nil
 }
-
 
 func lowerMatchStatement(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opMatch {
@@ -351,11 +350,11 @@ func lowerMatchStatement(root *Node, symtab *SymTab, n *Node) error {
 			tag := cas.sym.Type.AsFunction().AsEnumCons().Tag
 			caseExpr := &Node{op: opEq,
 				left: &Node{op: opDot,
-					left: &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{matchVar}},
+					left:  &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{matchVar}},
 					right: &Node{op: opIdentifier, sym: enum.GetField("tag")},
 				},
 				right: &Node{op: opLit, sym: &Symbol{Name: strconv.Itoa(tag), Type: intType}},
-				typ: boolType,
+				typ:   boolType,
 			}
 
 			// opCase -> opIf/ElseIf
@@ -436,12 +435,11 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 	}
 
 	// Create & define symbol
-	fnSym := &Symbol{ Name: constructorName, IsGlobal: true, Type: &Type{ Kind: Function, Data:
-	&FunctionType{ Params: args, ret: n.sym.Type, Kind: StructCons }}}
+	fnSym := &Symbol{Name: constructorName, IsGlobal: true, Type: &Type{Kind: Function, Data: &FunctionType{Params: args, ret: n.sym.Type, Kind: StructCons}}}
 	root.symtab.Define(fnSym)
 
 	// Add AST node
-	root.Add(&Node{token:&lex.Token{Val : constructorName}, op: opConsFnDcl, params: params, sym: fnSym})
+	root.Add(&Node{token: &lex.Token{Val: constructorName}, op: opConsFnDcl, params: params, sym: fnSym})
 	return fnSym, nil
 }
 
@@ -458,8 +456,9 @@ func semanticError2(msg string, t *lex.Token, vals ...interface{}) error {
 }
 
 type order byte
+
 const (
-	postOrder   = iota
+	postOrder = iota
 	preOrder
 	inOrder
 )
@@ -527,5 +526,3 @@ func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTa
 
 	return
 }
-
-
