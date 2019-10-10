@@ -88,9 +88,9 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 		// AST: <name>(args...) -> invokeDynamic(<name>, args...)
 		var stmts []*Node
 		if n.sym != nil {
-			stmts = append([]*Node{ {op: opIdentifier, token: n.token, sym: n.sym, typ: n.typ} }, n.stmts...)
+			stmts = append([]*Node{{op: opIdentifier, token: n.token, sym: n.sym, typ: n.typ}}, n.stmts...)
 		} else {
-			stmts = append([]*Node{ n.left }, n.stmts...)
+			stmts = append([]*Node{n.left}, n.stmts...)
 		}
 		n.stmts = stmts
 		n.token = lex.WithVal(n.token, s.Name)
@@ -146,6 +146,7 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 					e.left = left
 					e.right = right
 					e.stmts = nil
+					e.sym = sym
 				}
 			}
 		}
