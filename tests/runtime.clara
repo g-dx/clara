@@ -1,0 +1,17 @@
+fn main() {
+
+    // ---------------------------------------------------------------
+    // Check register use between RHS & LHS expression evaluation
+    // ---------------------------------------------------------------
+    x := Val(1)
+    fn(i: int, j: int, k: int, l: int, m: int) x {
+        return x
+    }(1, 2, 3, 4, 5).i = 123456789
+    eval(x.i) // EXPECT: 123456789
+}
+
+fn eval(i: int) = printf("%d\n", i)
+
+struct val {
+    i: int
+}

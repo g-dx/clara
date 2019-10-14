@@ -404,25 +404,30 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 
 func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
-	// Evaluate expression & save result to rcx
+	// Evaluate expression & push result to stack
 	genExpr(asm, n.right, 0, false, fn)
-	asm.ins(movq, rax, rcx) // TODO: This is not safe because this register is used to pass parameters!
+	asm.ins(pushq, rax)
+	fn.incSp(1)
 
 	// Evaluate mem location to store
 	slot := n.left
 	genExpr(asm, slot, 0, true, fn)
 
+	// Pop result
+	asm.ins(popq, rbx)
+	fn.decSp(1)
+	src := rbx
+
 	// Check if int -> byte cast required
 	if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
-		asm.ins(movsbq, rcx._8bit(), rcx) // rcx = cl (sign extend lowest 8-bits into same reg)
+		asm.ins(movsbq, src._8bit(), src) // sign extend lowest 8-bits into same reg
 	}
 
 	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
 	if slot.typ.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
-		asm.ins(movb, cl, rax.deref()) // [rax] = cl
-	} else {
-		asm.ins(movq, rcx, rax.deref()) // [rax] = rcx
+		src = rbx._8bit()
 	}
+	asm.ins(movq, src, rax.deref()) // [rax] = src;
 
 	// If decl & assign start tracking as gc root
 	if n.op == opDas {

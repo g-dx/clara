@@ -158,6 +158,7 @@ const (
 	r8l  // r8
 	r9l  // r9
 	al   // rax
+	bl   // rbx
 )
 
 var regNames = map[reg]string{
@@ -188,6 +189,7 @@ var regNames = map[reg]string{
 	r8l: "%r8l",
 	r9l: "%r9l",
 	al:  "%al",
+	bl:  "%bl",
 }
 
 func (r reg) offset(off reg) memOp {
@@ -213,6 +215,8 @@ func (r reg) _8bit() reg {
 	switch r {
 	case rax:
 		return al
+	case rbx:
+		return bl
 	case rdi:
 		return dil
 	case rsi:

@@ -47,7 +47,7 @@ func (n *Node) isReadOnly() bool {
 	switch n.op {
 	case opDot:
 		// Currently only array lengths are readonly
-		t := n.left.sym.Type
+		t := n.left.typ
 		return (t.Is(Array) || t.Is(String)) && n.right.sym.Name == "length"
 	default:
 		return false
