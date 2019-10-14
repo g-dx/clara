@@ -4,7 +4,7 @@ fn main() {
     i := intArray(1)
     i[0] = 123456789
     a := Arrays(b, i)
-    f := Fns(fn() string { return "fns.f1" }, fn() arrays { return a })
+    f := Fns(fn() string = "fns.f1" , fn() arrays = a)
 
     // TODO: local variables z & y are required or else we get heap corruption!!! GC roots & registers!
     z := First(a)
@@ -27,9 +27,11 @@ fn main() {
             eval(f.f2().b[0]) // EXPECT: 127
     }
 
-    // TODO: f1 & f2 are identified as free vars here & result in bad codegen from an "invalid" AST
-//    f1 := Fns(fn() string { return f.f1() }, fn() arrays { return f.f2() })
-//    eval(f1.f1()) // EXPECT: fns.f1
+    // TODO: local variables w & x are required or else we get heap corruption!!! GC roots & registers!
+    w := fn() string = f.f1()
+    x := fn() arrays = f.f2()
+    f1 := Fns(w, x)
+    eval(f1.f1()) // EXPECT: fns.f1
 }
 
 struct structs {

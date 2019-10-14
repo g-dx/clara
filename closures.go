@@ -104,15 +104,9 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 
 func clIdentifyFreeVars(fn *Node) (vars []*Symbol) {
 
-	syms := make(map[*Symbol]bool) // Set of syms
-
-	walk(postOrder, nil, nil, fn, func(root *Node, symTab *SymTab, e *Node) error {
-		if (e.op == opIdentifier || e.op == opFuncCall) && !fn.symtab.OwnedBy(e.sym) && !e.sym.IsGlobal {
-			syms[e.sym] = true
-		}
-		return nil
-	})
-	for s := range syms {
+	checker := NewFreeVarChecker(fn)
+	WalkPreOrder(fn, checker.IdentityFreeVars)
+	for s := range checker.free {
 		vars = append(vars, s)
 	}
 	return vars
@@ -126,7 +120,7 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 	fn := n.sym.Type.AsFunction()
 	fn.Params = append([]*Type{env.Type}, fn.Params...)
 
-	walk(postOrder, nil, nil, n, func(root *Node, symTab *SymTab, e *Node) error {
+	WalkPostOrder(n, func(e *Node) {
 		if e.op == opIdentifier || e.op == opFuncCall {
 			// TODO: O(n) here, we should be able to be O(1)
 			for _, freeVar := range freeVars {
@@ -150,6 +144,77 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 				}
 			}
 		}
-		return nil
 	})
+}
+
+type freeVarChecker struct {
+	n      *Node
+	stack  []*Node
+	scopes []*SymTab
+	free   map[*Symbol]bool
+}
+
+func NewFreeVarChecker(n *Node) *freeVarChecker {
+	if !n.Is(opBlockFnDcl, opExprFnDcl) {
+		panic(fmt.Sprintf("Unexpected node type for free variable checker: %v", nodeTypes[n.op]))
+	}
+	return &freeVarChecker{n: n, free: make(map[*Symbol]bool), scopes: append([]*SymTab(nil), n.symtab)}
+}
+
+func (fc *freeVarChecker) IdentityFreeVars(n *Node) bool {
+	if n == nil {
+		return fc.exitNode()
+	}
+	fc.stack = append(fc.stack, n)
+
+	switch {
+	case opensScope(n):
+		fc.scopes = append(fc.scopes, n.symtab)
+
+	case n.Is(opIdentifier, opFuncCall) && fc.isFree(n):
+		fc.free[n.sym] = true
+
+	case n.Is(opDot, opArray) && n.left.Is(opIdentifier, opFuncCall):
+		if fc.isFree(n.left) {
+			fc.free[n.left.sym] = true
+		}
+		return false // No need to walk right!
+
+	case n.Is(opBlockFnDcl, opExprFnDcl) && n != fc.n:
+		return false // Don't walk into other closures!
+	}
+	return true
+}
+
+func (fc *freeVarChecker) exitNode() bool {
+	top, ns := fc.stack[len(fc.stack)-1], fc.stack[:len(fc.stack)-1] // Pop node
+	fc.stack = ns
+	if opensScope(top) {
+		fc.scopes = fc.scopes[:len(fc.scopes)-1] // Pop symtab
+	}
+	return true
+}
+
+func (fc *freeVarChecker) isFree(n *Node) bool {
+	if n.sym == nil {
+		return false // TODO: This is a result of the opIdentifier/opFuncCall two ways of identifying a function!
+	}
+	if n.sym.IsGlobal || n.sym.IsLiteral {
+		return false
+	}
+	for _, scope := range fc.scopes {
+		if scope.Owns(n.sym) {
+			return false
+		}
+	}
+	return true
+}
+
+func opensScope(n *Node) bool {
+	switch n.op {
+	case opIf, opElseIf, opElse, opCase, opWhile:
+		return true
+	default:
+		return false
+	}
 }

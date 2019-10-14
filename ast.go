@@ -124,6 +124,15 @@ func (n *Node) isLocalFn() bool {
 	return (n.op == opBlockFnDcl || n.op == opExprFnDcl) && n.token.Val == "fn"
 }
 
+func (n *Node) Is(ops ...int) bool {
+	for _, op := range ops {
+		if n.op == op {
+			return true
+		}
+	}
+	return false
+}
+
 func (n *Node) isNonGlobalFnCall() bool {
 	return n.op == opFuncCall && (n.sym == nil || !n.sym.IsGlobal)
 }
@@ -132,7 +141,7 @@ func (n *Node) typeName() string {
 	switch n.op {
 	case opStructDcl, opEnumDcl:
 		return n.token.Val
-		
+
 	case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 		w := bytes.NewBufferString(n.token.Val)
 		w.WriteRune(lex.LParen)
@@ -143,7 +152,7 @@ func (n *Node) typeName() string {
 		w.WriteString(strings.Join(paramTypes, ", "))
 		w.WriteRune(lex.RParen)
 		return w.String()
-		
+
 	case opArrayType:
 		return fmt.Sprintf("[]%v", n.left.typeName())
 

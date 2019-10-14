@@ -1,0 +1,111 @@
+fn main() {
+
+    // -------------------------------------------------------
+    // Shadowing in various scopes
+    // -------------------------------------------------------
+
+    v := 0xDEADBEEF // Should not be captured!
+    x := fn(s: scenario) {
+        match s {
+            case If():
+                if true {
+                    v := 0x12345678
+                    eval(v)
+                }
+
+            case ElseIf():
+                if false {}
+                elseif true {
+                    v := 0x87654321
+                    eval(v)
+                }
+
+            case Else():
+                if false {}
+                else {
+                    v := 0x56781234
+                    eval(v)
+                }
+
+            case While():
+                j := 1
+                while j > 0 {
+                    v := 0xABCDEF
+                    eval(v)
+                    j = j - 1
+                }
+
+            case Case(v):
+                 eval(v)
+
+            case Struct(v):
+                eval(v.s.v)
+
+            case Array(i):
+                eval(i.length)
+
+            case Func(f):
+                eval(f().s.v)
+        }
+    }
+    x(If())                            // EXPECT: 0x12345678
+    x(ElseIf())                        // EXPECT: 0x87654321
+    x(Else())                          // EXPECT: 0x56781234
+    x(Case(0x2222222))                 // EXPECT: 0x2222222
+    x(Struct(T(S(0x5555555))))         // EXPECT: 0x5555555
+    x(Array(intArray(10)))             // EXPECT: 0xa
+    x(Func(fn() t = T(S(0x44444444)))) // EXPECT: 0x44444444
+
+    // -------------------------------------------------------
+    // Capture correct value check
+    // -------------------------------------------------------
+    z := T(S(1))
+    fn() {
+        a := S(2)
+        fn() {
+            b := intArray(1)
+            b[0] = 3
+            fn() {
+                z := 4
+                eval(z + a.v + b[0])     // EXPECT: 0x9
+            }()
+            eval(z.s.v + a.v + b[0])     // EXPECT: 0x6
+        }()
+        eval(z.s.v + a.v)                // EXPECT: 0x3
+    }()
+
+    // -------------------------------------------------------
+    // "Threading" symbol check
+    // -------------------------------------------------------
+    b := 0x10101010
+    fn() {
+        b := b
+        fn() {
+            b := b
+            fn() {
+                eval(b) // EXPECT: 0x10101010
+            }()
+        }()
+    }()
+}
+
+fn eval(i: int) = printf("%#x\n", i)
+
+struct t {
+    s: s
+}
+
+struct s {
+    v: int
+}
+
+enum scenario {
+    If()
+    ElseIf()
+    Else()
+    While()
+    Case(v: int)
+    Struct(t: t)
+    Array(i: []int)
+    Func(f: fn() t)
+}

@@ -374,9 +374,9 @@ func (st *SymTab) Define(s *Symbol) (*Symbol, bool) {
 	return s, false
 }
 
-func (st *SymTab) OwnedBy(s *Symbol) bool {
-	_, ok := st.symbols[s.Name]
-	return ok
+func (st *SymTab) Owns(s *Symbol) bool {
+	sym, ok := st.symbols[s.Name]
+	return ok && sym == s
 }
 
 func (st *SymTab) Resolve(name string) (*Symbol, bool) {
