@@ -264,14 +264,13 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 	}
 }
 
-func addRuntimeInit(root *Node, symtab *SymTab, n *Node) error {
+func addRuntimeInit(n *Node) {
 	if n.op == opBlockFnDcl && n.token.Val == "main" {
 		n.stmts = append([]*Node{{op: opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType}}, n.stmts...) // Insert runtime init
 	}
-	return nil
 }
 
-func foldConstants(root *Node, symtab *SymTab, n *Node) error {
+func foldConstants(errs *[]error, n *Node) {
 
 	// Rewrite negative literals to single AST nodes
 	if n.op == opNeg && n.left.op == opLit && n.left.token.Kind == lex.Integer {
@@ -284,13 +283,12 @@ func foldConstants(root *Node, symtab *SymTab, n *Node) error {
 	if n.op == opLit && n.token.Kind == lex.Integer {
 		_, err := strconv.ParseInt(n.token.Val, 0, 64)
 		if err != nil {
-			return semanticError(errIntegerOverflowMsg, n.token)
+			*errs = append(*errs, semanticError(errIntegerOverflowMsg, n.token))
 		}
 	}
-	return nil
 }
 
-func declareCaseVars(root *Node, symtab *SymTab, n *Node) error {
+func declareCaseVars(symtab *SymTab, n *Node) {
 	if n.op == opMatch {
 
 		// AST: case <ident>(<var1>, <var2>, etc...): -> <var1> = asEnum(e)._1, <var2> = asEnum(e)._2, etc...
@@ -311,10 +309,9 @@ func declareCaseVars(root *Node, symtab *SymTab, n *Node) error {
 			cas.params = nil
 		}
 	}
-	return nil
 }
 
-func lowerMatchStatement(root *Node, symtab *SymTab, n *Node) error {
+func lowerMatchStatement(symtab *SymTab, n *Node) {
 	if n.op == opMatch {
 
 		// AST:
@@ -382,17 +379,15 @@ func lowerMatchStatement(root *Node, symtab *SymTab, n *Node) error {
 		n.left = nil
 		n.token = nil
 	}
-	return nil
 }
 
-func generateStructConstructors(root *Node, symtab *SymTab, n *Node) error {
+func generateStructConstructors(errs *[]error, root *Node, n *Node) {
 	if n.op == opStructDcl {
 		_, err := generateStructConstructor(root, n)
 		if err != nil {
-			return err
+			*errs = append(*errs, err)
 		}
 	}
-	return nil
 }
 
 func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
@@ -453,76 +448,4 @@ func semanticError2(msg string, t *lex.Token, vals ...interface{}) error {
 	args := append([]interface{}(nil), t.File, t.Line, t.Pos)
 	args = append(args, vals...)
 	return errors.New(fmt.Sprintf(msg, args...))
-}
-
-type order byte
-
-const (
-	postOrder = iota
-	preOrder
-	inOrder
-)
-
-func walk(o order, root *Node, symtab *SymTab, n *Node, visit func(*Node, *SymTab, *Node) error) (errs []error) {
-
-	// Depth First Search
-
-	// Visit left
-	left := func() {
-		if n.left != nil {
-			errs = append(errs, walk(o, root, symtab, n.left, visit)...)
-			if err := visit(root, symtab, n.left); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	// Visit right
-	right := func() {
-		if n.right != nil {
-			errs = append(errs, walk(o, root, symtab, n.right, visit)...)
-			if err := visit(root, symtab, n.right); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	// Visit current
-	cur := func() {
-		for _, param := range n.params {
-			if param != nil {
-				errs = append(errs, walk(o, root, symtab, param, visit)...)
-			}
-		}
-		for _, stat := range n.stmts {
-			if stat != nil {
-				errs = append(errs, walk(o, root, symtab, stat, visit)...)
-			}
-		}
-		if err := visit(root, symtab, n); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	switch o {
-	case postOrder:
-		left()
-		right()
-		cur()
-
-	case preOrder:
-		cur()
-		left()
-		right()
-
-	case inOrder:
-		left()
-		cur()
-		right()
-
-	default:
-		panic(fmt.Sprintf("Unknown tree traversal order: %v", o))
-	}
-
-	return
 }

@@ -7,7 +7,7 @@ import (
 
 var id = uint(0) // TODO: Find a better solution to this...
 
-func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error {
+func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 
 	if n.isLocalFn() {
 
@@ -83,7 +83,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 		// Closure/Anonymous/Fn Pointer Call Site
 		// ----------------------------------------------------------
 
-		s := rootSymtab.MustResolve("invokeDynamic")
+		s := rootNode.symtab.MustResolve("invokeDynamic")
 
 		// AST: <name>(args...) -> invokeDynamic(<name>, args...)
 		var stmts []*Node
@@ -98,8 +98,6 @@ func rewriteAnonFnAndClosures(rootNode *Node, rootSymtab *SymTab, n *Node) error
 		n.sym = s
 		n.typ = s.Type
 	}
-
-	return nil
 }
 
 func clIdentifyFreeVars(fn *Node) (vars []*Symbol) {

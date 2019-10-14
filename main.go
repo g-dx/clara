@@ -93,9 +93,16 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Pre-typecheck AST rewrite
-	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, generateStructConstructors)...)
-	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, addRuntimeInit)...)
-	errs = append(errs, walk(preOrder, rootNode, rootSymtab, rootNode, foldConstants)...)
+	WalkPostOrder(rootNode, func(n *Node) { generateStructConstructors(&errs, rootNode, n) })
+	WalkPostOrder(rootNode, addRuntimeInit)
+	WalkPreOrder(rootNode, func(n *Node) bool {
+		if n == nil {
+			return true
+		}
+		foldConstants(&errs, n)
+		return true
+	})
+
 	if len(errs) > 0 {
 		return "", errs
 	}
@@ -107,11 +114,9 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Post-typecheck AST rewrite
-	WalkPostOrder(rootNode, func(n *Node) {
-		_ = rewriteAnonFnAndClosures(rootNode, rootSymtab, n)
-	})
-	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, declareCaseVars)...)
-	errs = append(errs, walk(postOrder, rootNode, rootSymtab, rootNode, lowerMatchStatement)...)
+	WalkPostOrder(rootNode, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
+	WalkPostOrder(rootNode, func(n *Node) { declareCaseVars(rootSymtab, n) })
+	WalkPostOrder(rootNode, func(n *Node) { lowerMatchStatement(rootSymtab, n) })
 	if len(errs) > 0 {
 		return "", errs
 	}

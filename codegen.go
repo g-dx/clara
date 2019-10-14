@@ -105,13 +105,12 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 
 		// Assign stack offsets for temporaries
 		temps := len(fn.Type.Params)
-		walk(postOrder, n, n.symtab, n, func(root *Node, symTab *SymTab, n *Node) error {
+		WalkPostOrder(n, func(n *Node) {
 			// Look for symbols which should be on the stack but have no address
 			if n.sym != nil && n.sym.IsStack && n.sym.Addr == 0 {
 				n.sym.Addr = ptrSize * (temps + 1) // Assign a stack slot for temporary
 				temps++
 			}
-			return nil
 		})
 
 		// Generate standard entry sequence
