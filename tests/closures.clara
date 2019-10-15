@@ -78,18 +78,24 @@ fn main() {
     // "Threading" symbol check
     // -------------------------------------------------------
     b := 0x10101010
+    s := "Hello"
+    f := fn() string = s
     fn() {
         b := b
+        f := f
         fn() {
             b := b
+            f := f
             fn() {
-                eval(b) // EXPECT: 0x10101010
+                eval(b)   // EXPECT: 0x10101010
+                eval(f()) // EXPECT: Hello
             }()
         }()
     }()
 }
 
 fn eval(i: int) = printf("%#x\n", i)
+fn eval(s: string) = printf("%s\n", s)
 
 struct t {
     s: s
