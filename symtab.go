@@ -352,6 +352,20 @@ type Symbol struct {
 	Next 	  *Symbol // Only valid for function symbols!
 }
 
+func (s *Symbol) Describe() string {
+	switch s.Type.Kind {
+	case Function:
+		f := s.Type.AsFunction()
+		var types []string
+		for _, param := range f.Params {
+			types = append(types, param.String())
+		}
+		return fmt.Sprintf("%v(%v) %v", s.Name, strings.Join(types, ", "), f.ret.String())
+	default:
+		panic("Not implemented")
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type SymTab struct {

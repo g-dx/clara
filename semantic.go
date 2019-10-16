@@ -26,6 +26,7 @@ const (
 	errMismatchedTypesMsg      = "%v:%d:%d: mismatched types, got '%v', wanted '%v'"
 	errInvalidNumberArgsMsg    = "%v:%d:%d: invalid number of arguments, got '%v', wanted '%v'"
 	errResolveFunctionMsg      = "%v:%d:%d: Cannot resolve function '%v'"
+	errOverloadResolutionMsg   = "%v:%d:%d: Cannot resolve function '%v' from possible candidates:\n%v"
 	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
 	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
 	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"

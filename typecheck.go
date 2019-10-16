@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/g-dx/clarac/console"
 	"github.com/g-dx/clarac/lex"
@@ -476,8 +477,6 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		return errs
 	}
 
-	left := n.left
-
 	// Type check args
 	for _, arg := range n.stmts {
 		errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
@@ -506,89 +505,82 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		return errs
 	}
 
+	// Utility function
+	descFnCall := func(name string, args []*Node) string {
+		var types []string
+		for _, param := range args {
+			types = append(types, param.typ.String())
+		}
+		return fmt.Sprintf("%v(%v)", name, strings.Join(types, ", "))
+	}
+
 	// 2 cases, either the function call is a named call (global, parameter, etc) or is
 	// an "anonymous" call from some expression evaluation (f(x)(y), etc)
 
-	if left != nil {
-
-		// Subexpression yields function
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-		if !left.hasType() {
+	if n.left != nil {
+		errs = append(errs, typeCheck(n.left, symtab, fn, debug)...)
+		if !n.left.hasType() {
 			return errs
 		}
-
-		// Check we have a function
-		if !left.typ.Is(Function) {
-			var types []string
-			for _, arg := range n.stmts {
-				types = append(types, arg.typ.String())
-			}
-			return append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, fmt.Sprintf("fn(%v)", strings.Join(types, ","))))
+		err := matchFuncCallByType(n.left.typ, n.stmts, n.token)
+		if err != nil {
+			return append(errs, err)
 		}
-
-		// Check correct number of args
-		fn := left.typ.AsFunction()
-		if len(n.stmts) != len(fn.Params) {
-			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(fn.Params)))
-		}
-
-		// Check all types match
-		for i, arg := range fn.Params {
-			if !n.stmts[i].typ.Matches(arg) {
-				return append(errs, semanticError2(errMismatchedTypesMsg, n.stmts[i].token, n.stmts[i].typ, arg))
-			}
-		}
-		n.typ = fn.ret
-
+		n.typ = n.left.typ.AsFunction().ret
 	} else {
-
-		// Attempt to resolve symbol
-		var match *Symbol
-	loop:
-		for s, _ := fnSymtab.Resolve(n.token.Val); s != nil; s = s.Next {
-
-			// SPECIAL CASE: If symbol is ambiguous an error has already been reported and no type added so skip it
-			if s.Type == nil {
-				return errs
+		s, ok := fnSymtab.Resolve(n.token.Val)
+		if !ok {
+			return append(errs, semanticError2(errResolveFunctionMsg, n.token, descFnCall(n.token.Val, n.stmts)))
+		}
+		match, serrs := matchFuncCallBySymbol(s, n.stmts, n.token)
+		if match == nil {
+			if len(serrs) == 1 {
+				return append(errs, serrs[0])
 			}
-
-			// Check is a function
-			if !s.Type.Is(Function) {
-				continue
-			}
-
-			// Check correct number of args
-			fn := s.Type.AsFunction()
-			if len(n.stmts) != len(fn.Params) {
-				continue
-			}
-
-			// Check all types match
-			for i, param := range fn.Params {
-				if !n.stmts[i].typ.Matches(param) {
-					continue loop
+			candidates := bytes.NewBufferString("")
+			for x := s; x != nil; x = x.Next {
+				if x.Type.Is(Function) {
+					candidates.WriteString("	" + x.Describe() + "\n")
 				}
 			}
-
-			// Match found
-			match = s
-			break
+			return append(errs, semanticError2(errOverloadResolutionMsg, n.token, descFnCall(n.token.Val, n.stmts),
+				candidates.String()))
 		}
-
-		// Couldn't resolve function
-		if match == nil {
-			var types []string = nil
-			for _, p := range n.stmts {
-				types = append(types, p.typ.String())
-			}
-			return append(errs, semanticError2(errResolveFunctionMsg, n.token, fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(types, ", "))))
-		}
-
-		// Finally set symbol on node
 		n.sym = match
 		n.typ = match.Type.AsFunction().ret
 	}
 	return errs
+}
+
+func matchFuncCallBySymbol(f *Symbol, args []*Node, token *lex.Token) (s *Symbol, errs []error) {
+	for s = f; s != nil; s = s.Next {
+		err := matchFuncCallByType(s.Type, args, token)
+		if err == nil {
+			return s, nil
+		}
+		errs = append(errs, err)
+	}
+	return nil, errs
+}
+
+func matchFuncCallByType(t *Type, args []*Node, token *lex.Token) error {
+	if !t.Is(Function) {
+		var argTypes []string
+		for _, arg := range args {
+			argTypes = append(argTypes, arg.typ.String())
+		}
+		return semanticError2(errMismatchedTypesMsg, token, t, fmt.Sprintf("fn(%v)", strings.Join(argTypes, ",")))
+	}
+	f := t.AsFunction()
+	if len(args) != len(f.Params) {
+		return semanticError2(errInvalidNumberArgsMsg, token, len(args), len(f.Params))
+	}
+	for i, param := range f.Params {
+		if !args[i].typ.Matches(param) {
+			return semanticError2(errMismatchedTypesMsg, args[i].token, args[i].typ, param)
+		}
+	}
+	return nil
 }
 
 func typeCheckIdentifier(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {

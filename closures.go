@@ -113,19 +113,19 @@ func clIdentifyFreeVars(fn *Node) (vars []*Symbol) {
 func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 
 	// Update AST & function type to pass "env" as first parameter
-	envVar := fmt.Sprintf("$env$")
-	n.params = append([]*Node{{op: opIdentifier, token: &lex.Token{Val: envVar}, sym: env, typ: env.Type}}, n.params...)
+	envToken := &lex.Token{Val: "$env$"}
+	n.params = append([]*Node{{op: opIdentifier, token: envToken, sym: env, typ: env.Type}}, n.params...)
 	fn := n.sym.Type.AsFunction()
 	fn.Params = append([]*Type{env.Type}, fn.Params...)
 
 	WalkPostOrder(n, func(e *Node) {
-		if e.op == opIdentifier || e.op == opFuncCall {
+		if e.Is(opIdentifier, opFuncCall) {
 			// TODO: O(n) here, we should be able to be O(1)
 			for _, freeVar := range freeVars {
 				if freeVar == e.sym {
 
 					// AST: <var> -> env.<var> or <fnCall> -> env.<fnCall>
-					left := &Node{op: opIdentifier, token: &lex.Token{Val: envVar}, sym: env, typ: env.Type}
+					left := &Node{op: opIdentifier, token: envToken, sym: env, typ: env.Type}
 					var right *Node
 					sym := env.Type.AsStruct().GetField(e.sym.Name)
 					if e.op == opIdentifier {
@@ -194,10 +194,7 @@ func (fc *freeVarChecker) exitNode() bool {
 }
 
 func (fc *freeVarChecker) isFree(n *Node) bool {
-	if n.sym == nil {
-		return false // TODO: This is a result of the opIdentifier/opFuncCall two ways of identifying a function!
-	}
-	if n.sym.IsGlobal || n.sym.IsLiteral {
+	if n.sym == nil || n.sym.IsGlobal || n.sym.IsLiteral {
 		return false
 	}
 	for _, scope := range fc.scopes {
