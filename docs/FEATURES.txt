@@ -2,7 +2,6 @@
 
 - Allow panic() to operate as a return statement
 - Allow enum constructors to be namespaced by type
-- Escape double quotes in string literals.
 - support modules
 - add short circuit boolean code gen
 - full register usage in code gen
@@ -24,3 +23,4 @@ DONE:
 - Add support for closures
 - Add enums
 - Add bitwise operations
+- Escape double quotes in string literals.

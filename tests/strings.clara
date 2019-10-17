@@ -2,6 +2,9 @@ fn main() {
     // Basic operations
     eval("Hello".append(" ").append("world!")) // EXPECT: Hello world!
 
+    // Escaping
+    eval("\"Hello\" \\\\ \"World\"") // EXPECT: "Hello" \\ "World"
+
     // Length
     s := "<string>"
     eval("".length) // EXPECT: 0

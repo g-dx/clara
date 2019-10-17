@@ -390,8 +390,19 @@ func lexComment(l *Lexer) stateFn {
 
 // Opening " has already been consumed
 func lexString(l *Lexer) stateFn {
-	for l.peek() != eof && l.peek() != '"' {
-		l.next()
+	loop: for {
+		switch l.peek() {
+		case eof, '"':
+			break loop;
+		case '\\':
+			l.next()
+			if !isEscape(l.peek()) {
+				return l.errorf("unknown escape sequence")
+			}
+			l.next()
+		default:
+			l.next()
+		}
 	}
 
 	// Check for closing quote
@@ -524,4 +535,9 @@ func isHexadecimal(r rune) bool {
 
 func isEndOfLine(r rune) bool {
 	return r == '\r' || r == '\n'
+}
+
+func isEscape(r rune) bool {
+	// TODO: Add more as required
+	return r == 'r' || r == 'n' || r == '\\' || r == '"'
 }
