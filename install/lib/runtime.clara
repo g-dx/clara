@@ -19,7 +19,7 @@ fn panic(cause: string) {
     printf("\n// -----------------------------------------------------------------------------\n")
     printf("// Panic: %s\n", cause)
     printf("// -----------------------------------------------------------------------------\n")
-    abort()
+    exit(1)
 }
 
 // Invoked by an ASM trampoline (See codegen.go) for invalid array access
@@ -29,15 +29,15 @@ fn indexOutOfBounds(index: int) {
     printf("// -----------------------------------------------------------------------------\n")
     printf("\nBacktrace:\nTODO!\n\n")
     // TODO: Output stacktrace
-    abort()
+    exit(1)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Source: libc, https://www.gnu.org/software/libc/manual/html_node/Aborting-a-Program.html#Aborting-a-Program
-fn abort() nothing
+// Source: libc, https://www.gnu.org/software/libc/manual/html_node/Normal-Termination.html#Normal-Termination
+fn exit(status: int) nothing
 
 fn getFramePointer() frame // Implemented in assembly by codegen.go
 fn isStackBase(f: frame) bool
