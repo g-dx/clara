@@ -34,7 +34,7 @@ fn gcMarkSlot(fp: frame, off: byte) {
 fn gcMarkPointer(p: pointer, level: int) {
     p = unsafe(p.deref, 0, pointer)
     block := unsafe(p, -16, block)
-    info := block.loadTypeInfo()
+    info := typeInfoTable()[block.typeId()]
 
     if block.isReadOnly() {
         gcMarkDebug(p, level, info.name, "🔐")
@@ -94,9 +94,6 @@ struct typeInfo {
     roots: []byte
 }
 
-// 3 = slot width of typeInfo struct above
-fn loadTypeInfo(b: block) typeInfo = unsafe(typeInfoTable, (b.typeId() * 8) * 2, typeInfo)
-
 fn setMark(b: block) {
     if b.isMarked() {
         panic("setMark() called on marked block!")
@@ -122,5 +119,5 @@ fn isGcDebug() bool
 fn isValidBlock(b: block) bool
 fn emptyBlock() block
 
-// NOTE: This is not a function! Do not call it! It _should_ be a global symbol.
-fn typeInfoTable() nothing // TODO: Turn this into an array!
+// Implemented in codegen.go
+fn typeInfoTable() []typeInfo

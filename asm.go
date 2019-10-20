@@ -325,7 +325,7 @@ type asmWriter interface {
 	function(name string)
 	ins(i inst, ops ...operand)
 	flush()
-	labelBlock(name string, f func(w asmWriter))
+	roSymbol(name string, f func(w asmWriter)) operand
 	gcMap(name string, offsets []int) labelOp
 }
 
@@ -350,7 +350,14 @@ func (gw *gasWriter) write(asm string, a...interface{}) {
 }
 
 func (gw *gasWriter) addr(op operand) {
-	gw.write(fmt.Sprintf("   .8byte   %v\n", op.Print()))
+	switch op.(type) {
+	case symOp:
+		gw.tab(".8byte", op.Print()[1:]) // Trim '$'
+	case fnOp, labelOp:
+		gw.tab(".8byte", op.Print())
+	case litOp:
+		panic("Cannot output the address of literal")
+	}
 }
 
 func (gw *gasWriter) tab(s ... string) {
@@ -435,13 +442,13 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 	gw.write("   %-8s%-50s\n", instNames[i], strings.Join(s, ", "))
 }
 
-// TODO: Clean this up!
-func (gw *gasWriter) labelBlock(name string, f func(w asmWriter)) {
+func (gw *gasWriter) roSymbol(name string, f func(w asmWriter)) operand {
 	gw.tab(".data")
-	gw.raw(fnOp(name + ":").Print())
+	gw.tab(".8byte", "0x2") // "Read-only" GC header, TODO: Set type ID here
+	gw.label("_" + name)
 	f(gw)
 	gw.tab(".text")
-
+	return symOp(name)
 }
 
 func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {

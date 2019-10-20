@@ -224,14 +224,29 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 		}
 	}
 
-	asm.labelBlock("typeInfoTable", func(w asmWriter) {
-		for i, t := range gt.types {
+	// Generate typeInfo structs
+	var infos []operand
+	for i, t := range gt.types {
+		infos = append(infos, asm.roSymbol("typeInfo_"+strconv.Itoa(i), func(w asmWriter) {
 			// TODO: Hack! Find a better way of returning a label to a string literal
-			s := []byte(asm.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
-			asm.addr(labelOp(s[1:]))
-			asm.addr(roots[i])
+			s := []byte(w.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
+			w.addr(labelOp(s[1:]))
+			w.addr(roots[i])
+		}))
+	}
+
+	// Generate []typeInfo
+	typeInfoArray := asm.roSymbol("typeInfoArray", func(w asmWriter) {
+		w.tab(".8byte", strconv.Itoa(len(infos)))
+		for _, i := range infos {
+			w.addr(i)
 		}
 	})
+
+	// typeInfoTable()
+	genFnEntry(asm, "typeInfoTable", 0)
+	asm.ins(movabs, typeInfoArray, rax)
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
 func genInvokeDynamic(asm asmWriter, noGc operand) {

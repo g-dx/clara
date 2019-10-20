@@ -61,20 +61,26 @@ type GcTypes struct {
 
 func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
 
-	//
+	// Id = 0
+	gt.types = append(gt.types, &Type{Kind:Struct, Data: &StructType{Name: "<unknown>"}})
+
+	// ---------------------------------------------------------------------------------
 	// NOTE: The following 2 types must appear in this order as their ID is defined in
 	// in arrays.clara source code
 	//
 
-	// Id = 0
+	// Id = 1
 	b := symtab.MustResolve("[]byte")
 	gt.types = append(gt.types, b.Type)
 
-	// Id = 1
+	// Id = 2
 	i := symtab.MustResolve("[]int")
 	gt.types = append(gt.types, i.Type)
 
-	// Id = 2
+	// ---------------------------------------------------------------------------------
+	// Other heap types which do not have an explicit constructor
+
+	// Id = 3
 	s := symtab.MustResolve("string")
 	gt.types = append(gt.types, s.Type)
 }
