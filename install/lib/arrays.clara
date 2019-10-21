@@ -34,8 +34,7 @@ fn byteArray(size: int, length: int) []byte {
     return h.toByteArray()
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// External Functions
+// TODO: Remove these cast functions
 fn toIntArray(header: arrayHeader) []int
 fn toByteArray(header: arrayHeader) []byte
-fn toHeader(b: block) arrayHeader
+fn toHeader(b: block) arrayHeader = unsafe(b, 0, arrayHeader)

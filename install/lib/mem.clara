@@ -30,6 +30,9 @@ fn clarafree(b: block) {
     free(b)
 }
 
+// Pointer manipulation
+fn inc(b: block, i: int) block = unsafe(b, i, block)
+
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
@@ -44,5 +47,3 @@ fn free(b: block) nothing
 fn getBlocks() block
 fn setBlocks(b: block) nothing
 
-// Pointer manipulation
-fn inc(b: block, i: int) block

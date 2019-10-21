@@ -70,8 +70,6 @@ fn toString(b: []byte) string {
     return s.asString()
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// External Functions
-
 // TODO: Should be private!
-fn asString(b: []byte) string // Does not copy array!
+// NOTE: -8 to offset the +8 which codegen.go adds for arrays/string -> external fns
+fn asString(b: []byte) string = unsafe(b, -8, string)

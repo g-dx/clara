@@ -12,4 +12,4 @@ struct enum_ {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
-fn asEnum(ptr: int) enum_
+fn asEnum(ptr: int) enum_ = unsafe(ptr, 0, enum_)
