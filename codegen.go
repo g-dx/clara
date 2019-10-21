@@ -733,7 +733,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 		}
 		asm.ins(popq, rbx)
 		fn.decSp(1)
-		asm.ins(inst, rax.offset(rbx), rax)
+		asm.ins(inst, rax.index(rbx), rax)
 
 	case opArray:
 
@@ -749,15 +749,15 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 		// Displace + 8 to skip over length
 		if takeAddr {
-			asm.ins(leaq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = [rax + rbx * width + 8]
+			asm.ins(leaq, rax.index(rbx).scale(width).displace(8), rax) // rax = [rax + rbx * width + 8]
 		} else {
 
 			// Read value according to width
 			switch width {
 			case 1:
-				asm.ins(movsbq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
+				asm.ins(movsbq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			case 8:
-				asm.ins(movq, rax.offset(rbx).multiplier(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
+				asm.ins(movq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			default:
 				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
 			}

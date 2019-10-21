@@ -19,21 +19,21 @@ type operand interface {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type memOp struct {
-	base   reg
-	off    reg
-	disp   int16
-	mult   int16
-	indir  bool
-	deref  bool
+	base  reg
+	idx   reg
+	disp  int16
+	scl   int16
+	indir bool
+	deref bool
 }
 
-func (mo memOp) offset(r reg) memOp {
-	mo.off = r
+func (mo memOp) index(r reg) memOp {
+	mo.idx = r
 	return mo
 }
 
-func (mo memOp) multiplier(m int) memOp {
-	mo.mult = int16(m)
+func (mo memOp) scale(m int) memOp {
+	mo.scl = int16(m)
 	return mo
 }
 
@@ -59,14 +59,16 @@ func (mo memOp) Print() string  {
 	if mo.deref {
 		buf.WriteString("(")
 	}
-	buf.WriteString(regNames[mo.base]) // TODO: Base is not actually required. Future work may need to omit it
-	if mo.off != 0 {
+	if mo.base != 0 {
+		buf.WriteString(regNames[mo.base])
+	}
+	if mo.idx != 0 {
 		buf.WriteString(",")
-		buf.WriteString(regNames[mo.off])
-		if mo.mult != 0 {
-			buf.WriteString(",")
-			buf.WriteString(strconv.Itoa(int(mo.mult)))
-		}
+		buf.WriteString(regNames[mo.idx])
+	}
+	if mo.scl > 1 {
+		buf.WriteString(",")
+		buf.WriteString(strconv.Itoa(int(mo.scl)))
 	}
 	if mo.deref {
 		buf.WriteString(")")
@@ -192,8 +194,8 @@ var regNames = map[reg]string{
 	bl:  "%bl",
 }
 
-func (r reg) offset(off reg) memOp {
-	return r.deref().offset(off)
+func (r reg) index(off reg) memOp {
+	return r.deref().index(off)
 }
 
 func (r reg) indirect() memOp {
