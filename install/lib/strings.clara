@@ -24,6 +24,17 @@ fn append(buf: stringBuffer, s: string) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+fn append(buf: stringBuffer, b: byte) {
+    newSize := buf.size + 1
+    if newSize > buf.data.length {
+        buf.grow()
+    }
+    buf.data[buf.size] = b
+    buf.size = newSize
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 fn size(buf: stringBuffer) int {
     return buf.size
 }
