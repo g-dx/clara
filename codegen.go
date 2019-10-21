@@ -294,8 +294,7 @@ func genFramePointerAccess(asm asmWriter) {
 
 func genUnsafe(asm asmWriter) {
 	genFnEntry(asm, "unsafe", 0) // NOTE: Lie! This function takes 3 parameters!
-	asm.ins(addq, rsi, rdi)
-	asm.ins(movq, rdi, rax)
+	asm.ins(leaq, rdi.index(rsi), rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
