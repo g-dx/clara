@@ -18,7 +18,6 @@ intptr_t emptyBlock() { return 0; } // NUL block
 // ---------------------------------------------------------------------------------------------------------------------
 // Stack frame support
 
-intptr_t getFramePointer(); // Implemented by codegen.go
 intptr_t stackBase;         // Stack base set on entry
 
 void setStackBase(intptr_t frame)

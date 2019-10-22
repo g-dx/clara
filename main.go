@@ -94,7 +94,6 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Pre-typecheck AST rewrite
 	WalkPostOrder(rootNode, func(n *Node) { generateStructConstructors(&errs, rootNode, n) })
-	WalkPostOrder(rootNode, addRuntimeInit)
 	WalkPreOrder(rootNode, func(n *Node) bool {
 		if n == nil {
 			return true

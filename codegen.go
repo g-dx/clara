@@ -88,6 +88,8 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genUnsafe(asm)
 	asm.spacer()
+	genAsmEntrypoint(asm)
+	asm.spacer()
 	genNoGc(asm)
 	asm.spacer()
 	genInvokeDynamic(asm, noGc) // Closure invocation support
@@ -134,7 +136,7 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 			case opBlockFnDcl:
 				genStmtList(asm, n.stmts, fn)
 				if fn.Type.ret.Is(Nothing) && !n.IsReturnLastStmt() {
-					genFnExit(asm, n.sym.Name == "main")
+					genFnExit(asm, n.sym.Name == "entrypoint")
 				}
 			case opExprFnDcl:
 				genReturnStmt(asm, n.stmts[0], fn)
@@ -296,6 +298,12 @@ func genUnsafe(asm asmWriter) {
 	genFnEntry(asm, "unsafe", 0) // NOTE: Lie! This function takes 3 parameters!
 	asm.ins(leaq, rdi.index(rsi), rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
+func genAsmEntrypoint(asm asmWriter) {
+	genFnEntry(asm, "clara_asm_entrypoint", 0)
+	asm.ins(call, fnOp("clara_entrypoint"))
+	genFnExit(asm, true) // NOTE: Stubbed in Clara code & called from C main() so no GC
 }
 
 func genNoGc(asm asmWriter) {

@@ -447,20 +447,20 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 func (gw *gasWriter) roSymbol(name string, f func(w asmWriter)) operand {
 	gw.tab(".data")
 	gw.tab(".8byte", "0x2") // "Read-only" GC header, TODO: Set type ID here
-	gw.label("_" + name)
+	gw.label(fnOp(name).Print()) // TODO: Fix this mess!
 	f(gw)
 	gw.tab(".text")
 	return symOp(name)
 }
 
 func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
-	l := labelOp(name)
-	gw.tab(l.Print() + ":", ".8byte", strconv.Itoa(len(offsets)))
+	gw.label(name)
+	gw.tab(".8byte", strconv.Itoa(len(offsets)))
 	var s []string
 	for _, off := range offsets {
 		s = append(s, strconv.Itoa(off))
 	}
 	gw.tab(".byte", strings.Join(s, ","))
 	gw.spacer()
-	return l
+	return labelOp(name)
 }

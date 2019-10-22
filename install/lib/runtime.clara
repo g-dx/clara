@@ -9,9 +9,12 @@ struct gcMap {
     roots: []byte
 }
 
-// Inserted by compiler to be called at start of `main()` before any other code
-fn init() {
-    setStackBase(getFramePointer().next) // Capture frame pointer of C 'main'
+// C -> Clara entrypoint
+fn entrypoint() {
+    setStackBase(getFramePointer()) // Must be first as GC requires this info!
+
+    // Off we go...
+    main()
 }
 
 // Called from user code to crash the program
@@ -35,6 +38,10 @@ fn indexOutOfBounds(index: int) {
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
+
+ // Implemented in assembly by codegen.go & called by C main. Invokes entrypoint(int, int, int) defined
+ // above. Defined here to prevent redeclares.
+fn asm_entrypoint() int
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Normal-Termination.html#Normal-Termination
 fn exit(status: int) nothing

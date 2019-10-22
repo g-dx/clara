@@ -265,12 +265,6 @@ func createType(symtab *SymTab, n *Node) (*Type, error) {
 	}
 }
 
-func addRuntimeInit(n *Node) {
-	if n.op == opBlockFnDcl && n.token.Val == "main" {
-		n.stmts = append([]*Node{{op: opFuncCall, token: &lex.Token{Val: "init"}, symtab: n.symtab, typ: nothingType}}, n.stmts...) // Insert runtime init
-	}
-}
-
 func foldConstants(errs *[]error, n *Node) {
 
 	// Rewrite negative literals to single AST nodes
