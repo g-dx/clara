@@ -105,19 +105,13 @@ func (n *Node) isTerminating() bool {
 }
 
 func (n *Node) IsReturnLastStmt() bool {
-
-	x := []*Node { n }
-	for i := 0; i < len(x); i++ {
-		switch x[i].op {
-		case opBlockFnDcl, opElse, opElseIf, opIf:
-			if len(x[i].stmts) > 0 {
-				x = append(x, x[i].stmts[len(x[i].stmts)-1])
-			}
-		case opReturn:
-			return true
-		}
+	if len(n.stmts) == 0 {
+		return false
 	}
-	return false
+	if n.stmts[len(n.stmts)-1].op != opReturn {
+		return false
+	}
+	return true
 }
 
 func (n *Node) isLocalFn() bool {

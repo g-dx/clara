@@ -126,21 +126,21 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 		}
 
 		// Generate functions
-		if fn.Type.IsStructCons() || fn.Type.IsEnumCons() {
+		switch fn.Type.Kind {
+		case StructCons, EnumCons:
 			genConstructor(asm, fn, n.params, n.token.Val, gt.AssignId(fn.Type.ret))
-		} else {
-			// Generate code for all statements
-			genStmtList(asm, n.stmts, fn)
-
-			// Handle result in expression func
-			if n.op == opExprFnDcl {
-				genPrepareResult(asm, n.stmts[0], fn)
+		case Normal, Closure:
+			switch n.op {
+			case opBlockFnDcl:
+				genStmtList(asm, n.stmts, fn)
+				if fn.Type.ret.Is(Nothing) && !n.IsReturnLastStmt() {
+					genFnExit(asm, n.sym.Name == "main")
+				}
+			case opExprFnDcl:
+				genReturnStmt(asm, n.stmts[0], fn)
 			}
-		}
-
-		// Ensure stack cleanup for functions which do not explicitly terminate via a `return`
-		if !n.IsReturnLastStmt() {
-			genFnExit(asm, n.sym.Name == "main")
+		case External:
+			panic(fmt.Sprintf("Cannot generate code for external functions"))
 		}
 
 		// Generate function GC maps
@@ -370,6 +370,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 	}
 
 	// Pointer is already in rax so nothing to do...
+	genFnExit(asm, false)
 }
 
 func genStmtList(asm asmWriter, stmts []*Node, fn *function) {
@@ -378,7 +379,7 @@ func genStmtList(asm asmWriter, stmts []*Node, fn *function) {
 
 		switch stmt.op {
 		case opReturn:
-			genReturnStmt(asm, stmt, fn)
+			genReturnStmt(asm, stmt.left, fn)
 
 		case opIf:
 			genIfElseIfElseStmts(asm, stmt, fn)
@@ -477,24 +478,19 @@ func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 	asm.label(exit) // Declare exit point
 }
 
-func genReturnStmt(asm asmWriter, retn *Node, fn *function) {
+func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 
 	// If return has expression evaluate it
-	if retn.left != nil {
-		genExpr(asm, retn.left, 0, false, fn)
-		genPrepareResult(asm, retn.left, fn)
+	if expr != nil {
+		genExpr(asm, expr, 0, false, fn)
+		// Check if int -> byte cast required
+		if expr.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
+			asm.ins(movsbq, rax._8bit(), rax)
+		}
 	}
 
 	// Clean stack & return
 	genFnExit(asm, false)
-}
-
-func genPrepareResult(asm asmWriter, n *Node, fn *function) {
-
-	// Check if int -> byte cast required
-	if n.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
-		asm.ins(movsbq, rax._8bit(), rax)
-	}
 }
 
 func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {

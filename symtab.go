@@ -280,16 +280,8 @@ func (ft *FunctionType) IsExternal() bool {
 	return ft.Kind == External
 }
 
-func (ft *FunctionType) IsStructCons() bool {
-	return ft.Kind == StructCons
-}
-
 func (ft *FunctionType) IsEnumCons() bool {
 	return ft.Kind == EnumCons
-}
-
-func (ft *FunctionType) IsClosure() bool {
-	return ft.Kind == Closure
 }
 
 func (ft *FunctionType) AsClosure() *ClosureFunc {
