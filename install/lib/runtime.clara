@@ -10,7 +10,7 @@ struct gcMap {
 }
 
 // C -> Clara entrypoint
-fn entrypoint() {
+fn entrypoint(argc: int, argv: int) {
     setStackBase(getFramePointer()) // Must be first as GC requires this info!
 
     // Off we go...
