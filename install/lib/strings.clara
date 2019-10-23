@@ -11,7 +11,7 @@ fn NewStringBuffer(cap: int) stringBuffer = StringBuffer(byteArray(cap), 0)
 
 fn size(buf: stringBuffer) int = buf.size
 fn reset(buf: stringBuffer) { buf.size = 0 }
-fn toString(buf: stringBuffer) string = buf.data.toString()
+fn toString(buf: stringBuffer) string = buf.data.toString(buf.size)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -66,7 +66,13 @@ fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn toString(b: []byte) string {
-    s := byteArray(b.length + 1, b.length) // + 1 for NUL byte
+    return toString(b, b.length)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn toString(b: []byte, length: int) string {
+    s := byteArray(length + 1, length) // + 1 for NUL byte
     copyArray(b, 0, s, 0)
     return s.asString()
 }

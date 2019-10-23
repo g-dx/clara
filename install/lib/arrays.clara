@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn copyArray(src: []byte, srcPos: int, dest: []byte, destPos: int) {
-    if src.length == srcPos {
+    if src.length == srcPos or dest.length == destPos {
         return
     }
     dest[destPos] = src[srcPos]
