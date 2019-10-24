@@ -37,26 +37,38 @@ fn gcMarkPointer(p: pointer, level: int) {
     info := typeInfoTable()[block.typeId()]
 
     if block.isReadOnly() {
-        gcMarkDebug(p, level, info.name, "🔐")
+        gcMarkDebug(p, level, info, "🔐")
         return
     }
     if block.isMarked() {
-        gcMarkDebug(p, level, info.name, "🆗")
+        gcMarkDebug(p, level, info, "🆗")
         return
     }
 
-    // Mark block & walk roots
-    gcMarkDebug(p, level, info.name, "✅")
+    // Mark block & process type
+    gcMarkDebug(p, level, info, "✅")
     block.setMark()
-    i := 0
-    while i < info.roots.length {
-        gcMarkPointer(unsafe(p, info.roots[i] * 8, pointer), level + 5)
-        i = i + 1
+    match info {
+        case StructType(name, roots):
+            i := 0
+            while i < roots.length {
+                gcMarkPointer(unsafe(p, roots[i] * 8, pointer), level + 5)
+                i = i + 1
+            }
+        case StringType():
+            // Already marked - no further action required
     }
 }
 
-fn gcMarkDebug(p: pointer, level: int, typeName: string, icon: string) {
+fn gcMarkDebug(p: pointer, level: int, type: typeInfo, icon: string) {
     debug("gc", " - (0x%lx) %s%*s", p, icon, level, "")
+    typeName := "<unknown>"
+    match type {
+        case StructType(name, roots):
+            typeName = name
+        case StringType():
+            typeName = "string"
+    }
     debug("gc", "'%s'\n", typeName)
 }
 
@@ -88,10 +100,12 @@ struct pointer {
     deref: int
 }
 
+fn isNull(p: pointer) bool = unsafe(p, 0, int) == 0
+
 // Compile time generated structure holding runtime type information
-struct typeInfo {
-    name: string
-    roots: []byte
+enum typeInfo {
+    StructType(name: string, roots: []byte)
+    StringType()
 }
 
 fn setMark(b: block) {

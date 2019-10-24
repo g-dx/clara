@@ -226,14 +226,22 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 		}
 	}
 
-	// Generate typeInfo structs
+	// Generate typeInfo enum values
 	var infos []operand
 	for i, t := range gt.types {
 		infos = append(infos, asm.roSymbol("typeInfo_"+strconv.Itoa(i), func(w asmWriter) {
 			// TODO: Hack! Find a better way of returning a label to a string literal
 			s := []byte(w.stringLit(fmt.Sprintf("\"%v\"", t)).Print())
-			w.addr(labelOp(s[1:]))
-			w.addr(roots[i])
+
+			// NOTE: The IDs used here must match the enum definition in gc.clara!
+			switch t.Kind {
+			case Struct, Enum:
+				w.tab(".8byte", "0x0")
+				w.addr(labelOp(s[1:])) // TODO: Clean this up!
+				w.addr(roots[i])
+			case String, Array:
+				w.tab(".8byte", "0x1")
+			}
 		}))
 	}
 
