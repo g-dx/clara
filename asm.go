@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -402,22 +401,14 @@ func (gw *gasWriter) flush() {
 	gw.tab(".data")
 	for s, label := range gw.literals {
 
-		// Encode length in little endian format
-		b := make([]byte, 8)
 		raw, err := strconv.Unquote(s)
 		if err != nil {
 			panic(err)
 		}
-		binary.LittleEndian.PutUint64(b, uint64(len(raw)))
 
-		// Generate escaped Go string of raw octal values
-		size := fmt.Sprintf("\\%o\\%o\\%o\\%o\\%o\\%o\\%o\\%o",
-			b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
-
-		// string literal header (2 == readonly, type ID = 2 (string))
-		header := "\\2\\0\\0\\0\\0\\0\\2\\0"
-
-		gw.write("%s:\n   .ascii \"%v\",\"%v\",\"%v\\0\"\n", label, header, size, s[1:len(s)-1])
+		// string literal header (2 == readonly, type ID = 4 (string))
+		gw.write("%s:\n   .8byte %v\n   .8byte %v\n   .ascii \"%v\\0\"\n",
+			label, "0x4000000000002", len(raw), s[1:len(s)-1])
 	}
 	gw.literals = make(map[string]string) // Clear values
 }
