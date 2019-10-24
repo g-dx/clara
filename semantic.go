@@ -292,12 +292,12 @@ func declareCaseVars(symtab *SymTab, n *Node) {
 		for _, cas := range n.stmts {
 			var vars []*Node
 			for i, v := range cas.params {
-				field := fmt.Sprintf("_%v", i)
+				field := enum.GetField(fmt.Sprintf("_%v", i))
 				vars = append(vars,
 					&Node{op: opDas, left: v, right: &Node{op: opDot,
 						left:  &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{n.left}},
-						right: &Node{op: opIdentifier, sym: enum.GetField(field)},
-					},
+						right: &Node{op: opIdentifier, sym: field},
+						typ: v.typ}, // Expression yields type on left!
 					})
 			}
 			cas.stmts = append(vars, cas.stmts...)
