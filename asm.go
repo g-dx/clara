@@ -436,11 +436,9 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 }
 
 func (gw *gasWriter) roSymbol(name string, f func(w asmWriter)) operand {
-	gw.tab(".data")
 	gw.tab(".8byte", "0x2") // "Read-only" GC header, TODO: Set type ID here
 	gw.label(fnOp(name).Print()) // TODO: Fix this mess!
 	f(gw)
-	gw.tab(".text")
 	return symOp(name)
 }
 

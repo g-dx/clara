@@ -186,7 +186,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 			}
 
 			// Output GC map
-			roots = append(roots, asm.gcMap(t.AsmName(), off))
+			roots = append(roots, asm.gcMap("struct_" + t.AsmName(), off))
 			tag = 0
 
 		case Enum:
@@ -218,7 +218,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 			}
 
 			// Output GC map
-			roots = append(roots, asm.gcMap(t.AsmName() + "_" + strconv.Itoa(tag), off))
+			roots = append(roots, asm.gcMap(fmt.Sprintf("enum_%v_tag_%v", t.AsmName(),  tag), off))
 			tag += 1
 
 		default:
@@ -254,6 +254,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	})
 
 	// typeInfoTable()
+	asm.spacer()
 	genFnEntry(asm, "typeInfoTable", 0)
 	asm.ins(movabs, typeInfoArray, rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
