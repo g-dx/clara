@@ -456,10 +456,12 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 	}
 
 	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
-	if slot.typ.IsArray(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
+	mov := movq
+	if slot.op == opArray && slot.typ.Is(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
 		src = rbx._8bit()
+		mov = movb
 	}
-	asm.ins(movq, src, rax.deref()) // [rax] = src;
+	asm.ins(mov, src, rax.deref()) // [rax] = src;
 
 	// If decl & assign start tracking as gc root
 	if n.op == opDas {

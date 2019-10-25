@@ -56,11 +56,11 @@ fn append(s1: string, s2: string) string {
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
-    if src.length == srcPos {
-        return
+    while srcPos < src.length and destPos < dest.length {
+        dest[destPos] = src[srcPos]
+        srcPos = srcPos+1
+        destPos = destPos+1
     }
-    dest[destPos] = src[srcPos]
-    copyString(src, srcPos+1, dest, destPos+1)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
