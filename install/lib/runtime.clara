@@ -13,8 +13,43 @@ struct gcMap {
 fn entrypoint(argc: int, argv: int) {
     setStackBase(getFramePointer()) // Must be first as GC requires this info!
 
-    // Off we go...
-    main()
+    // TODO: Add to runtime struct
+    args := parseArgs(argc, argv)
+
+    main() // Off we go...
+}
+
+fn parseArgs(argc: int, argv: int) []string {
+    args := stringArray(argc, "")
+    buf := NewStringBuffer(16)
+    i := 0
+    while i < argc {
+        args[i] = buf.parseArg(unsafe(argv, i * 8, pointer).deref)
+        buf.reset()
+        i = i + 1
+    }
+    return args
+}
+
+fn parseArg(buf: stringBuffer, arg: int) string {
+    loop := true
+    off := 0
+    max := 1<<6  // Read bytes in 64-bit blocks
+    while loop {
+        shift := 0
+        bytes := unsafe(arg, off, pointer).deref
+        while shift < max and loop {
+            b := (bytes >> shift) & 0xFF
+            if b == 0x00 {
+                loop = false // NUL - end of string
+            } else {
+                buf.append(b)
+                shift = shift + 8
+            }
+        }
+        off = off + 8
+    }
+    return buf.toString()
 }
 
 // Called from user code to crash the program
