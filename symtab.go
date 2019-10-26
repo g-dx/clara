@@ -18,6 +18,7 @@ var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
 var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
 var byteArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: byteType } }
 var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
+var stringArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: stringType } }
 
 //----------------------------------------------------------------------------------------------------------------------
 

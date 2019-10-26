@@ -14,6 +14,23 @@ struct arrayHeader {
     length: int
 }
 
+fn stringArray(length: int, default: string) []string {
+    h := claralloc((length * 8) + 8, "[]string", 3).toHeader() // int == 8 bytes, + 8 for length
+    h.length = length
+    a := h.toStringArray()
+
+    // ----------------------------------------------------------------------
+    // Initialise contents. This prevents NULL from escaping into user
+    // code. Revisit when option/maybe is fully worked out
+    // ----------------------------------------------------------------------
+    i := 0
+    while i < a.length {
+        a[i] = default
+        i = i + 1
+    }
+    return a
+}
+
 fn intArray(length: int) []int {
     h := claralloc((length * 8) + 8, "[]int", 2).toHeader() // int == 8 bytes, + 8 for length
     h.length = length
@@ -39,6 +56,7 @@ fn byteArray(size: int, length: int, id: int, desc: string) []byte {
 }
 
 // TODO: Remove these cast functions
+fn toStringArray(header: arrayHeader) []string
 fn toIntArray(header: arrayHeader) []int
 fn toByteArray(header: arrayHeader) []byte
 fn toHeader(b: block) arrayHeader = unsafe(b, 0, arrayHeader)

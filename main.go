@@ -199,6 +199,7 @@ func stdSyms() []*Symbol {
 		{ Name: "byte", Type: byteType },
 		{ Name: "bool", Type: boolType },
 		{ Name: "nothing", Type: nothingType },
+		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
 		{ Name: "[]byte", Type: byteArrayType },
 		// invokeDynamic (implemented in assembly)

@@ -57,6 +57,16 @@ fn gcMarkPointer(p: pointer, level: int) {
             }
         case StringType():
             // Already marked - no further action required
+        case ArrayType(name, elemIsPointer):
+            if elemIsPointer {
+                len := p.deref
+                i := 0
+                while i < len {
+                    elem := unsafe(p, 8 + (i * 8), pointer) // Get pointer to element
+                    gcMarkPointer(elem, level + 5)
+                    i = i + 1
+                }
+            }
     }
 }
 
@@ -65,6 +75,8 @@ fn gcMarkDebug(p: pointer, level: int, type: typeInfo, icon: string) {
     typeName := "<unknown>"
     match type {
         case StructType(name, roots):
+            typeName = name
+        case ArrayType(name, elemIsPointer):
             typeName = name
         case StringType():
             typeName = "string"
@@ -106,6 +118,7 @@ fn isNull(p: pointer) bool = unsafe(p, 0, int) == 0
 enum typeInfo {
     StructType(name: string, roots: []byte)
     StringType()
+    ArrayType(name: string, elemIsPointer: bool)
 }
 
 fn setMark(b: block) {

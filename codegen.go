@@ -239,8 +239,16 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 				w.tab(".8byte", "0x0")
 				w.addr(labelOp(s[1:])) // TODO: Clean this up!
 				w.addr(roots[i])
-			case String, Array:
+			case String:
 				w.tab(".8byte", "0x1")
+			case Array:
+				w.tab(".8byte", "0x2")
+				w.addr(labelOp(s[1:])) // TODO: Clean this up!
+				elemIsPointer := "0x0"
+				if t.AsArray().Elem.IsPointer() {
+					elemIsPointer = "0x1"
+				}
+				w.tab(".8byte", elemIsPointer)
 			}
 		}))
 	}

@@ -1,0 +1,30 @@
+// Entry point
+fn main() {
+    x := 0
+    s := stringArray(5, "<default>")
+    while x < s.length {
+        printf("[%d] = %s\n", x, s[x])
+        x = x + 1
+    }
+    // EXPECT: [0] = <default>
+    // EXPECT: [1] = <default>
+    // EXPECT: [2] = <default>
+    // EXPECT: [3] = <default>
+    // EXPECT: [4] = <default>
+
+    s[0] = "first"
+    s[1] = "second"
+    s[2] = "third"
+    s[3] = "fourth"
+    s[4] = "fifth"
+    x = 0
+    while x < s.length {
+        printf("[%d] = %s\n", x, s[x])
+        x = x + 1
+    }
+    // EXPECT: [0] = first
+    // EXPECT: [1] = second
+    // EXPECT: [2] = third
+    // EXPECT: [3] = fourth
+    // EXPECT: [4] = fifth
+}

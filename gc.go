@@ -77,10 +77,14 @@ func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
 	i := symtab.MustResolve("[]int")
 	gt.types = append(gt.types, i.Type)
 
+	// Id = 3
+	sa := symtab.MustResolve("[]string")
+	gt.types = append(gt.types, sa.Type)
+
 	// ---------------------------------------------------------------------------------
 	// Other heap types which do not have an explicit constructor
 
-	// Id = 3
+	// Id = 4
 	s := symtab.MustResolve("string")
 	gt.types = append(gt.types, s.Type)
 }

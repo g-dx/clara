@@ -55,5 +55,6 @@ void debug(char *logType, char *format, ...)
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Casting support
+intptr_t toStringArray(intptr_t arrayHeader) { return arrayHeader; }
 intptr_t toIntArray(intptr_t arrayHeader) { return arrayHeader; }
 intptr_t toByteArray(intptr_t arrayHeader) { return arrayHeader; }
