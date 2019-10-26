@@ -72,7 +72,7 @@ fn toString(b: []byte) string {
 // ---------------------------------------------------------------------------------------------------------------------
 
 fn toString(b: []byte, length: int) string {
-    s := byteArray(length + 1, length) // + 1 for NUL byte
+    s := byteArray(length + 1, length, 4, "string") // + 1 for NUL byte
     copyArray(b, 0, s, 0)
     return s.asString()
 }

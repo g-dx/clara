@@ -15,7 +15,7 @@ struct arrayHeader {
 }
 
 fn intArray(length: int) []int {
-    h := claralloc((length * 8) + 8, "[]int", 1).toHeader() // int == 8 bytes, + 8 for length
+    h := claralloc((length * 8) + 8, "[]int", 2).toHeader() // int == 8 bytes, + 8 for length
     h.length = length
     return h.toIntArray()
 }
@@ -26,10 +26,14 @@ fn byteArray(length: int) []byte {
 
 // TODO: Should be private!
 fn byteArray(size: int, length: int) []byte {
+    return byteArray(size, length, 1, "[]byte")
+}
+
+fn byteArray(size: int, length: int, id: int, desc: string) []byte {
     if length > size {
         panic("Length cannot be greater than size!")
     }
-    h := claralloc(size + 8, "[]byte", 2).toHeader() // + 8 for length
+    h := claralloc(size + 8, desc, id).toHeader() // + 8 for length
     h.length = length
     return h.toByteArray()
 }
