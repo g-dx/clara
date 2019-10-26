@@ -13,6 +13,10 @@ fn gcMark() {
     fp := getFramePointer()
     roots := fp.map.roots
 
+    // -------------------------------------------------------------
+    // Stack
+    // -------------------------------------------------------------
+    debug("gc", "Stack\n")
     j := 0
     while not fp.isStackBase() {
         fp = fp.next
@@ -25,63 +29,63 @@ fn gcMark() {
         roots = fp.map.roots
         j = j + 1
     }
+
+
+    // -------------------------------------------------------------
+    // Global variables
+    // -------------------------------------------------------------
+    debug("gc", "\nGlobals\n")
+    gcMarkPointer(unsafe(getRuntime(), 0, int), 0)
 }
 
 fn gcMarkSlot(fp: frame, off: byte) {
-    gcMarkPointer(unsafe(fp, -off * 8, pointer), 1)
+    gcMarkPointer(unsafe(fp, -off * 8, pointer).deref, 1)
 }
 
-fn gcMarkPointer(p: pointer, level: int) {
-    p = unsafe(p.deref, 0, pointer)
-    block := unsafe(p, -16, block)
+fn gcMarkPointer(ptr: int, level: int) {
+    if ptr == 0 {
+        gcMarkDebug(ptr, level, "???", "❌")
+        return
+    }
+    block := unsafe(ptr, -16, block)
     info := typeInfoTable()[block.typeId()]
 
     if block.isReadOnly() {
-        gcMarkDebug(p, level, info, "🔐")
+        gcMarkDebug(ptr, level, info.getName(), "🔐")
         return
     }
     if block.isMarked() {
-        gcMarkDebug(p, level, info, "🆗")
+        gcMarkDebug(ptr, level, info.getName(), "🆗")
         return
     }
 
     // Mark block & process type
-    gcMarkDebug(p, level, info, "✅")
+    gcMarkDebug(ptr, level, info.getName(), "✅")
     block.setMark()
     match info {
         case StructType(name, roots):
             i := 0
             while i < roots.length {
-                gcMarkPointer(unsafe(p, roots[i] * 8, pointer), level + 5)
+                gcMarkPointer(deref(ptr, roots[i] * 8), level + 5)
                 i = i + 1
             }
         case StringType():
             // Already marked - no further action required
         case ArrayType(name, elemIsPointer):
             if elemIsPointer {
-                len := p.deref
+                len := deref(ptr, 0)
                 i := 0
                 while i < len {
-                    elem := unsafe(p, 8 + (i * 8), pointer) // Get pointer to element
-                    gcMarkPointer(elem, level + 5)
+                    gcMarkPointer(deref(ptr, 8 + (i * 8)), level + 5)
                     i = i + 1
                 }
             }
     }
 }
 
-fn gcMarkDebug(p: pointer, level: int, type: typeInfo, icon: string) {
-    debug("gc", " - (0x%lx) %s%*s", p, icon, level, "")
-    typeName := "<unknown>"
-    match type {
-        case StructType(name, roots):
-            typeName = name
-        case ArrayType(name, elemIsPointer):
-            typeName = name
-        case StringType():
-            typeName = "string"
-    }
-    debug("gc", "'%s'\n", typeName)
+fn gcMarkDebug(ptr: int, level: int, name: string, icon: string) {
+    debug("gc", " - (0x%09lx) %s%*s", ptr, icon, level, "")
+    debug("gc", "'%s'\n", name)
 }
 
 // http://journal.stuffwithstuff.com/2013/12/08/babys-first-garbage-collector/
@@ -112,13 +116,26 @@ struct pointer {
     deref: int
 }
 
-fn isNull(p: pointer) bool = unsafe(p, 0, int) == 0
+fn deref(ptr: int, off: int) int = unsafe(ptr, off, pointer).deref
 
 // Compile time generated structure holding runtime type information
 enum typeInfo {
     StructType(name: string, roots: []byte)
     StringType()
     ArrayType(name: string, elemIsPointer: bool)
+}
+
+fn getName(t: typeInfo) string {
+    tName := "unknown"
+    match t {
+        case StructType(name, roots):
+            tName = name
+        case ArrayType(name, elemIsPointer):
+            tName = name
+        case StringType():
+            tName = "string"
+    }
+    return tName
 }
 
 fn setMark(b: block) {

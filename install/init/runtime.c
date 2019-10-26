@@ -32,6 +32,13 @@ int isStackBase(intptr_t frame)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Runtime support
+
+intptr_t runtime;         // Set on program start
+void setRuntime(intptr_t r) { runtime = r; }
+intptr_t getRuntime() { return runtime; }
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Debug support
 
 int debugGc; // Defined in shared.h

@@ -8,6 +8,9 @@ fn main() {
         return x
     }(1, 2, 3, 4, 5).i = 123456789
     eval(x.i) // EXPECT: 123456789
+
+    // Check at least 1 arg (path to executable)
+    eval(getRuntime().args.length) // EXPECT: 1
 }
 
 fn eval(i: int) = printf("%d\n", i)

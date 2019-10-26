@@ -9,12 +9,16 @@ struct gcMap {
     roots: []byte
 }
 
+// Runtime information
+struct runtime {
+    args: []string
+}
+
 // C -> Clara entrypoint
 fn entrypoint(argc: int, argv: int) {
     setStackBase(getFramePointer()) // Must be first as GC requires this info!
 
-    // TODO: Add to runtime struct
-    args := parseArgs(argc, argv)
+    setRuntime(Runtime(parseArgs(argc, argv))) // Configure runtime
 
     main() // Off we go...
 }
@@ -84,6 +88,9 @@ fn exit(status: int) nothing
 fn getFramePointer() frame // Implemented in assembly by codegen.go
 fn isStackBase(f: frame) bool
 fn setStackBase(f: frame) nothing
+
+fn setRuntime(r: runtime) nothing
+fn getRuntime() runtime
 
 // WARNING: Type system escape hatch! Use with extreme caution!
 //
