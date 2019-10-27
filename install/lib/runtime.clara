@@ -25,7 +25,7 @@ fn entrypoint(argc: int, argv: int) {
 
 fn parseArgs(argc: int, argv: int) []string {
     args := stringArray(argc, "")
-    buf := NewStringBuffer(16)
+    buf := NewByteBuffer(16)
     i := 0
     while i < argc {
         args[i] = buf.parseArg(unsafe(argv, i * 8, pointer).deref)
@@ -35,7 +35,7 @@ fn parseArgs(argc: int, argv: int) []string {
     return args
 }
 
-fn parseArg(buf: stringBuffer, arg: int) string {
+fn parseArg(buf: byteBuffer, arg: int) string {
     loop := true
     off := 0
     max := 1<<6  // Read bytes in 64-bit blocks

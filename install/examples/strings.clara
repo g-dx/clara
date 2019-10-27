@@ -13,8 +13,8 @@ fn main() {
   // Append & print
   clara.append(" & ").append("Gary!").printChars(0)
 
-  // StringBuffer
-  buf := NewStringBuffer(16)
+  // ByteBuffer
+  buf := NewByteBuffer(16)
   buf.append("Clara")
   buf.append(" & ")
   buf.append("Susanna")
