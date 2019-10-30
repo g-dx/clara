@@ -1,0 +1,46 @@
+fn main() {
+
+    // Tests from: http://www.isthe.com/chongo/src/fnv/test_fnv.c
+
+    in  := stringArray(12, "")
+    out := intArray(12)
+    in[0]  = ""         out[0] = 0x811c9dc5
+    in[1]  = "a"        out[1] = 0xe40c292c
+    in[2]  = "b"        out[2] = 0xe70c2de5
+    in[3]  = "c"        out[3] = 0xe60c2c52
+    in[4]  = "d"        out[4] = 0xe10c2473
+    in[5]  = "e"        out[5] = 0xe00c22e0
+    in[6]  = "f"        out[6] = 0xe30c2799
+    in[7]  = "fo"       out[7] = 0x6222e842
+    in[8]  = "foo"      out[8] = 0xa9f37ed7
+    in[9]  = "foob"     out[9] = 0x3f5076ef
+    in[10] = "fooba"   out[10] = 0x39aaa18a
+    in[11] = "foobar"  out[11] = 0xbf9cf968
+
+    i := 0
+    while i < in.length {
+        eval(in[i], out[i])
+        i = i + 1
+    }
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+    // EXPECT: OK
+}
+
+fn eval(s: string, expected: int) {
+    actual := fnv1a(s)
+    if actual == expected {
+        printf("OK\n")
+    } else {
+        printf("Expected: 0x%lx, Actual: 0x%lx for '%s'\n", expected, actual, s)
+    }
+}

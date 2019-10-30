@@ -54,9 +54,9 @@ var operatorTypes = OperatorTypes{
 	opDiv:    {Integer, Byte},
 	opOr:     {Boolean},
 	opAnd:    {Boolean},
-	opBAnd:   {Integer},
-	opBOr:    {Integer},
-	opBXor:   {Integer},
+	opBAnd:   {Integer, Byte},
+	opBOr:    {Integer, Byte},
+	opBXor:   {Integer, Byte},
 	opBLeft:  {Integer},
 	opBRight: {Integer},
 	// TODO: What about unary operators? Operators which return a different type?
