@@ -1,5 +1,45 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
+// Simple brute force substring match. If found return index or -1 if no match.
+// TODO: Replace with Rabin-Karp or Boyer-Moore
+fn Index(s: string, sub: string) int {
+    // Special cases
+    if sub.length == 0 {
+        return 0
+    }
+    if s.length == 0 {
+        return -1
+    }
+    if sub.length > s.length {
+        return -1
+    }
+
+    matchRun := fn(s: string, sub: string, pos: int) bool {
+        i := 1 // First byte already matched
+        while pos < s.length and i < sub.length {
+            // TODO: Invert this condition!
+            if s[pos] == sub[i] {
+                i = i + 1
+                pos = pos + 1
+            } else {
+                return false
+            }
+        }
+        return i == sub.length
+    }
+
+    pos := 0
+    while pos < s.length {
+        if s[pos] == sub[0] and matchRun(s, sub, pos+1) {
+            return pos // Match found
+        }
+        pos = pos + 1
+    }
+    return -1
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 struct byteBuffer {
     data: []byte
     size: int

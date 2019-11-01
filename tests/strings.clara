@@ -23,6 +23,104 @@ fn main() {
     char(s[5]) // EXPECT: n
     char(s[6]) // EXPECT: g
     char(s[7]) // EXPECT: >
+
+    // Index (taken from https://github.com/golang/go/blob/master/src/strings/strings_test.go)
+    n := 76
+    strs := stringArray(n, "")
+    sub := stringArray(n, "")
+    idx := intArray(n)
+
+    strs[0] = "" sub[0] = "" idx[0] = 0 // EXPECT: OK
+    strs[1] = "" sub[1] = "a" idx[1] = -1 // EXPECT: OK
+    strs[2] = "" sub[2] = "foo" idx[2] = -1 // EXPECT: OK
+    strs[3] = "fo" sub[3] = "foo" idx[3] = -1 // EXPECT: OK
+    strs[4] = "foo" sub[4] = "foo" idx[4] = 0 // EXPECT: OK
+    strs[5] = "oofofoofooo" sub[5] = "f" idx[5] = 2 // EXPECT: OK
+    strs[6] = "oofofoofooo" sub[6] = "foo" idx[6] = 4 // EXPECT: OK
+    strs[7] = "barfoobarfoo" sub[7] = "foo" idx[7] = 3 // EXPECT: OK
+    strs[8] = "foo" sub[8] = "" idx[8] = 0 // EXPECT: OK
+    strs[9] = "foo" sub[9] = "o" idx[9] = 1 // EXPECT: OK
+    strs[10] = "abcABCabc" sub[10] = "A" idx[10] = 3 // EXPECT: OK
+    strs[11] = "" sub[11] = "a" idx[11] = -1 // EXPECT: OK
+    strs[12] = "x" sub[12] = "a" idx[12] = -1 // EXPECT: OK
+    strs[13] = "x" sub[13] = "x" idx[13] = 0 // EXPECT: OK
+    strs[14] = "abc" sub[14] = "a" idx[14] = 0 // EXPECT: OK
+    strs[15] = "abc" sub[15] = "b" idx[15] = 1 // EXPECT: OK
+    strs[16] = "abc" sub[16] = "c" idx[16] = 2 // EXPECT: OK
+    strs[17] = "abc" sub[17] = "x" idx[17] = -1 // EXPECT: OK
+    strs[18] = "" sub[18] = "ab" idx[18] = -1 // EXPECT: OK
+    strs[19] = "bc" sub[19] = "ab" idx[19] = -1 // EXPECT: OK
+    strs[20] = "ab" sub[20] = "ab" idx[20] = 0 // EXPECT: OK
+    strs[21] = "xab" sub[21] = "ab" idx[21] = 1 // EXPECT: OK
+    strs[22] = "xa" sub[22] = "ab" idx[22] = -1 // EXPECT: OK
+    strs[23] = "" sub[23] = "abc" idx[23] = -1 // EXPECT: OK
+    strs[24] = "xbc" sub[24] = "abc" idx[24] = -1 // EXPECT: OK
+    strs[25] = "abc" sub[25] = "abc" idx[25] = 0 // EXPECT: OK
+    strs[26] = "xabc" sub[26] = "abc" idx[26] = 1 // EXPECT: OK
+    strs[27] = "xab" sub[27] = "abc" idx[27] = -1 // EXPECT: OK
+    strs[28] = "xabxc" sub[28] = "abc" idx[28] = -1 // EXPECT: OK
+    strs[29] = "" sub[29] = "abcd" idx[29] = -1 // EXPECT: OK
+    strs[30] = "xbcd" sub[30] = "abcd" idx[30] = -1 // EXPECT: OK
+    strs[31] = "abcd" sub[31] = "abcd" idx[31] = 0 // EXPECT: OK
+    strs[32] = "xabcd" sub[32] = "abcd" idx[32] = 1 // EXPECT: OK
+    strs[33] = "xbcqq" sub[33] = "abcqq" idx[33] = -1 // EXPECT: OK
+    strs[34] = "abcqq" sub[34] = "abcqq" idx[34] = 0 // EXPECT: OK
+    strs[35] = "xabcqq" sub[35] = "abcqq" idx[35] = 1 // EXPECT: OK
+    strs[36] = "xabxcqq" sub[36] = "abcqq" idx[36] = -1 // EXPECT: OK
+    strs[37] = "xabcqxq" sub[37] = "abcqq" idx[37] = -1 // EXPECT: OK
+    strs[38] = "" sub[38] = "01234567" idx[38] = -1 // EXPECT: OK
+    strs[39] = "32145678" sub[39] = "01234567" idx[39] = -1 // EXPECT: OK
+    strs[40] = "01234567" sub[40] = "01234567" idx[40] = 0 // EXPECT: OK
+    strs[41] = "x01234567" sub[41] = "01234567" idx[41] = 1 // EXPECT: OK
+    strs[42] = "x0123456x01234567" sub[42] = "01234567" idx[42] = 9 // EXPECT: OK
+    strs[43] = "" sub[43] = "0123456789" idx[43] = -1 // EXPECT: OK
+    strs[44] = "3214567844" sub[44] = "0123456789" idx[44] = -1 // EXPECT: OK
+    strs[45] = "0123456789" sub[45] = "0123456789" idx[45] = 0 // EXPECT: OK
+    strs[46] = "x0123456789" sub[46] = "0123456789" idx[46] = 1 // EXPECT: OK
+    strs[47] = "x012345678x0123456789" sub[47] = "0123456789" idx[47] = 11 // EXPECT: OK
+    strs[48] = "x01234567x89" sub[48] = "0123456789" idx[48] = -1 // EXPECT: OK
+    strs[49] = "" sub[49] = "0123456789012345" idx[49] = -1 // EXPECT: OK
+    strs[50] = "3214567889012345" sub[50] = "0123456789012345" idx[50] = -1 // EXPECT: OK
+    strs[51] = "0123456789012345" sub[51] = "0123456789012345" idx[51] = 0 // EXPECT: OK
+    strs[52] = "x0123456789012345" sub[52] = "0123456789012345" idx[52] = 1 // EXPECT: OK
+    strs[53] = "x012345678901234x0123456789012345" sub[53] = "0123456789012345" idx[53] = 17 // EXPECT: OK
+    strs[54] = "" sub[54] = "01234567890123456789" idx[54] = -1 // EXPECT: OK
+    strs[55] = "32145678890123456789" sub[55] = "01234567890123456789" idx[55] = -1 // EXPECT: OK
+    strs[56] = "01234567890123456789" sub[56] = "01234567890123456789" idx[56] = 0 // EXPECT: OK
+    strs[57] = "x01234567890123456789" sub[57] = "01234567890123456789" idx[57] = 1 // EXPECT: OK
+    strs[58] = "x0123456789012345678x01234567890123456789" sub[58] = "01234567890123456789" idx[58] = 21 // EXPECT: OK
+    strs[59] = "" sub[59] = "0123456789012345678901234567890" idx[59] = -1 // EXPECT: OK
+    strs[60] = "321456788901234567890123456789012345678911" sub[60] = "0123456789012345678901234567890" idx[60] = -1 // EXPECT: OK
+    strs[61] = "0123456789012345678901234567890" sub[61] = "0123456789012345678901234567890" idx[61] = 0 // EXPECT: OK
+    strs[62] = "x0123456789012345678901234567890" sub[62] = "0123456789012345678901234567890" idx[62] = 1 // EXPECT: OK
+    strs[63] = "x012345678901234567890123456789x0123456789012345678901234567890" sub[63] = "0123456789012345678901234567890" idx[63] = 32 // EXPECT: OK
+    strs[64] = "" sub[64] = "01234567890123456789012345678901" idx[64] = -1 // EXPECT: OK
+    strs[65] = "32145678890123456789012345678901234567890211" sub[65] = "01234567890123456789012345678901" idx[65] = -1 // EXPECT: OK
+    strs[66] = "01234567890123456789012345678901" sub[66] = "01234567890123456789012345678901" idx[66] = 0 // EXPECT: OK
+    strs[67] = "x01234567890123456789012345678901" sub[67] = "01234567890123456789012345678901" idx[67] = 1 // EXPECT: OK
+    strs[68] = "x0123456789012345678901234567890x01234567890123456789012345678901" sub[68] = "01234567890123456789012345678901" idx[68] = 33 // EXPECT: OK
+    strs[69] = "xxxxxx012345678901234567890123456789012345678901234567890123456789012" sub[69] = "012345678901234567890123456789012345678901234567890123456789012" idx[69] = 6 // EXPECT: OK
+    strs[70] = "" sub[70] = "0123456789012345678901234567890123456789" idx[70] = -1 // EXPECT: OK
+    strs[71] = "xx012345678901234567890123456789012345678901234567890123456789012" sub[71] = "0123456789012345678901234567890123456789" idx[71] = 2 // EXPECT: OK
+    strs[72] = "xx012345678901234567890123456789012345678901234567890123456789012" sub[72] = "0123456789012345678901234567890123456xxx" idx[72] = -1 // EXPECT: OK
+    strs[73] = "xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx" sub[73] = "0123456789012345678901234567890123456xxx" idx[73] = 65 // EXPECT: OK
+    strs[74] = "oxoxoxoxoxoxoxoxoxoxoxoy" sub[74] = "oy" idx[74] = 22 // EXPECT: OK
+    strs[75] = "oxoxoxoxoxoxoxoxoxoxoxox" sub[75] = "oy" idx[75] = -1 // EXPECT: OK
+
+    i := 0
+    while i < strs.length {
+        eval(strs[i], sub[i], idx[i])
+        i = i + 1
+    }
+}
+
+fn eval(s: string, sub: string, expected: int) {
+    actual := Index(s, sub)
+    if actual == expected {
+        printf("OK\n")
+    } else {
+        printf("expected = %d, actual = %d for s = '%s', sub = '%s'\n", expected, actual, s, sub)
+    }
 }
 
 fn eval(s: string) = printf("%s\n", s)
