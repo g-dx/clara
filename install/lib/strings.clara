@@ -66,6 +66,21 @@ fn append(buf: byteBuffer, s: string) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+fn substring(buf: byteBuffer, pos: int, length: int) string {
+    if pos < 0 or length < 0 {
+        panic("pos or length cannot be negative")
+    }
+    if pos+length > buf.size {
+        panic("pos+length > buf.size")
+    }
+    if length == 0 {
+        return ""
+    }
+    return buf.data.toString(pos, length)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 fn append(buf: byteBuffer, b: byte) {
     newSize := buf.size + 1
     if newSize > buf.data.length {
@@ -105,15 +120,11 @@ fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn toString(b: []byte) string {
-    return toString(b, b.length)
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-fn toString(b: []byte, length: int) string {
+fn toString(b: []byte) string = toString(b, b.length)
+fn toString(b: []byte, length: int) string = toString(b, 0, length)
+fn toString(b: []byte, pos: int, length: int) string {
     s := byteArray(length + 1, length, 4, "string") // + 1 for NUL byte
-    copyArray(b, 0, s, 0)
+    copyArray(b, pos, s, 0)
     return s.asString()
 }
 
