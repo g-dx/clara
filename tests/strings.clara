@@ -112,6 +112,21 @@ fn main() {
         eval(strs[i], sub[i], idx[i])
         i = i + 1
     }
+
+    // Equals
+    eqs := stringArray(12, "")
+    eqs[0] = "" eqs[1] = ""  // EXPECT: true
+    eqs[2] = "a" eqs[3] = "" // EXPECT: false
+    eqs[4] = "" eqs[5] = "a" // EXPECT: false
+    eqs[6] = "a" eqs[7] = "a" // EXPECT: true
+    eqs[8] = "a" eqs[9] = "A" // EXPECT: false
+    eqs[10] = "🔐" eqs[11] = "🔐" // EXPECT: true
+    // TODO: Add more tests
+    i = 0
+    while i < eqs.length {
+        printf("%s\n", eqs[i].Equals(eqs[i+1]).toString())
+        i = i + 2
+    }
 }
 
 fn eval(s: string, sub: string, expected: int) {
@@ -126,3 +141,4 @@ fn eval(s: string, sub: string, expected: int) {
 fn eval(s: string) = printf("%s\n", s)
 fn eval(i: int) = printf("%d\n", i)
 fn char(b: byte) = printf("%c\n", b)
+fn toString(b: bool) string { if b { return "true" } else { return "false" } }

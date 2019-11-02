@@ -1,4 +1,20 @@
 // ---------------------------------------------------------------------------------------------------------------------
+fn Equals(s1: string, s2: string) bool {
+    if s1.length > s2.length or s1.length < s2.length { // TODO: !=
+        return false
+    }
+    i := 0
+    while i < s1.length {
+        if s1[i] == s2[i] { // TODO: !=
+            i = i + 1
+        } else {
+            return false
+        }
+    }
+    return true
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Simple brute force substring match. If found return index or -1 if no match.
 // TODO: Replace with Rabin-Karp or Boyer-Moore
@@ -17,8 +33,7 @@ fn Index(s: string, sub: string) int {
     matchRun := fn(s: string, sub: string, pos: int) bool {
         i := 1 // First byte already matched
         while pos < s.length and i < sub.length {
-            // TODO: Invert this condition!
-            if s[pos] == sub[i] {
+            if s[pos] == sub[i] { // TODO: !=
                 i = i + 1
                 pos = pos + 1
             } else {
