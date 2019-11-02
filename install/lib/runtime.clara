@@ -12,13 +12,17 @@ struct gcMap {
 // Runtime information
 struct runtime {
     args: []string
+    env: env
 }
 
 // C -> Clara entrypoint
-fn entrypoint(argc: int, argv: int) {
-    setStackBase(getFramePointer()) // Must be first as GC requires this info!
+fn entrypoint(argc: int, argv: int, envp: int) {
+    setStackBase(getFramePointer())
 
-    setRuntime(Runtime(parseArgs(argc, argv))) // Configure runtime
+    // Configure runtime TODO: GC root tracking for spilled pointers!
+    args := parseArgs(argc, argv)
+    env := parseEnv(envp)
+    setRuntime(Runtime(args, env))
 
     main() // Off we go...
 }
@@ -28,14 +32,15 @@ fn parseArgs(argc: int, argv: int) []string {
     buf := NewByteBuffer(16)
     i := 0
     while i < argc {
-        args[i] = buf.parseArg(unsafe(argv, i * 8, pointer).deref)
+        buf.parseCString(unsafe(argv, i * 8, pointer).deref)
+        args[i] = buf.toString()
         buf.reset()
         i = i + 1
     }
     return args
 }
 
-fn parseArg(buf: byteBuffer, arg: int) string {
+fn parseCString(buf: byteBuffer, arg: int) {
     loop := true
     off := 0
     max := 1<<6  // Read bytes in 64-bit blocks
@@ -53,7 +58,58 @@ fn parseArg(buf: byteBuffer, arg: int) string {
         }
         off = off + 8
     }
-    return buf.toString()
+}
+
+fn parseEnv(envp: int) env {
+    forEach := fn(envp: int, f: fn(int, int)) int {
+        i := 0
+        var := unsafe(envp, i * 8, pointer).deref
+        while var > 0 { // TODO: != 0
+            f(var, i)
+            i = i + 1
+            var = unsafe(envp, i * 8, pointer).deref
+        }
+        return i
+    }
+
+    // Parse env vars
+    n := forEach(envp, fn(arg: int, idx: int) {})
+    key := stringArray(n, "")
+    val := stringArray(n, "")
+
+    buf := NewByteBuffer(16)
+    forEach(envp, fn(arg: int, idx: int) {
+        buf.parseCString(arg)
+        s := buf.toString()
+        i := s.Index("=") // TODO: Update Index() to support passing a []byte
+        if i == -1 {
+            key[idx] = s
+            val[idx] = ""
+        } else {
+            key[idx] = buf.substring(0, i)
+            val[idx] = buf.substring(i+1, buf.size-i-1) // TODO: Should be calling buf.size()
+        }
+        buf.reset()
+    })
+    return Env(key, val)
+}
+
+struct env {
+    key: []string
+    val: []string
+}
+
+fn size(e: env) int = e.key.length
+fn isSet(e: env, key: string) bool = not e.get(key).Equals("__KEY_NOT_FOUND__")
+fn get(e: env, key: string) string {
+    i := 0
+    while i < e.key.length {
+        if e.key[i].Equals(key) {
+            return e.val[i]
+        }
+        i = i + 1
+    }
+    return "__KEY_NOT_FOUND__" // TODO: This is horrible! We need proper Optional/Maybe support
 }
 
 // Called from user code to crash the program

@@ -8,7 +8,7 @@
 // Clara program entry point
 // ---------------------------------------------------------------------------------------------------------------------
 
-int clara_asm_entrypoint(int argc, char** argv);
+int clara_asm_entrypoint(int argc, char** argv, char** envp);
 
 static struct option options[] =
 {
@@ -16,7 +16,7 @@ static struct option options[] =
     { 0, 0, 0, 0 },
 };
 
-int main(int argc, char** argv)
+int main(int argc, char** argv, char** envp)
 {
     while (1)
     {
@@ -39,6 +39,6 @@ int main(int argc, char** argv)
     }
 
     // Program entry point
-    clara_asm_entrypoint(argc, argv);
+    clara_asm_entrypoint(argc, argv, envp);
     return 0;
 }

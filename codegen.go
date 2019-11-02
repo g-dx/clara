@@ -319,7 +319,7 @@ func genUnsafe(asm asmWriter) {
 
 func genAsmEntrypoint(asm asmWriter) {
 	genFnEntry(asm, "clara_asm_entrypoint", 0)
-	asm.ins(call, fnOp("clara_entrypoint.int.int"))
+	asm.ins(call, fnOp("clara_entrypoint.int.int.int"))
 	genFnExit(asm, true) // NOTE: Stubbed in Clara code & called from C main() so no GC
 }
 

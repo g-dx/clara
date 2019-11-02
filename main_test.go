@@ -100,6 +100,12 @@ func CompileAndRun(progPath string, t *testing.T) string {
 	}
 	defer os.Remove(binary)
 
+	// Always set var
+	err := os.Setenv("CLARA_ENV_KEY", "CLARA_ENV_VAL")
+	if err != nil {
+		t.Fatalf("Execution failure: %v\n", err)
+	}
+
 	// Execute binary
 	cmd := exec.Command(binary)
 	outBytes, err := cmd.CombinedOutput()
