@@ -64,7 +64,7 @@ fn parseEnv(envp: int) env {
     forEach := fn(envp: int, f: fn(int, int)) int {
         i := 0
         var := unsafe(envp, i * 8, pointer).deref
-        while var > 0 { // TODO: != 0
+        while not (var == 0) {
             f(var, i)
             i = i + 1
             var = unsafe(envp, i * 8, pointer).deref

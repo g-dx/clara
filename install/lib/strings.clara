@@ -1,15 +1,14 @@
 // ---------------------------------------------------------------------------------------------------------------------
 fn Equals(s1: string, s2: string) bool {
-    if s1.length > s2.length or s1.length < s2.length { // TODO: !=
+    if not (s1.length == s2.length) {
         return false
     }
     i := 0
     while i < s1.length {
-        if s1[i] == s2[i] { // TODO: !=
-            i = i + 1
-        } else {
+        if not (s1[i] == s2[i]) {
             return false
         }
+        i = i + 1
     }
     return true
 }
@@ -33,12 +32,11 @@ fn Index(s: string, sub: string) int {
     matchRun := fn(s: string, sub: string, pos: int) bool {
         i := 1 // First byte already matched
         while pos < s.length and i < sub.length {
-            if s[pos] == sub[i] { // TODO: !=
-                i = i + 1
-                pos = pos + 1
-            } else {
+            if not (s[pos] == sub[i]) {
                 return false
             }
+            i = i + 1
+            pos = pos + 1
         }
         return i == sub.length
     }
