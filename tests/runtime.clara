@@ -7,21 +7,16 @@ fn main() {
     fn(i: int, j: int, k: int, l: int, m: int) x {
         return x
     }(1, 2, 3, 4, 5).i = 123456789
-    eval(x.i) // EXPECT: 123456789
+    println(x.i) // EXPECT: 123456789
 
     // Check at least 1 arg (path to executable)
-    eval(getRuntime().args.length) // EXPECT: 1
+    println(getRuntime().args.length) // EXPECT: 1
 
     // Check env vars
-    eval(getRuntime().env.get("CLARA_ENV_KEY")) // EXPECT: CLARA_ENV_VAL
-    eval(getRuntime().env.get("__NOT_DEFINED__")) // EXPECT: __KEY_NOT_FOUND__
-    eval(getRuntime().env.isSet("__NOT_DEFINED__")) // EXPECT: false
+    println(getRuntime().env.get("CLARA_ENV_KEY")) // EXPECT: CLARA_ENV_VAL
+    println(getRuntime().env.get("__NOT_DEFINED__")) // EXPECT: __KEY_NOT_FOUND__
+    println(getRuntime().env.isSet("__NOT_DEFINED__")) // EXPECT: false
 }
-
-fn eval(i: int) = printf("%d\n", i)
-fn eval(s: string) = printf("%s\n", s)
-fn eval(b: bool) = printf("%s\n", b.toString())
-fn toString(b: bool) string { if b { return "true" } else { return "false" } } // TODO: Move to core!
 
 struct val {
     i: int

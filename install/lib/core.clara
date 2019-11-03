@@ -1,0 +1,22 @@
+// --------------------------------------------------------------------------------
+// Conversions
+// --------------------------------------------------------------------------------
+
+fn toByte(i: int) byte = i
+
+// --------------------------------------------------------------------------------
+// Printing
+// --------------------------------------------------------------------------------
+
+fn println(s: string) = printf("%s\n", s)
+fn println(i: int) = printf("%lli\n", i)
+fn println(b: byte) = printf("%hhi\n", b)
+fn println(b: bool) = println(b.toString())
+
+fn toString(b: bool) string {
+    if b {
+        return "true"
+    } else {
+        return "false"
+    }
+}

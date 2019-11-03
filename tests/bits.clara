@@ -2,35 +2,33 @@ fn main() {
 
     // Left shift
 
-    eval(1<<1)        // EXPECT: 2
-    eval(1<<8)        // EXPECT: 256
-    eval(1<<2<<3<<4)  // EXPECT: 512
-    eval((1<<63)-1) // EXPECT: 9223372036854775807
-    eval(-1<<63)   // EXPECT: -9223372036854775808
+    println(1<<1)        // EXPECT: 2
+    println(1<<8)        // EXPECT: 256
+    println(1<<2<<3<<4)  // EXPECT: 512
+    println((1<<63)-1) // EXPECT: 9223372036854775807
+    println(-1<<63)   // EXPECT: -9223372036854775808
 
     // Right Shift (Arithmetic)
 
-    eval(0xFF>>4) // EXPECT: 15
-    eval(0xFF>>8) // EXPECT: 0
-    eval(-0xFF>>4) // EXPECT: -16
-    eval(-0xFF>>8) // EXPECT: -1
+    println(0xFF>>4) // EXPECT: 15
+    println(0xFF>>8) // EXPECT: 0
+    println(-0xFF>>4) // EXPECT: -16
+    println(-0xFF>>8) // EXPECT: -1
 
     // Or
 
-    eval(0xF | 0xF)   // EXPECT: 15
-    eval(0x0F | 0xF0) // EXPECT: 255
-    eval(0x0000FFFF | 0xFFFF0000) // EXPECT: 4294967295
-    eval(-0xF00 | -0xF) // EXPECT: -15
+    println(0xF | 0xF)   // EXPECT: 15
+    println(0x0F | 0xF0) // EXPECT: 255
+    println(0x0000FFFF | 0xFFFF0000) // EXPECT: 4294967295
+    println(-0xF00 | -0xF) // EXPECT: -15
 
     // And
 
-    eval(0x0F & 0xF0)   // EXPECT: 0
-    eval(0xF & 0xF)   // EXPECT: 15
-    eval((1<<63)-1 & (1<<63)-1)   // EXPECT: 9223372036854775807
+    println(0x0F & 0xF0)   // EXPECT: 0
+    println(0xF & 0xF)   // EXPECT: 15
+    println((1<<63)-1 & (1<<63)-1)   // EXPECT: 9223372036854775807
 
     // Xor
-    eval(0x0F ^ 0xF0) // EXPECT: 255
-    eval(0xF ^ 0xF) // EXPECT: 0
+    println(0x0F ^ 0xF0) // EXPECT: 255
+    println(0xF ^ 0xF) // EXPECT: 0
 }
-
-fn eval(i: int) = printf("%ld\n", i)

@@ -24,10 +24,10 @@ fn main() {
 fn eval(e: enum1) {
     match e {
         case Case1(x, y, z):
-            printf("%d\n", x * y * z)
+            println(x * y * z)
 
         case Case2(s1, s2):
-            printf("%s\n", s1.append(s2))
+            s1.append(s2).println()
 
         case Case3(st):
             printf("%s,%d,%s\n", st.b.toString(), st.i, st.s)
@@ -35,7 +35,7 @@ fn eval(e: enum1) {
         case Case4(e):
             match e {
                 case Basic(s):
-                    printf("%s\n", s)
+                    println(s)
             }
         case Case5(f):
             f()
@@ -58,11 +58,4 @@ struct s {
     b: bool
     i: int
     s: string
-}
-
-fn toString(b: bool) string {
-    if b {
-        return "true"
-    }
-    return "false"
 }

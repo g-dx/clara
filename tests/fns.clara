@@ -5,30 +5,30 @@ fn main() {
     // ------------------------------------------------------------------
 
     // Simple
-    eval(square(2)) // EXPECT: 4
-    eval(cube(3))   // EXPECT: 27
+    println(square(2)) // EXPECT: 4
+    println(cube(3))   // EXPECT: 27
 
     // Dot selection
-    eval(2.square()) // EXPECT: 4
-    eval(3.cube())   // EXPECT: 27
-    eval(2.cube().pow(3).inc()) // EXPECT: 513
+    println(2.square()) // EXPECT: 4
+    println(3.cube())   // EXPECT: 27
+    println(2.cube().pow(3).inc()) // EXPECT: 513
 
     // Parameters
-    eval(5.apply(cube)) // EXPECT: 125
+    println(5.apply(cube)) // EXPECT: 125
 
     // Variable storage
     f := square
-    eval(f(8)) // EXPECT: 64
+    println(f(8)) // EXPECT: 64
     f = cube
-    eval(f(8)) // EXPECT: 512
+    println(f(8)) // EXPECT: 512
 
     inc := dec // Shadow inc()!
-    eval(inc(9)) // EXPECT: 8
+    println(inc(9)) // EXPECT: 8
 
     // Returns
-    eval(ident(square)(5)) // EXPECT: 25
-    eval(ident(cube)(5))   // EXPECT: 125
-    eval(f1(1)(2)(3)(4)) // EXPECT: 64
+    println(ident(square)(5)) // EXPECT: 25
+    println(ident(cube)(5))   // EXPECT: 125
+    println(f1(1)(2)(3)(4)) // EXPECT: 64
 
     // ------------------------------------------------------------------
     // Anonymous
@@ -36,16 +36,16 @@ fn main() {
 
     // Simple
     a1 := fn() string = "<anon fn>"
-    eval(a1()) // EXPECT: <anon fn>
+    println(a1()) // EXPECT: <anon fn>
     a2 := fn(i: int) int = i * i
-    eval(a2(4)) // EXPECT: 16
+    println(a2(4)) // EXPECT: 16
 
     // Immediate invocation
     fn(i: int, j: int) { printf("%d\n", i * j) }(12, 12) // EXPECT: 144
 
     // Switch anon for global
     a2 = cube
-    eval(a2(4)) // EXPECT: 64
+    println(a2(4)) // EXPECT: 64
 
     // Nested
     a3 := fn(s: string) string {
@@ -58,11 +58,11 @@ fn main() {
         }
         return s.append(x(s))
     }
-    eval(a3("a")) // EXPECT: aaaa
+    println(a3("a")) // EXPECT: aaaa
 
     // Anon return global
     a4 := fn() fn(int) int = cube
-    eval(a4()(4)) // EXPECT: 64
+    println(a4()(4)) // EXPECT: 64
 
     // ------------------------------------------------------------------
     // Closures
@@ -74,9 +74,9 @@ fn main() {
 
     // Simple
     c1 := fn(z: int) int = x * y * z // Ensure 'z' is not captured
-    eval(c1(5)) // EXPECT: 360
+    println(c1(5)) // EXPECT: 360
     c2 := fn(a: string) string = a.append(str).append(a)
-    eval(c2("*")) // EXPECT: *<closure>*
+    println(c2("*")) // EXPECT: *<closure>*
     c3 := fn(s: string) = printf("%s\n", s)
     c3("Hello!")  // EXPECT: Hello!
 
@@ -85,7 +85,7 @@ fn main() {
 
     // Switch closure for global
     c1 = square
-    eval(c1(3)) // EXPECT: 9
+    println(c1(3)) // EXPECT: 9
 
     // Nested
     _0 := "a"
@@ -99,7 +99,7 @@ fn main() {
         }
         return _0.append(x("b"))
     }
-    eval(c4("a")) // EXPECT: aabce
+    println(c4("a")) // EXPECT: aabce
 
     // Capture by value (immutable)
     a := 1
@@ -108,7 +108,7 @@ fn main() {
         return a
     }
     a = 10
-    eval(c5()) // EXPECT: 2
+    println(c5()) // EXPECT: 2
 
     // Capture by value (mutable)
     s := S(1)
@@ -117,9 +117,9 @@ fn main() {
         return s.i
     }
     // NOTE: The expression evaluation order is right _then_ left at present!
-    eval(s.i + c6()) // EXPECT: 4
+    println(s.i + c6()) // EXPECT: 4
     s.i = 10
-    eval(s.i + c6()) // EXPECT: 22
+    println(s.i + c6()) // EXPECT: 22
 
     // ------------------------------------------------------------------
     // Functional
@@ -128,17 +128,15 @@ fn main() {
     // Currying
     add := fn(a: int) fn(int) int = fn(b: int) int = a + b
     add3 := add(3)
-    eval(add3(2)) // EXPECT: 5
+    println(add3(2)) // EXPECT: 5
 
     // Composition
     compose := fn(f: fn(int) int, g: fn(int) int) fn(int) int {
         return fn(x: int) int = g(f(x))
     }
-    eval(compose(cube, square)(2)) // EXPECT: 64
+    println(compose(cube, square)(2)) // EXPECT: 64
 }
 
-fn eval(i: int) = printf("%d\n", i)
-fn eval(s: string) = printf("%s\n", s)
 fn apply(i: int, f: fn(int) int) int = f(i)
 fn ident(f: fn(int) int) fn(int) int = f
 

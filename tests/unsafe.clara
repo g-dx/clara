@@ -3,17 +3,17 @@ fn main() {
     p := Person("Mr", "Name", 18)
 
     // Walk struct fields
-    eval(unsafe(p, 0, stringPointer).val) // EXPECT: Mr
-    eval(unsafe(p, 8, stringPointer).val) // EXPECT: Name
-    eval(unsafe(p, 16, intPointer).val)   // EXPECT: 18
+    println(unsafe(p, 0, stringPointer).val) // EXPECT: Mr
+    println(unsafe(p, 8, stringPointer).val) // EXPECT: Name
+    println(unsafe(p, 16, intPointer).val)   // EXPECT: 18
 
     // Update struct fields
     unsafe(p, 0, stringPointer).val = "Mrs"
-    eval(p.title) // EXPECT: Mrs
+    println(p.title) // EXPECT: Mrs
     unsafe(p, 8, stringPointer).val = "Other"
-    eval(p.name) // EXPECT: Other
+    println(p.name) // EXPECT: Other
     unsafe(p, 16, intPointer).val = 36
-    eval(p.age) // EXPECT: 36
+    println(p.age) // EXPECT: 36
 }
 
 struct person {
@@ -29,6 +29,3 @@ struct stringPointer {
 struct intPointer {
     val: int
 }
-
-fn eval(s: string) = printf("%s\n", s)
-fn eval(i: int) = printf("%d\n", i)

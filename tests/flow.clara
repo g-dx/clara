@@ -27,13 +27,13 @@ fn exitAsmSequence() {
 
 fn branchOn(f: fn(int) bool) {
     if f(1) {
-        printf("if\n")
+        println("if")
     } elseif f(2) {
-        printf("elseif1\n")
+        println("elseif1")
     } elseif f(3) {
-        printf("elseif2\n")
+        println("elseif2")
     } else {
-        printf("else\n")
+        println("else")
     }
 }
 

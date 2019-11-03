@@ -13,25 +13,25 @@ fn main() {
 
     s := Structs(a, f, e)
 
-    eval(s.a.b[0]) // EXPECT: 127
-    eval(s.a.i[0]) // EXPECT: 123456789
-    eval(s.f.f1()) // EXPECT: fns.f1
-    eval(s.f.f2().i[0]) // EXPECT: 123456789
+    println(s.a.b[0]) // EXPECT: 127
+    println(s.a.i[0]) // EXPECT: 123456789
+    println(s.f.f1()) // EXPECT: fns.f1
+    println(s.f.f2().i[0]) // EXPECT: 123456789
 
     match s.e.e1 {
         case First(a):
-            eval(a.i[0]) // EXPECT: 123456789
+            println(a.i[0]) // EXPECT: 123456789
     }
     match s.e.e2 {
         case Second(f):
-            eval(f.f2().b[0]) // EXPECT: 127
+            println(f.f2().b[0]) // EXPECT: 127
     }
 
     // TODO: local variables w & x are required or else we get heap corruption!!! GC roots & registers!
     w := fn() string = f.f1()
     x := fn() arrays = f.f2()
     f1 := Fns(w, x)
-    eval(f1.f1()) // EXPECT: fns.f1
+    println(f1.f1()) // EXPECT: fns.f1
 }
 
 struct structs {
@@ -59,7 +59,3 @@ enum e {
     First(a: arrays)
     Second(f: fns)
 }
-
-fn eval(s: string) = printf("%s\n", s)
-fn eval(i: int) = printf("%d\n", i)
-fn char(b: byte) = printf("%c\n", b)

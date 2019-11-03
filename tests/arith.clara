@@ -1,60 +1,47 @@
 fn main() {
 
     // Zero
-    eval(0 + 0 + 0 + 0) // EXPECT: 0
-    eval(0 - 0 - 0 - 0) // EXPECT: 0
-    eval(0 * 0 * 0 * 0) // EXPECT: 0
-    eval(0 / 1 / 1 / 1) // EXPECT: 0
-    eval(-0 + -0 + -0 + -0) // EXPECT: 0
-    eval(-0 - -0 - -0 - -0) // EXPECT: 0
-    eval(-0 * -0 * -0 * -0) // EXPECT: 0
-    eval(-0 / -1 / -1 / -1) // EXPECT: 0
+    println(0 + 0 + 0 + 0) // EXPECT: 0
+    println(0 - 0 - 0 - 0) // EXPECT: 0
+    println(0 * 0 * 0 * 0) // EXPECT: 0
+    println(0 / 1 / 1 / 1) // EXPECT: 0
+    println(-0 + -0 + -0 + -0) // EXPECT: 0
+    println(-0 - -0 - -0 - -0) // EXPECT: 0
+    println(-0 * -0 * -0 * -0) // EXPECT: 0
+    println(-0 / -1 / -1 / -1) // EXPECT: 0
 
     // Comparisons
-    eval(1 > 1)   // EXPECT: false
-    eval(1 < 1)   // EXPECT: false
-    eval(1 == 0)  // EXPECT: false
-    eval(1 == 1)  // EXPECT: true
-    eval(2 > 1)   // EXPECT: true
-    eval(1 < 2)   // EXPECT: true
-    eval(1 > -1)  // EXPECT: true
-    eval(-1 < 1)  // EXPECT: true
-    eval(-1 < 1)  // EXPECT: true
+    println(1 > 1)   // EXPECT: false
+    println(1 < 1)   // EXPECT: false
+    println(1 == 0)  // EXPECT: false
+    println(1 == 1)  // EXPECT: true
+    println(2 > 1)   // EXPECT: true
+    println(1 < 2)   // EXPECT: true
+    println(1 > -1)  // EXPECT: true
+    println(-1 < 1)  // EXPECT: true
+    println(-1 < 1)  // EXPECT: true
 
-    eval(-1 > 1 or 2 > 1)  // EXPECT: true
-    eval(-1 > 1 or 1 > 1)  // EXPECT: false
-    eval(-1 > 1 or 2 > 1 and true)  // EXPECT: true
+    println(-1 > 1 or 2 > 1)  // EXPECT: true
+    println(-1 > 1 or 1 > 1)  // EXPECT: false
+    println(-1 > 1 or 2 > 1 and true)  // EXPECT: true
 
     // Basic
-    eval(1 + 2 + 3 + 4)      // EXPECT: 10
-    eval(10 - 4 - 3 - 2 - 1) // EXPECT: 0
+    println(1 + 2 + 3 + 4)      // EXPECT: 10
+    println(10 - 4 - 3 - 2 - 1) // EXPECT: 0
 
     // Max int & signed wrap around
     maxInt := 9223372036854775807 // 1<<63 -1
     minInt := -9223372036854775808 // -1<<63
-    eval(maxInt)   // EXPECT: 9223372036854775807
-    eval(minInt)   // EXPECT: -9223372036854775808
-    eval(maxInt+1) // EXPECT: -9223372036854775808
-    eval(minInt-1) // EXPECT: 9223372036854775807
+    println(maxInt)   // EXPECT: 9223372036854775807
+    println(minInt)   // EXPECT: -9223372036854775808
+    println(maxInt+1) // EXPECT: -9223372036854775808
+    println(minInt-1) // EXPECT: 9223372036854775807
 
     // Max byte & signed wrap around
-    maxByte := byte(127) // 1<<8 - 1
-    minByte := byte(-128) // -1<<8
-    eval(maxByte) // EXPECT: 127
-    eval(minByte) // EXPECT: -128
-    evalByte(maxByte+byte(1)) // EXPECT: -128
-    evalByte(minByte-byte(1)) // EXPECT: 127
+    maxByte := toByte(127) // 1<<8 - 1
+    minByte := toByte(-128) // -1<<8
+    println(maxByte) // EXPECT: 127
+    println(minByte) // EXPECT: -128
+    println(toByte(maxByte+toByte(1))) // EXPECT: -128
+    println(toByte(minByte-toByte(1))) // EXPECT: 127
 }
-
-fn eval(i: int) = printf("%ld\n", i)
-fn evalByte(b: byte) = printf("%d\n", b)
-
-fn eval(b: bool) {
-    s := "false"
-    if b {
-        s = "true"
-    }
-    printf("%s\n", s)
-}
-
-fn byte(i: int) byte = i

@@ -39,7 +39,7 @@ fn main() {
 fn eval(s: string, expected: int) {
     actual := fnv1a(s)
     if actual == expected {
-        printf("OK\n")
+        println("OK")
     } else {
         printf("Expected: 0x%lx, Actual: 0x%lx for '%s'\n", expected, actual, s)
     }

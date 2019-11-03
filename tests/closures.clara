@@ -88,14 +88,13 @@ fn main() {
             f := f
             fn() {
                 eval(b)   // EXPECT: 0x10101010
-                eval(f()) // EXPECT: Hello
+                println(f()) // EXPECT: Hello
             }()
         }()
     }()
 }
 
 fn eval(i: int) = printf("%#x\n", i)
-fn eval(s: string) = printf("%s\n", s)
 
 struct t {
     s: s
