@@ -267,7 +267,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			var strct *StructType
 			if left.typ.Is(Struct) {
 				strct = left.typ.AsStruct()
-			} else if left.typ.IsFunction(Struct) {
+			} else if left.typ.IsFunction(Struct) && left.op == opFuncCall {
 				strct = left.typ.AsFunction().ret.AsStruct()
 			} else {
 				errs = append(errs, semanticError(errNotStructMsg, left.token))
