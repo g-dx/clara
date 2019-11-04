@@ -784,6 +784,8 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
 			}
 		}
+	case opNamedType, opFuncType, opArrayType:
+		// Nothing do to - yet!
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))

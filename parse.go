@@ -257,6 +257,9 @@ func (p *Parser) parseOperand() *Node {
 	case kind == lex.Identifier:
 		return p.parseIdentifier()
 
+	case kind == lex.LBrack:
+		return p.parseType() // TODO: Allow 'opFuncType' to be an operand too
+
 	case kind == lex.Fn:
 		return p.parseFn(true)
 
