@@ -96,7 +96,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 		}
 
 		// Build symbol & ensure unique
-		n.sym = &Symbol{Name: n.typeName(), IsGlobal: true, Type: topType}
+		n.sym = &Symbol{Name: n.typeName(), IsGlobal: true, IsType: true, Type: topType}
 		if _, found := symtab.Define(n.sym); found {
 			errs = append(errs, semanticError(errRedeclaredMsg, n.token))
 		}
@@ -228,18 +228,18 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 func createType(symtab *SymTab, n *Node) (*Type, error) {
 	switch n.op {
 	case opNamedType:
-		s, ok := symtab.Resolve(n.token.Val)
+		s, ok := symtab.ResolveAll(n.token.Val, func(s *Symbol) bool { return s.IsType })
 		if !ok {
 			return nil, semanticError(errUnknownTypeMsg, n.token)
 		}
 		return s.Type, nil
 
 	case opArrayType:
-		s, ok := symtab.Resolve(n.left.token.Val)
-		if !ok {
-			return nil, semanticError(errUnknownTypeMsg, n.left.token)
+		elem, err := createType(symtab, n.left)
+		if err != nil {
+			return nil, err
 		}
-		return &Type{Kind: Array, Data: &ArrayType{Elem: s.Type}}, nil
+		return &Type{Kind: Array, Data: &ArrayType{Elem: elem}}, nil
 
 	case opFuncType:
 		var paramTypes []*Type

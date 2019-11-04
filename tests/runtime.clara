@@ -4,7 +4,7 @@ fn main() {
     // Check register use between RHS & LHS expression evaluation
     // ---------------------------------------------------------------
     x := Val(1)
-    fn(i: int, j: int, k: int, l: int, m: int) x {
+    fn(i: int, j: int, k: int, l: int, m: int) val {
         return x
     }(1, 2, 3, 4, 5).i = 123456789
     println(x.i) // EXPECT: 123456789

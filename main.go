@@ -194,11 +194,11 @@ func lexAndParse(code string, path string, root *Node, showLex bool, out io.Writ
 
 func stdSyms() []*Symbol {
 	return []*Symbol{
-		{ Name: "string", Type: stringType },
-		{ Name: "int", Type: intType },
-		{ Name: "byte", Type: byteType },
-		{ Name: "bool", Type: boolType },
-		{ Name: "nothing", Type: nothingType },
+		{ Name: "string", Type: stringType, IsType: true },
+		{ Name: "int", Type: intType, IsType: true },
+		{ Name: "byte", Type: byteType, IsType: true },
+		{ Name: "bool", Type: boolType, IsType: true },
+		{ Name: "nothing", Type: nothingType, IsType: true },
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
 		{ Name: "[]byte", Type: byteArrayType },

@@ -341,6 +341,7 @@ type Symbol struct {
 	IsStack   bool
 	IsGlobal  bool
 	IsLiteral bool
+	IsType    bool
 	Type      *Type
 	Next 	  *Symbol // Only valid for function symbols!
 }
@@ -392,6 +393,16 @@ func (st *SymTab) Resolve(name string) (*Symbol, bool) {
 		s, ok = st.parent.Resolve(name)
 	}
 	return s, ok
+}
+
+func (st *SymTab) ResolveAll(name string, pred func(*Symbol)bool) (*Symbol, bool) {
+	for curr := st; curr != nil; curr = curr.parent {
+		s, ok := curr.symbols[name]
+		if ok && pred(s) {
+			return s, true
+		}
+	}
+	return nil, false
 }
 
 func (st *SymTab) MustResolve(name string) *Symbol {
