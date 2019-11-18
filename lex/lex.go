@@ -41,6 +41,11 @@ const (
 	Min
 
 	// -----------------------------------------------------------------------------------------------------------------
+	// Type Parameters
+	LGmet
+	RGmet
+
+	// -----------------------------------------------------------------------------------------------------------------
 	// Bitwisre Operators
 	BAnd
 	BOr
@@ -187,7 +192,9 @@ var KindValues = map[Kind]string{
 	LParen:     "(",
 	RParen:     ")",
 	LBrack:     "[",
+	LGmet:      "«",
 	RBrack:     "]",
+	RGmet:      "»",
 	Identifier: "<identifier>",
 	String:     "<string lit>",
 	Integer:    "<integer lit>",
@@ -310,6 +317,10 @@ func lexText(l *Lexer) stateFn {
 			l.emit(LBrack)
 		case r == ']':
 			l.emit(RBrack)
+		case r == '«':
+			l.emit(LGmet)
+		case r == '»':
+			l.emit(RGmet)
 		case r == ',':
 			l.emit(Comma)
 		case r == ':':
@@ -474,7 +485,8 @@ func (l *Lexer) atTerminator() bool {
 	r := l.peek()
 	// TODO: Extract some helpers to ask isOperator(), isNewline(), etc...
 	return r == '(' || r == ' ' || r == ':' || r == ',' || r == ')' || r == '\r' || r == '\n' ||
-		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>' || r == '[' || r == ']' || r == eof
+		r == '.' || r == '+' || r == '-' || r == '*' || r == '/' || r == '>' || r == '<' ||
+		r == '[' || r == ']' || r == eof || r == '«' || r == '»'
 }
 
 func (l *Lexer) peek() rune {

@@ -32,6 +32,7 @@ const (
 	Boolean
 	String
 	Array
+	Parameter
 	Nothing
 )
 
@@ -45,6 +46,7 @@ var typeKindNames = map[TypeKind]string {
 	String:   "string",
 	Array:    "[]",
 	Nothing:   "nothing",
+	Parameter: "T",
 }
 
 func (tk TypeKind) String() string {
@@ -62,7 +64,30 @@ type Type struct {
 	Data interface{}
 }
 
+var emptyMap = make(map[*Type]*Type)
+
 func (t *Type) Matches(x *Type) bool {
+	return t.MatchesImpl(x, false, emptyMap)
+}
+
+func (t *Type) PolyMatch(x *Type, bound map[*Type]*Type) bool {
+	return t.MatchesImpl(x, true, bound)
+}
+
+func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bool {
+
+	// Bind x to type t & continue matching
+	if x.Kind == Parameter && allowBinding {
+		xt, ok := bound[x]
+		if ok {
+			return t.MatchesImpl(xt, allowBinding, bound)
+		}
+		bound[x] = t
+		return true
+	}
+
+	// Normal type matching
+
 	switch t.Kind {
 	case Struct:
 		return x.Kind == Struct && t.AsStruct().Name == x.AsStruct().Name
@@ -94,11 +119,17 @@ func (t *Type) Matches(x *Type) bool {
 			return false
 		}
 		for i, param := range xf.Params {
-			if !param.Matches(tf.Params[i]) {
+			if !param.MatchesImpl(tf.Params[i], allowBinding, bound) {
 				return false
 			}
 		}
-		return tf.ret.Matches(xf.ret)
+		return tf.ret.MatchesImpl(xf.ret, allowBinding, bound)
+	case Parameter:
+		if x.Is(Parameter) {
+			return t.AsParameter().Name == x.AsParameter().Name
+		}
+		return bound[t].MatchesImpl(x, allowBinding, bound)
+
 	default:
 		panic("Unknown or unexpected type comparison!")
 	}
@@ -136,6 +167,10 @@ func (t *Type) AsArray() *ArrayType {
 	return t.Data.(*ArrayType)
 }
 
+func (t *Type) AsParameter() *ParameterType {
+	return t.Data.(*ParameterType)
+}
+
 func (t *Type) String() string {
 	switch t.Kind {
 	case Array: return t.Kind.String() + t.AsArray().Elem.String()
@@ -148,6 +183,8 @@ func (t *Type) String() string {
 			types = append(types, param.String())
 		}
 		return fmt.Sprintf("fn(%v) %v", strings.Join(types, ","), fn.ret.String())
+	case Parameter:
+		return t.AsParameter().Name
 	default:
 		return t.Kind.String()
 	}
@@ -178,7 +215,7 @@ func (t *Type) Width() int {
 	switch x := t.Data.(type) {
 	case *IntType: return x.Width
 	case *BoolType: return x.Width
-	case *StructType, *EnumType, *StringType, *ArrayType: return ptrSize
+	case *StructType, *EnumType, *StringType, *ArrayType, *ParameterType: return ptrSize
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
@@ -237,6 +274,7 @@ type FunctionType struct {
 	Kind       FuncKind
 	Data       interface{}
 	Params     []*Type
+	Types      []*Type
 	ret        *Type
 	isVariadic bool
 }
@@ -293,6 +331,18 @@ func (ft *FunctionType) AsEnumCons() *EnumConsFunc {
 	return ft.Data.(*EnumConsFunc)
 }
 
+func (ft *FunctionType) HasTypeParameter(t *Type) bool {
+	if !t.Is(Parameter) {
+		panic(fmt.Sprintf("Type %v is concrete - cannot be used as a type parameter!", t.String()))
+	}
+	for _, tt := range ft.Types {
+		if tt.Matches(t) {
+			return true
+		}
+	}
+	return false
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type ClosureFunc struct {
@@ -333,6 +383,14 @@ type BoolType struct {
 type NothingType struct {
 	Width int
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+type ParameterType struct {
+	Width int
+	Name string
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 type Symbol struct {

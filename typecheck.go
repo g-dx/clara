@@ -484,6 +484,14 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		return errs
 	}
 
+	// Type check type parameters
+	for _, param := range n.params {
+		errs = append(errs, typeCheck(param, symtab, fn, debug)...)
+		if !param.hasType() {
+			return errs
+		}
+	}
+
 	// Type check args
 	for _, arg := range n.stmts {
 		errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
@@ -524,22 +532,30 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	// 2 cases, either the function call is a named call (global, parameter, etc) or is
 	// an "anonymous" call from some expression evaluation (f(x)(y), etc)
 
+	// Match results
+	nf := n
+	var returnType *Type
+	var boundTypes map[*Type]*Type
+
+	// TODO: Split into two functions. TypeCheckFnCallByType, TypeCheckFnCallBySymbol (*Node, *Type, map[*Type]*Type)
 	if n.left != nil {
 		errs = append(errs, typeCheck(n.left, symtab, fn, debug)...)
 		if !n.left.hasType() {
 			return errs
 		}
-		err := matchFuncCallByType(n.left.typ, n.stmts, n.token)
+		err, bound := matchFuncCallByType(n.left.typ, n)
 		if err != nil {
 			return append(errs, err)
 		}
-		n.typ = n.left.typ.AsFunction().ret
+		nf = n.left
+		returnType = n.left.typ.AsFunction().ret
+		boundTypes = bound
 	} else {
 		s, ok := fnSymtab.Resolve(n.token.Val)
 		if !ok {
 			return append(errs, semanticError2(errResolveFunctionMsg, n.token, descFnCall(n.token.Val, n.stmts)))
 		}
-		match, serrs := matchFuncCallBySymbol(s, n.stmts, n.token)
+		match, bound, serrs := matchFuncCallBySymbol(s, n)
 		if match == nil {
 			if len(serrs) == 1 {
 				return append(errs, serrs[0])
@@ -554,40 +570,87 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 				candidates.String()))
 		}
 		n.sym = match
-		n.typ = match.Type.AsFunction().ret
+		returnType = match.Type.AsFunction().ret
+		boundTypes = bound
 	}
+
+	// Attempt to convert from generic -> concrete type. If still generic, check that's allowed in this context
+	returnType = reifyType(returnType, boundTypes)
+	if returnType.Is(Parameter) && !fn.HasTypeParameter(returnType) {
+		return append(errs, semanticError2(errTypeParameterNotBoundMsg, nf.token, returnType.AsParameter().Name))
+	}
+	n.typ = returnType
 	return errs
 }
 
-func matchFuncCallBySymbol(f *Symbol, args []*Node, token *lex.Token) (s *Symbol, errs []error) {
+func matchFuncCallBySymbol(f *Symbol, n *Node) (s *Symbol, types map[*Type]*Type, errs []error) {
 	for s = f; s != nil; s = s.Next {
-		err := matchFuncCallByType(s.Type, args, token)
+		err, bound := matchFuncCallByType(s.Type, n)
 		if err == nil {
-			return s, nil
+			return s, bound, nil
 		}
 		errs = append(errs, err)
 	}
-	return nil, errs
+	return nil, nil, errs
 }
 
-func matchFuncCallByType(t *Type, args []*Node, token *lex.Token) error {
+func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
+	args := n.stmts
 	if !t.Is(Function) {
 		var argTypes []string
 		for _, arg := range args {
 			argTypes = append(argTypes, arg.typ.String())
 		}
-		return semanticError2(errMismatchedTypesMsg, token, t, fmt.Sprintf("fn(%v)", strings.Join(argTypes, ",")))
+		return semanticError2(errMismatchedTypesMsg, n.token, t, fmt.Sprintf("fn(%v)", strings.Join(argTypes, ","))), nil
 	}
 	f := t.AsFunction()
 	if len(args) != len(f.Params) {
-		return semanticError2(errInvalidNumberArgsMsg, token, len(args), len(f.Params))
+		return semanticError2(errInvalidNumberArgsMsg, n.token, len(args), len(f.Params)), nil
+	}
+	types := n.params
+	if len(types) != 0 && len(types) != len(f.Types) {
+		return semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(f.Types)), nil
+	}
+	bound := make(map[*Type]*Type)
+	for i, t := range types {
+		bound[f.Types[i]] = t.typ
 	}
 	for i, param := range f.Params {
-		if !args[i].typ.Matches(param) {
-			return semanticError2(errMismatchedTypesMsg, args[i].token, args[i].typ, param)
+		if !args[i].typ.PolyMatch(param, bound) {
+			return semanticError2(errMismatchedTypesMsg, args[i].token, args[i].typ, reifyType(param, bound)), nil
 		}
 	}
-	return nil
+	return nil, bound
+}
+
+func reifyType(t *Type, bound map[*Type]*Type) *Type {
+	if len(bound) == 0 {
+		return t
+	}
+	switch {
+	case t.Is(Array):
+		return &Type{Kind: Array, Data: &ArrayType{Elem: reifyType(t.AsArray().Elem, bound)}}
+
+	case t.Is(Function):
+		f := t.AsFunction()
+		var params []*Type
+		for _, p := range f.Params {
+			params = append(params, reifyType(p, bound))
+		}
+		returnType := reifyType(f.ret, bound)
+		// TODO: Should Data be copied too?
+		return &Type{Kind: Function, Data: &FunctionType{Kind: f.Kind, isVariadic: f.isVariadic, ret: returnType, Params: params, Data: f.Data}}
+
+	case t.Is(Struct) || t.Is(Enum):
+		panic("reifying structs & enums is not yet supported!")
+
+	default:
+		tt, ok := bound[t]
+		if !ok {
+			return t
+		}
+		return tt
+	}
 }
 
 func typeCheckIdentifier(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {

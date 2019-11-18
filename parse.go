@@ -87,7 +87,13 @@ func (p *Parser) parseFn(isAnon bool) *Node {
 	if !isAnon {
 		id = p.need(lex.Identifier)
 	}
+	var typeList *Node
+	if p.Kind() == lex.LGmet {
+		types, start := p.parseTypeList()
+		typeList = &Node{op: opTypeList, token: start, params: types }
+	}
 	n := &Node{token: id, params: p.parseParameters()}
+	n.right = typeList
 	if p.is(lex.Fn, lex.LBrack, lex.Identifier) {
 		n.left = p.parseType()
 	}
@@ -319,6 +325,10 @@ func (p *Parser) parseIdentifier() *Node {
 	val := p.need(lex.Identifier)
 	var ident *Node
 	switch p.Kind() {
+	case lex.LGmet:
+		types, _ := p.parseTypeList()
+		args, _ := p.parseArgs()
+		ident = &Node {op: opFuncCall, token: val, stmts: args, params: types}
 	case lex.LParen:
 		args, _ := p.parseArgs()
 		ident = &Node {op: opFuncCall, token: val, stmts: args}
@@ -330,8 +340,12 @@ func (p *Parser) parseIdentifier() *Node {
 	}
 
 	// Check for further calls or index operators
-	for p.is(lex.LParen, lex.LBrack) {
+	for p.is(lex.LParen, lex.LBrack, lex.LGmet) {
 		switch p.Kind() {
+		case lex.LGmet:
+			types, _ := p.parseTypeList()
+			args, _ := p.parseArgs()
+			ident = &Node {op: opFuncCall, token: val, stmts: args, params: types}
 		case lex.LParen:
 			args, tok := p.parseArgs()
 			ident = &Node {op: opFuncCall, token: tok, left: ident, stmts: args}
@@ -353,6 +367,18 @@ func (p *Parser) parseArgs() (args []*Node, start *lex.Token) {
 	}
 	p.need(lex.RParen)
 	return args, start
+}
+
+func (p *Parser) parseTypeList() (types []*Node, start *lex.Token) {
+	start = p.need(lex.LGmet)
+	if p.isNot(lex.RGmet) {
+		types = append(types, p.parseType())
+		for p.match(lex.Comma) {
+			types = append(types, p.parseType())
+		}
+	}
+	p.need(lex.RGmet)
+	return types, start
 }
 
 func (p *Parser) parseIndex() (*Node, *lex.Token) {

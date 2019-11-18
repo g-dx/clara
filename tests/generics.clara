@@ -1,0 +1,33 @@
+fn main() {
+
+    // Type parameters bound by callsite
+    apply(999, fn(i: int) bool = i > 10).println() // EXPECT: true
+    apply("Helloworld", fn(s: string) int = s.length).println() // EXPECT: 10
+    false.apply(fn(b: bool) string = b.toString()).println() // EXPECT: false
+
+    e := Employee("Some Body", 61, false, Address(1, "Street", "City", "SW1 3DL"))
+    e.apply(fn(e: employee) bool = e.retired).println() // EXPECT: false
+
+    // Explicit type parameters
+    e.apply«employee, address»(fn(e: employee) address = e.addr).city.println() // EXPECT: City
+
+    // Output parameter required
+    cast«int, bool»(1).println() // EXPECT: true
+}
+
+fn apply«T, R»(t: T, f: fn(T) R) R = f(t)
+fn cast«T, R»(t: T) R = unsafe(t, 0, R)
+
+struct employee {
+    name: string
+    age: int
+    retired: bool
+    addr: address
+}
+
+struct address {
+    houseNumber: int
+    street: string
+    city: string
+    postcode: string
+}

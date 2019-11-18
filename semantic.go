@@ -13,31 +13,33 @@ import (
 //
 
 const (
-	errRedeclaredMsg           = "%v:%d:%d: error, '%v' redeclared"
-	errUnknownTypeMsg          = "%v:%d:%d: error, unknown type '%v'"
-	errUnknownVarMsg           = "%v:%d:%d: error, no declaration for identifier '%v' found"
-	errAmbiguousVarMsg         = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
-	errStructNamingLowerMsg    = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
-	errConstructorOverrideMsg  = "%v:%d:%d: error, function name '%v' is reserved for struct constructor"
-	errNotStructMsg            = "%v:%d:%d: error, '%v' is not a struct"
-	errStructHasNoFieldMsg     = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
-	errInvalidDotSelectionMsg  = "%v:%d:%d: error '%v', expected field or function call"
-	errInvalidOperatorTypeMsg  = "%v:%d:%d: type '%v' invalid for operator '%v'"
-	errMismatchedTypesMsg      = "%v:%d:%d: mismatched types, got '%v', wanted '%v'"
-	errInvalidNumberArgsMsg    = "%v:%d:%d: invalid number of arguments, got '%v', wanted '%v'"
-	errResolveFunctionMsg      = "%v:%d:%d: Cannot resolve function '%v'"
-	errOverloadResolutionMsg   = "%v:%d:%d: Cannot resolve function '%v' from possible candidates:\n%v"
-	errNonIntegerIndexMsg      = "%v:%d:%d: error, found type '%v', array index must be integer"
-	errUnexpectedAssignMsg     = "%v:%d:%d: error, left hand side of assignment must be identifier"
-	errNotAddressableAssignMsg = "%v:%d:%d: error, left hand side of assignment is not addressable"
-	errNotWritableAssignMsg    = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
-	errMissingReturnMsg        = "%v:%d:%d: error, missing return for function '%v'"
-	errIntegerOverflowMsg      = "%v:%d:%d: error, constant '%v' overflow integer type"
-	errUnknownEnumCaseMsg      = "%v:%d:%d: error, unknown case '%v' for enum '%v'"
-	errNotAnEnumCaseMsg        = "%v:%d:%d: error, '%v' is not an enum case"
-	errTooManyArgsMsg          = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
-	maxCaseArgCount            = 5
-	maxFnArgCount              = 6
+	errRedeclaredMsg            = "%v:%d:%d: error, '%v' redeclared"
+	errUnknownTypeMsg           = "%v:%d:%d: error, unknown type '%v'"
+	errUnknownVarMsg            = "%v:%d:%d: error, no declaration for identifier '%v' found"
+	errAmbiguousVarMsg          = "%v:%d:%d: error, multiple identifiers for '%v' found:\n\t* %v"
+	errStructNamingLowerMsg     = "%v:%d:%d: error, struct names must start with a lowercase letter, '%v'"
+	errConstructorOverrideMsg   = "%v:%d:%d: error, function name '%v' is reserved for struct constructor"
+	errNotStructMsg             = "%v:%d:%d: error, '%v' is not a struct"
+	errStructHasNoFieldMsg      = "%v:%d:%d: error, field '%v' is not defined in struct '%v'"
+	errInvalidDotSelectionMsg   = "%v:%d:%d: error '%v', expected field or function call"
+	errInvalidOperatorTypeMsg   = "%v:%d:%d: type '%v' invalid for operator '%v'"
+	errMismatchedTypesMsg       = "%v:%d:%d: mismatched types, got '%v', wanted '%v'"
+	errInvalidNumberArgsMsg     = "%v:%d:%d: invalid number of arguments, got '%v', wanted '%v'"
+	errInvalidNumberTypeArgsMsg = "%v:%d:%d: invalid number of type arguments, got '%v', wanted '%v'"
+	errResolveFunctionMsg       = "%v:%d:%d: Cannot resolve function '%v'"
+	errOverloadResolutionMsg    = "%v:%d:%d: Cannot resolve function '%v' from possible candidates:\n%v"
+	errNonIntegerIndexMsg       = "%v:%d:%d: error, found type '%v', array index must be integer"
+	errUnexpectedAssignMsg      = "%v:%d:%d: error, left hand side of assignment must be identifier"
+	errNotAddressableAssignMsg  = "%v:%d:%d: error, left hand side of assignment is not addressable"
+	errNotWritableAssignMsg     = "%v:%d:%d: error, cannot assign value to readonly field '%v'"
+	errMissingReturnMsg         = "%v:%d:%d: error, missing return for function '%v'"
+	errIntegerOverflowMsg       = "%v:%d:%d: error, constant '%v' overflow integer type"
+	errUnknownEnumCaseMsg       = "%v:%d:%d: error, unknown case '%v' for enum '%v'"
+	errNotAnEnumCaseMsg         = "%v:%d:%d: error, '%v' is not an enum case"
+	errTooManyArgsMsg           = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
+	errTypeParameterNotBoundMsg = "%v:%d:%d: error, type parameter '%v' is not bound for this function call"
+	maxCaseArgCount             = 5
+	maxFnArgCount               = 6
 
 	// Debug messages
 	debugTypeInfoFormat = "⚫ %s%-60s%s %s%-30s%s ⇨ %s%s%s\n"
@@ -194,6 +196,18 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 
 	// Process parameters
 	n.symtab = symtab.Child()
+	if n.right != nil {
+		for _, typeParameter := range n.right.params {
+			sym, found := n.symtab.Define(&Symbol{Name: typeParameter.token.Val, IsType: true})
+			if found {
+				return nil, semanticError(errRedeclaredMsg, typeParameter.token)
+			}
+			sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: typeParameter.token.Val}}
+			typeParameter.sym = sym
+			typeParameter.typ = sym.Type
+			fnType.Types = append(fnType.Types, sym.Type)
+		}
+	}
 	for _, param := range n.params {
 		paramType, err := createType(n.symtab, param.left)
 		if err != nil {

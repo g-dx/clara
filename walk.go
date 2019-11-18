@@ -20,6 +20,9 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 
 	switch n.op {
 	case opBlockFnDcl, opExprFnDcl, opExternFnDcl, opConsFnDcl, opFuncType:
+		if n.right != nil {
+			Walk(isPreOrder, n.right, f)
+		}
 		for _, param := range n.params {
 			Walk(isPreOrder, param, f)
 		}
@@ -35,9 +38,17 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 			Walk(isPreOrder, stmt, f)
 		}
 
+	case opTypeList:
+		for _, param := range n.params {
+			Walk(isPreOrder, param, f)
+		}
+
 	case opFuncCall:
 		if n.left != nil {
 			Walk(isPreOrder, n.left, f)
+		}
+		for _, param := range n.params {
+			Walk(isPreOrder, param, f)
 		}
 		for _, stmt := range n.stmts {
 			Walk(isPreOrder, stmt, f)
