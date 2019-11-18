@@ -28,7 +28,11 @@ fn main() {
     // Returns
     println(ident(square)(5)) // EXPECT: 25
     println(ident(cube)(5))   // EXPECT: 125
-    println(f1(1)(2)(3)(4)) // EXPECT: 64
+    println(f1(1)(2)(3)(4))   // EXPECT: 64
+
+    // Overloaded argument resolution
+    execute := fn(i: int, f: fn(int)) = f(i)
+    100.execute(println) // EXPECT: 100
 
     // ------------------------------------------------------------------
     // Anonymous

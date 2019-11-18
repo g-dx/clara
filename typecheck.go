@@ -167,7 +167,10 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		n.typ = n.sym.Type
 
 	case opIdentifier:
-		errs = append(errs, typeCheckIdentifier(n, symtab, fn, debug)...)
+		err := typeCheckIdentifier(n, symtab, false)
+		if err != nil {
+			errs = append(errs, err)
+		}
 
 	case opFuncCall:
 		errs = append(errs, typeCheckFuncCall(n, symtab, symtab, fn, debug)...)
@@ -494,7 +497,15 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 
 	// Type check args
 	for _, arg := range n.stmts {
-		errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
+		switch arg.op {
+		case opIdentifier:
+			err := typeCheckIdentifier(arg, symtab, true)
+			if err != nil {
+				return append(errs, err)
+			}
+		default:
+			errs = append(errs, typeCheck(arg, symtab, fn, debug)...)
+		}
 		if !arg.hasType() {
 			return errs
 		}
@@ -518,15 +529,6 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		n.sym = s
 		n.typ = n.stmts[len(n.stmts)-1].typ
 		return errs
-	}
-
-	// Utility function
-	descFnCall := func(name string, args []*Node) string {
-		var types []string
-		for _, param := range args {
-			types = append(types, param.typ.String())
-		}
-		return fmt.Sprintf("%v(%v)", name, strings.Join(types, ", "))
 	}
 
 	// 2 cases, either the function call is a named call (global, parameter, etc) or is
@@ -553,7 +555,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	} else {
 		s, ok := fnSymtab.Resolve(n.token.Val)
 		if !ok {
-			return append(errs, semanticError2(errResolveFunctionMsg, n.token, descFnCall(n.token.Val, n.stmts)))
+			return append(errs, semanticError2(errResolveFunctionMsg, n.token, n.Describe()))
 		}
 		match, bound, serrs := matchFuncCallBySymbol(s, n)
 		if match == nil {
@@ -566,7 +568,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 					candidates.WriteString("	" + x.Describe() + "\n")
 				}
 			}
-			return append(errs, semanticError2(errOverloadResolutionMsg, n.token, descFnCall(n.token.Val, n.stmts),
+			return append(errs, semanticError2(errOverloadResolutionMsg, n.token, n.Describe(),
 				candidates.String()))
 		}
 		n.sym = match
@@ -615,9 +617,30 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 	for i, t := range types {
 		bound[f.Types[i]] = t.typ
 	}
-	for i, param := range f.Params {
-		if !args[i].typ.PolyMatch(param, bound) {
-			return semanticError2(errMismatchedTypesMsg, args[i].token, args[i].typ, reifyType(param, bound)), nil
+	argCheck:
+	for i, arg := range args {
+		param := f.Params[i]
+		// Check each overloaded identifier for a match
+		if arg.op == opIdentifier && arg.sym.Next != nil {
+			for s := arg.sym; s != nil; s = s.Next {
+				if s.Type.PolyMatch(param, bound) {
+					arg.sym = s
+					arg.typ = s.Type
+					continue argCheck
+				}
+			}
+			// Failed to find a match
+			candidates := bytes.NewBufferString("")
+			for s := arg.sym; s != nil; s = s.Next {
+				candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
+			}
+			return semanticError2(errOverloadResolutionMsg, arg.token, reifyType(param, bound),
+				candidates.String()), nil
+		}
+
+		// Match on declared type
+		if !arg.typ.PolyMatch(param, bound) {
+			return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, reifyType(param, bound)), nil
 		}
 	}
 	return nil, bound
@@ -653,25 +676,25 @@ func reifyType(t *Type, bound map[*Type]*Type) *Type {
 	}
 }
 
-func typeCheckIdentifier(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+func typeCheckIdentifier(n *Node, symtab *SymTab, allowAmbiguous bool) error {
 
 	// If no symbol - try to find identifier declaration
 	if n.sym == nil {
 		sym, found := symtab.Resolve(n.token.Val)
 		if !found {
-			return append(errs, semanticError(errUnknownVarMsg, n.token))
+			return semanticError(errUnknownVarMsg, n.token)
 		}
-		if sym.Next != nil {
+		if sym.Next != nil && !allowAmbiguous {
 			var types []string
 			for s := sym; s != nil; s = s.Next {
 				types = append(types, s.Type.String())
 			}
-			return append(errs, semanticError2(errAmbiguousVarMsg, n.token, n.token.Val, strings.Join(types, "\n\t* ")))
+			return semanticError2(errAmbiguousVarMsg, n.token, n.token.Val, strings.Join(types, "\n\t* "))
 		}
 		n.sym = sym
 	}
 	n.typ = n.sym.Type
-	return errs
+	return nil
 }
 
 //---------------------------------------------------------------------------------------------------------------

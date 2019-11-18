@@ -165,6 +165,19 @@ func (n *Node) typeName() string {
 	}
 }
 
+func (n *Node) Describe() string {
+	switch n.op {
+	case opFuncCall:
+		var args []string
+		for _, arg := range n.stmts {
+			args = append(args, arg.typ.String())
+		}
+		return fmt.Sprintf("%v(%v)", n.token.Val, strings.Join(args, ", "))
+	default:
+		panic(fmt.Sprintf("Describe() is not implemented for type: %v", nodeTypes[n.op]))
+	}
+}
+
 func generateStruct(root *Node, name string, fields ... *Symbol) (*Symbol, *Symbol) {
 
 	var nodes []*Node
