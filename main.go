@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -32,7 +33,7 @@ func main() {
 	progPath := flag.String("prog", "/examples/hello.clara", "File with Clara program to compile.")
 	showProg := flag.Bool("in", false, "Print the input program.")
 	showLex := flag.Bool("lex", false, "Print the lexical output.")
-	showAst := flag.Bool("ast", false, "Print the generated AST.")
+	showAst := flag.String("ast", ".*", "Print AST nodes matching the supplied regular expression.")
 	showTypes := flag.Bool("types", false, "Print type information as it assigned during semantic analysis.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
 	outPath := flag.String("out", ".", "Path to write program to.")
@@ -42,7 +43,7 @@ func main() {
 	claraLib := glob(fmt.Sprintf("%v/lib/*.clara", *installPath)) // NOTE: Does NOT traverse all directories!
 	cLib := glob(fmt.Sprintf("%v/init/*.c", *installPath)) // NOTE: Does NOT traverse all directories!
 
-	options := options{ showLex: *showLex, showAst: *showAst, showTypes: *showTypes, showAsm: *showAsm, showProg: *showProg }
+	options := options{ showLex: *showLex, astMatcher: buildAstMatcher(*showAst), showTypes: *showTypes, showAsm: *showAsm, showProg: *showProg }
 	_, errs := Compile(options, claraLib, *progPath, cLib, *outPath, os.Stdout)
 	if len(errs) > 0 {
 		fmt.Println("\nErrors")
@@ -54,12 +55,14 @@ func main() {
 }
 
 type options struct {
-	showLex   bool
-	showAst   bool
-	showTypes bool
-	showAsm   bool
-	showProg  bool
+	showLex    bool
+	astMatcher func(*Node) bool
+	showTypes  bool
+	showAsm    bool
+	showProg   bool
 }
+
+func (o options) showAst() bool { return o.astMatcher != nil }
 
 func Compile(options options, claraLibPaths []string, progPath string, cLibPaths []string, outPath string, out io.Writer) (string, []error) {
 
@@ -121,8 +124,8 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Show final AST if necessary
-	if options.showAst {
-		printTree(rootNode, out)
+	if options.showAst() {
+		printTree(rootNode, options.astMatcher, out)
 	}
 
 	// Create assembly file
@@ -227,4 +230,14 @@ func glob(pattern string) []string {
 		panic(err) // Only happens with bad pattern
 	}
 	return paths
+}
+
+func buildAstMatcher(s string) func(*Node) bool {
+	regex := regexp.MustCompile(strings.TrimSpace(s))
+	return func(n *Node) bool {
+		if n.token != nil && regex.MatchString(n.token.Val) {
+			return true
+		}
+		return false
+	}
 }

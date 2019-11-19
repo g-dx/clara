@@ -331,13 +331,13 @@ var nodeTypes = map[int]string{
 	opTypeList:   "«TypeList»",
 }
 
-func printTree(n *Node, out io.Writer) {
+func printTree(n *Node, f func(*Node) bool, out io.Writer) {
 	fmt.Fprintln(out, "\nAbstract Syntax Tree:")
-	printTreeImpl(n, "    ", true, out)
+	printTreeImpl(n, f, "    ", true, out)
 	fmt.Fprintln(out)
 }
 
-func printTreeImpl(n *Node, prefix string, isTail bool, out io.Writer) {
+func printTreeImpl(n *Node, f func(*Node) bool, prefix string, isTail bool, out io.Writer) {
 	// Handle current node
 	row := "├── "
 	if isTail {
@@ -370,24 +370,29 @@ func printTreeImpl(n *Node, prefix string, isTail bool, out io.Writer) {
 
 	// TODO: Print parameters better. Currently it looks like they are block statments
 	// Print parameters
-	printNodeListImpl(n.params, prefix+row, out)
+	printNodeListImpl(n.params, f, prefix+row, out)
 
 	// Print statements & left/right
-	printTreeImpl(n.left, prefix + row, false, out)
-	printTreeImpl(n.right, prefix + row, true, out)
-	printNodeListImpl(n.stmts, prefix+row, out)
+	printTreeImpl(n.left, f, prefix + row, false, out)
+	printTreeImpl(n.right, f, prefix + row, true, out)
+	printNodeListImpl(n.stmts, f, prefix+row, out)
 }
 
-func printNodeListImpl(nodes []*Node, prefix string, out io.Writer) {
+func printNodeListImpl(nodes []*Node, f func(*Node) bool, prefix string, out io.Writer) {
 
 	if len(nodes) == 0 {
 		return
 	}
 
+	alwaysMatch := func(n *Node) bool { return true }
 	for i := 0; i < len(nodes)-1; i++ {
-		printTreeImpl(nodes[i], prefix, false, out)
+		if f(nodes[i]) {
+			printTreeImpl(nodes[i], alwaysMatch, prefix, false, out)
+		}
 	}
 
 	// Handle n child
-	printTreeImpl(nodes[len(nodes)-1], prefix, true, out)
+	if f(nodes[len(nodes)-1]) {
+		printTreeImpl(nodes[len(nodes)-1], alwaysMatch, prefix, true, out)
+	}
 }
