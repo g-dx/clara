@@ -33,7 +33,7 @@ func main() {
 	progPath := flag.String("prog", "/examples/hello.clara", "File with Clara program to compile.")
 	showProg := flag.Bool("in", false, "Print the input program.")
 	showLex := flag.Bool("lex", false, "Print the lexical output.")
-	showAst := flag.String("ast", ".*", "Print AST nodes matching the supplied regular expression.")
+	showAst := flag.String("ast", "", "Print AST nodes matching the supplied regular expression.")
 	showTypes := flag.Bool("types", false, "Print type information as it assigned during semantic analysis.")
 	showAsm := flag.Bool("asm", false, "Print the generated assembly (intel syntax).")
 	outPath := flag.String("out", ".", "Path to write program to.")
@@ -233,6 +233,9 @@ func glob(pattern string) []string {
 }
 
 func buildAstMatcher(s string) func(*Node) bool {
+	if len(s) == 0 {
+		return nil
+	}
 	regex := regexp.MustCompile(strings.TrimSpace(s))
 	return func(n *Node) bool {
 		if n.token != nil && regex.MatchString(n.token.Val) {
