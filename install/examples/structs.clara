@@ -16,13 +16,6 @@ fn print(obj: object) colour {
     return obj.col
 }
 
-fn toString(b: bool) string {
-    if b {
-        return "true"
-    }
-    return "false"
-}
-
 struct text {
     s: string
 }
