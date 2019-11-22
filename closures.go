@@ -31,6 +31,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 			clFn := copyNode(n)
 			clFn.token = lex.WithVal(clFn.token, fmt.Sprintf("clFn.%X", id))
 			clFn.sym.Name = clFn.token.Val
+			clFn.sym.IsGlobal = true
 			rootNode.Add(clFn)
 
 			// Update function type information to record closure info
@@ -65,11 +66,13 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 			// Hoist function to root & rename
 			fn := copyNode(n)
 			fn.token = lex.WithVal(fn.token, fmt.Sprintf("anonFn.%X", id))
+			fn.sym.IsGlobal = true
 			rootNode.Add(fn)
 
 			// AST: fn() { ... } -> <fn name>
 			n.op = opIdentifier
 			n.token = fn.token
+			n.sym = fn.sym
 			n.left = nil
 			n.right = nil
 			n.params = nil
