@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 )
 
 const closureGc = fnPrefix + "closure_gc"
@@ -46,6 +47,18 @@ func (gs *GcState) CloseScope() {
 func (gs *GcState) Add(off int, t *Type) {
 	if t.IsPointer() {
 		gs.roots = append(gs.roots, GcRoot{ off: off, typ: t })
+	}
+}
+
+func (gs *GcState) Remove(off int, t *Type) {
+	if t.IsPointer() {
+		for i, root := range gs.roots {
+			if root.off == off && root.typ == t {
+				gs.roots = append(gs.roots[:i], gs.roots[i+1:]...)
+				return
+			}
+		}
+		panic(fmt.Sprintf("GC root of type (%v) at offset (%v) not found", t, off))
 	}
 }
 

@@ -33,6 +33,7 @@ type function struct {
 	gcMaps  map[string]GcRoots
 	id      int
 	sp      int
+	reg     [][]*Type // Stack to track register types in use across calls
 }
 
 func (f *function) reset(n *Node) {
@@ -40,6 +41,8 @@ func (f *function) reset(n *Node) {
 	f.Type = n.sym.Type.AsFunction()
 	f.gcRoots = &GcState{}
 	f.gcMaps = make(map[string]GcRoots)
+	f.sp = 0
+	f.reg = nil
 }
 func (f *function) incSp(i int) { f.sp += i }
 func (f *function) decSp(i int) { f.sp -= i }
@@ -58,6 +61,39 @@ func (f *function) NewGcMap() operand {
 	f.gcMaps[name] = roots
 	f.id += 1
 	return labelOp(name)
+}
+
+func (f *function) SpillRegisters(asm asmWriter) {
+	// Spill any in-use registers to stack
+	if len(f.reg) > 0 {
+		call := f.reg[len(f.reg)-1]
+		for i := len(call)-1; i >=0; i-- {
+			asm.ins(pushq, regs[i])
+			f.incSp(1)
+			f.gcRoots.Add(f.sp * ptrSize, call[i])
+		}
+	}
+	// Track new register set
+	f.reg = append(f.reg, []*Type(nil))
+}
+
+func (f *function) RestoreRegisters(asm asmWriter) {
+	// Remove register tracking
+	f.reg = f.reg[:len(f.reg)-1]
+
+	// Restore previous register values from stack
+	if len(f.reg) > 0 {
+		call := f.reg[len(f.reg)-1]
+		for i := 0; i < len(call); i++ {
+			asm.ins(popq, regs[i])
+			f.gcRoots.Remove(f.sp * ptrSize, call[i])
+			f.decSp(1)
+		}
+	}
+}
+
+func (f *function) RegisterInUse(t *Type) {
+	f.reg[(len(f.reg)-1)] = append(f.reg[(len(f.reg)-1)], t)
 }
 
 func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
@@ -419,7 +455,7 @@ func genStmtList(asm asmWriter, stmts []*Node, fn *function) {
 			genStmtList(asm, stmt.stmts, fn)
 
 		default:
-			genExpr(asm, stmt, 0, false, fn)
+			genExpr(asm, stmt, false, fn)
 		}
 	}
 	fn.gcRoots.CloseScope()
@@ -433,7 +469,7 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 	asm.label(start)
 
 	// Generate condition
-	genExpr(asm, n.left, 0, false, fn) // Left stores condition
+	genExpr(asm, n.left, false, fn) // Left stores condition
 
 	asm.ins(cmpq, _true, rax)    // Pop result from stack to rax
 	asm.ins(jne, labelOp(exit))  // Jump over block if not true
@@ -445,13 +481,13 @@ func genWhileStmt(asm asmWriter, n *Node, fn *function) {
 func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Evaluate expression & push result to stack
-	genExpr(asm, n.right, 0, false, fn)
+	genExpr(asm, n.right, false, fn)
 	asm.ins(pushq, rax)
 	fn.incSp(1)
 
 	// Evaluate mem location to store
 	slot := n.left
-	genExpr(asm, slot, 0, true, fn)
+	genExpr(asm, slot, true, fn)
 
 	// Pop result
 	asm.ins(popq, rbx)
@@ -486,7 +522,7 @@ func genIfElseIfElseStmts(asm asmWriter, n *Node, fn *function) {
 	for cur != nil {
 		if cur.left != nil {
 			// Generate condition
-			genExpr(asm, cur.left, 0, false, fn) // Left stores condition
+			genExpr(asm, cur.left, false, fn) // Left stores condition
 
 			// Create new label
 			next := asm.newLabel("else")
@@ -509,7 +545,7 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 
 	// If return has expression evaluate it
 	if expr != nil {
-		genExpr(asm, expr, 0, false, fn)
+		genExpr(asm, expr, false, fn)
 		// Check if int -> byte cast required
 		if expr.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
 			asm.ins(movsbq, rax._8bit(), rax)
@@ -520,7 +556,7 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 	genFnExit(asm, false)
 }
 
-func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
+func genFnCall(asm asmWriter, n *Node, f *function) {
 
 	// Determine how function is referenced
 	var s *Symbol
@@ -533,12 +569,12 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		fn = n.left.typ.AsFunction()
 	}
 
-	spill(asm, regsInUse) // Spill any in use registers to the stack
-	f.incSp(regsInUse)
+	f.SpillRegisters(asm)
 
 	// Generate arg code
 	for i, arg := range n.stmts {
-		genExpr(asm, arg, i, false, f) // Evaluate expression
+		genExpr(asm, arg, false, f) // Evaluate expression
+		f.RegisterInUse(arg.typ)
 
 		// Move result into reg
 
@@ -585,21 +621,19 @@ func genFnCall(asm asmWriter, n *Node, f *function, regsInUse int) {
 		asm.ins(addq, intOp(8), rsp)
 	}
 
-	// Restore registers previously in use
-	restore(asm, regsInUse)
-	f.decSp(regsInUse)
+	f.RestoreRegisters(asm)
 }
 
-func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *function) {
+func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	// Post-fix, depth first search!
 	if expr.right != nil {
-		genExpr(asm, expr.right, regsInUse, false, fn)
+		genExpr(asm, expr.right, false, fn)
 		asm.ins(pushq, rax) // Push acc to stack
 		fn.incSp(1)
 	}
 	if expr.left != nil {
-		genExpr(asm, expr.left, regsInUse, false, fn)
+		genExpr(asm, expr.left, false, fn)
 	}
 
 	// Implements stack machine
@@ -745,7 +779,7 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	case opFuncCall:
 
-		genFnCall(asm, expr, fn, regsInUse)
+		genFnCall(asm, expr, fn)
 
 	case opDot:
 
@@ -789,25 +823,5 @@ func genExpr(asm asmWriter, expr *Node, regsInUse int, takeAddr bool, fn *functi
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
-	}
-}
-
-func restore(asm asmWriter, regPos int) {
-	if regPos > 0 {
-		asm.raw("#----------------------------- Restore")
-		for i := regPos; i > 0; i-- {
-			asm.ins(popq, regs[i-1]) // Pop stack into reg
-		}
-		asm.raw("#------------------------------------#")
-	}
-}
-
-func spill(asm asmWriter, regPos int) {
-	if regPos > 0 {
-		asm.raw("#------------------------------- Spill")
-		for i := 0; i < regPos; i++ {
-			asm.ins(pushq, regs[i]) // Push reg onto stack
-		}
-		asm.raw("#------------------------------------#")
 	}
 }

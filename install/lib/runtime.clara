@@ -19,10 +19,8 @@ struct runtime {
 fn entrypoint(argc: int, argv: int, envp: int) {
     setStackBase(getFramePointer())
 
-    // Configure runtime TODO: GC root tracking for spilled pointers!
-    args := parseArgs(argc, argv)
-    env := parseEnv(envp)
-    setRuntime(Runtime(args, env))
+    // Configure runtime
+    setRuntime(Runtime(parseArgs(argc, argv), parseEnv(envp)))
 
     main() // Off we go...
 }

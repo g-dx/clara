@@ -6,10 +6,7 @@ fn main() {
     a := Arrays(b, i)
     f := Fns(fn() string = "fns.f1" , fn() arrays = a)
 
-    // TODO: local variables z & y are required or else we get heap corruption!!! GC roots & registers!
-    z := First(a)
-    y := Second(f)
-    e := Enums(z, y)
+    e := Enums(First(a), Second(f))
 
     s := Structs(a, f, e)
 
@@ -27,10 +24,7 @@ fn main() {
             println(f.f2().b[0]) // EXPECT: 127
     }
 
-    // TODO: local variables w & x are required or else we get heap corruption!!! GC roots & registers!
-    w := fn() string = f.f1()
-    x := fn() arrays = f.f2()
-    f1 := Fns(w, x)
+    f1 := Fns(fn() string = f.f1(), fn() arrays = f.f2())
     println(f1.f1()) // EXPECT: fns.f1
 }
 

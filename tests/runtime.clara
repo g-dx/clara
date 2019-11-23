@@ -16,6 +16,19 @@ fn main() {
     println(getRuntime().env.get("CLARA_ENV_KEY")) // EXPECT: CLARA_ENV_VAL
     println(getRuntime().env.get("__NOT_DEFINED__")) // EXPECT: __KEY_NOT_FOUND__
     println(getRuntime().env.isSet("__NOT_DEFINED__")) // EXPECT: false
+
+    // ---------------------------------------------------------------
+    // Check spilled registers containing pointers are marked by GC
+    // ---------------------------------------------------------------
+    join("1".append("-".append("2".append("-"))),
+         "3".append("-".append("4".append("-"))),
+         "5".append("-".append("6".append("-"))),
+         "7".append("-".append("8".append("-"))),
+         "9".append("-".append("0"))).println() // EXPECT: 1-2-3-4-5-6-7-8-9-0
+}
+
+fn join(s1: string, s2: string, s3: string, s4: string, s5: string) string  {
+    return s1.append(s2).append(s3).append(s4).append(s5)
 }
 
 struct val {
