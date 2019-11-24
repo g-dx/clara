@@ -342,9 +342,10 @@ func genInvokeDynamic(asm asmWriter, noGc operand) {
 
 func genFramePointerAccess(asm asmWriter) {
 	// Requires non-standard entry & exit!
-	asm.function("getFramePointer")
+	asm.fnStart("getFramePointer")
 	asm.ins(movq, rbp, rax)
-	asm.ins(ret, )
+	asm.ins(ret)
+	asm.fnEnd()
 }
 
 func genUnsafe(asm asmWriter) {
@@ -372,22 +373,23 @@ func genFnEntry(asm asmWriter, name string, temps int) int {
 	if temps % 2 != 0 {
 		temps += 1
 	}
-	asm.function(name)
+	asm.fnStart(name)
 	asm.ins(enter, intOp(temps*8), intOp(0))
 	return temps
 }
 
 func genFnExit(asm asmWriter, skipGc bool) {
-	asm.ins(leave, )
+	asm.ins(leave)
 	if skipGc {
-		asm.ins(ret, )
-		return
+		asm.ins(ret)
+	} else {
+		// Jump over frame GC function address
+		// TODO: Is there any way to compress this?
+		asm.ins(popq, rbx)
+		asm.ins(addq, intOp(ptrSize), rbx)
+		asm.ins(jmp, rbx.indirect())
 	}
-	// Jump over frame GC function address
-	// TODO: Is there any way to compress this?
-	asm.ins(popq, rbx)
-	asm.ins(addq, intOp(ptrSize), rbx)
-	asm.ins(jmp, rbx.indirect())
+	asm.fnEnd()
 }
 
 func genIoobTrampoline(asm asmWriter, ioob operand) {
@@ -653,7 +655,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			}
 			// Check if we need a true 64-bit load
 			ins := movq
-			if i > math.MaxInt32 {
+			if i > math.MaxInt32 || i < math.MinInt32 {
 				ins = movabs
 			}
 			asm.ins(ins, strOp(expr.sym.Name), rax) // Push onto top of stack

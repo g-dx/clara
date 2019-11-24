@@ -140,7 +140,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Generate assembly
 	asm := NewGasWriter(f, options.showAsm)
-	err = codegen(rootSymtab, rootNode.stmts, asm)
+	err = codegen(rootSymtab, rootNode.stmts, NewOptimiser(asm))
 	if err != nil {
 		return "", []error{errors.New(fmt.Sprintf("\nCode Gen Errors:\n %v\n", err))}
 	}

@@ -238,7 +238,7 @@ func (r reg) _8bit() reg {
 // ---------------------------------------------------------------------------------------------------------------------
 type inst byte
 const (
-	movq = inst(iota)
+	movq = inst(iota + 1)
 	movb
 	movsbq
 	movabs
@@ -323,7 +323,8 @@ type asmWriter interface {
 	newLabel(s string) string
 	raw(s string) // Remove me!
 	addr(op operand)
-	function(name string)
+	fnStart(name string)
+	fnEnd()
 	ins(i inst, ops ...operand)
 	flush()
 	roSymbol(name string, f func(w asmWriter)) operand
@@ -369,7 +370,7 @@ func (gw *gasWriter) spacer() {
 	gw.write(fmt.Sprintf("\n%s\n\n", strings.Repeat(";", 120)))
 }
 
-func (gw *gasWriter) function(name string) {
+func (gw *gasWriter) fnStart(name string) {
 
 	gw.tab(".text")
 	gw.tab(".8byte", "0x2") // "Read-only" GC header
@@ -453,3 +454,6 @@ func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
 	gw.spacer()
 	return labelOp(name)
 }
+
+
+func (gw *gasWriter) fnEnd() { /* ... */ }
