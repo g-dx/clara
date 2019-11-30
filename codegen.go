@@ -671,32 +671,15 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			panic(fmt.Sprintf("Unknown type for literal: %v", expr.sym.Type.Kind))
 		}
 
-	case opAdd:
+	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
 
-		asm.ins(addq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp)
+		asm.ins(popq, rbx)
+		asm.ins(ins[expr.op], rbx, rax)
 		fn.decSp(1)
 
-	case opSub:
-
-		asm.ins(subq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp)
-		fn.decSp(1)
-
-	case opMul:
-
-		// Result is: rdx(high-64 bits):rax(low 64-bits) TODO: We ignore high bits!
-		asm.ins(imulq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp)
-		fn.decSp(1)
-
-	case opDiv:
-
-		// Result is: rdx(remainder):rax(quotient) TODO: We ignore remainder!
-		asm.ins(movq, _false, rdx)
-		asm.ins(idivq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp)
-		fn.decSp(1)
+		// NOTES:
+		// For imul, result is: rdx(high-64 bits):rax(low 64-bits)
+		// For idiv, result is: rdx(remainder):rax(quotient)
 
 	case opNot:
 
@@ -707,58 +690,18 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 		asm.ins(negq, rax)
 
-	case opGt:
+	case opGt, opLt, opEq:
 
-		asm.ins(cmpq, rsp.deref(), rax)
-		asm.ins(setg, al)
+		asm.ins(popq, rbx)
+		asm.ins(cmpq, rbx, rax)
+		asm.ins(ins[expr.op], al)
 		asm.ins(andq, _true, rax) // Clear top bits
-		asm.ins(addq, intOp(8), rsp) // Pop
 		fn.decSp(1)
 
-	case opLt:
-
-		asm.ins(cmpq, rsp.deref(), rax)
-		asm.ins(setl, al)
-		asm.ins(andq, _true, rax) // Clear top bits
-		asm.ins(addq, intOp(8), rsp) // Pop
-		fn.decSp(1)
-
-	case opEq:
-
-		asm.ins(cmpq, rsp.deref(), rax)
-		asm.ins(sete, al)
-		asm.ins(andq, _true, rax) // Clear top bits
-		asm.ins(addq, intOp(8), rsp) // Pop
-		fn.decSp(1)
-
-	case opAnd, opBAnd:
-
-		asm.ins(andq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp) // Pop
-		fn.decSp(1)
-
-	case opOr, opBOr:
-
-		asm.ins(orq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp) // Pop
-		fn.decSp(1)
-
-	case opBXor:
-
-		asm.ins(xorq, rsp.deref(), rax)
-		asm.ins(addq, intOp(8), rsp) // Pop
-		fn.decSp(1)
-
-	case opBLeft:
+	case opBLeft, opBRight:
 
 		asm.ins(popq, rcx)
-		asm.ins(shlq, cl, rax)
-		fn.decSp(1)
-
-	case opBRight:
-
-		asm.ins(popq, rcx)
-		asm.ins(sarq, cl, rax)
+		asm.ins(ins[expr.op], cl, rax)
 		fn.decSp(1)
 
 	case opIdentifier:
@@ -826,4 +769,22 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
 	}
+}
+
+var ins = make(map[int]inst)
+func init() {
+	ins[opAdd] = addq
+	ins[opSub] = subq
+	ins[opMul] = imulq
+	ins[opDiv] = idivq
+	ins[opOr]  = orq
+	ins[opBOr] = orq
+	ins[opAnd] = andq
+	ins[opBAnd] = andq
+	ins[opBXor] = xorq
+	ins[opEq] = sete
+	ins[opGt] = setg
+	ins[opLt] = setl
+	ins[opBLeft] = shlq
+	ins[opBRight] = sarq
 }
