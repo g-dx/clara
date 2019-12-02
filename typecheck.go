@@ -497,6 +497,9 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 
 	// Type check args
 	for _, arg := range n.stmts {
+		if arg.hasType() {
+			continue
+		}
 		switch arg.op {
 		case opIdentifier:
 			err := typeCheckIdentifier(arg, symtab, true)

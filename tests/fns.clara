@@ -68,6 +68,12 @@ fn main() {
     a4 := fn() fn(int) int = cube
     println(a4()(4)) // EXPECT: 64
 
+    // Nested (in dot selection position)
+    apply(10, fn(i: int) int {
+        x := i
+        return x
+    }).println() // EXPECT: 10
+
     // ------------------------------------------------------------------
     // Closures
     // ------------------------------------------------------------------
