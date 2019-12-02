@@ -120,10 +120,9 @@ fn main() {
         s.i = s.i + 1
         return s.i
     }
-    // NOTE: The expression evaluation order is right _then_ left at present!
-    println(s.i + c6()) // EXPECT: 4
+    println(s.i + c6()) // EXPECT: 3
     s.i = 10
-    println(s.i + c6()) // EXPECT: 22
+    println(s.i + c6()) // EXPECT: 21
 
     // ------------------------------------------------------------------
     // Functional

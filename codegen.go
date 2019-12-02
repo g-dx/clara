@@ -629,13 +629,13 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	// Post-fix, depth first search!
-	if expr.right != nil {
-		genExpr(asm, expr.right, false, fn)
+	if expr.left != nil {
+		genExpr(asm, expr.left, false, fn)
 		asm.ins(pushq, rax) // Push acc to stack
 		fn.incSp(1)
 	}
-	if expr.left != nil {
-		genExpr(asm, expr.left, false, fn)
+	if expr.right != nil {
+		genExpr(asm, expr.right, false, fn)
 	}
 
 	// Implements stack machine
@@ -673,9 +673,10 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
 
-		asm.ins(popq, rbx)
-		asm.ins(ins[expr.op], rbx, rax)
+		asm.ins(movq, rax, rbx)
+		asm.ins(popq, rax)
 		fn.decSp(1)
+		asm.ins(ins[expr.op], rbx, rax)
 
 		// NOTES:
 		// For imul, result is: rdx(high-64 bits):rax(low 64-bits)
@@ -683,26 +684,32 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opNot:
 
+		asm.ins(popq, rax)
+		fn.decSp(1)
 		asm.ins(notq, rax)
 		asm.ins(andq, _true, rax)
 
 	case opNeg:
 
+		asm.ins(popq, rax)
+		fn.decSp(1)
 		asm.ins(negq, rax)
 
 	case opGt, opLt, opEq:
 
-		asm.ins(popq, rbx)
+		asm.ins(movq, rax, rbx)
+		asm.ins(popq, rax)
+		fn.decSp(1)
 		asm.ins(cmpq, rbx, rax)
 		asm.ins(ins[expr.op], al)
 		asm.ins(andq, _true, rax) // Clear top bits
-		fn.decSp(1)
 
 	case opBLeft, opBRight:
 
-		asm.ins(popq, rcx)
-		asm.ins(ins[expr.op], cl, rax)
+		asm.ins(movq, rax, rcx)
+		asm.ins(popq, rax)
 		fn.decSp(1)
+		asm.ins(ins[expr.op], cl, rax)
 
 	case opIdentifier:
 
@@ -732,7 +739,8 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		if takeAddr {
 			inst = leaq
 		}
-		asm.ins(popq, rbx)
+		asm.ins(movq, rax, rbx)
+		asm.ins(popq, rax)
 		fn.decSp(1)
 		asm.ins(inst, rax.index(rbx), rax)
 
@@ -740,7 +748,8 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 		width := expr.typ.Width()
 
-		asm.ins(popq, rbx) // stack(index) -> rbx
+		asm.ins(movq, rax, rbx)
+		asm.ins(popq, rax) // stack(index) -> rbx
 		fn.decSp(1)
 
 		// Bounds check
