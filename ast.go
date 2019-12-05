@@ -22,8 +22,9 @@ type Node struct {
 	symtab *SymTab // Enclosing scope
 }
 
-func (n *Node) Add(stmt *Node) {
+func (n *Node) Add(stmt *Node) *Node {
 	n.stmts = append(n.stmts, stmt)
+	return n
 }
 
 func (n *Node) hasType() bool {
@@ -129,6 +130,19 @@ func (n *Node) Is(ops ...int) bool {
 
 func (n *Node) isNonGlobalFnCall() bool {
 	return n.op == opFuncCall && (n.sym == nil || !n.sym.IsGlobal)
+}
+
+func (n *Node) isGenericFnCall() bool {
+	if !n.Is(opFuncCall) {
+		return false
+	}
+	if n.left != nil {
+		return len(n.left.typ.AsFunction().Types) > 0
+	}
+	if n.sym != nil {
+		return len(n.sym.Type.AsFunction().Types) > 0
+	}
+	panic("Function call not annotated with function type!")
 }
 
 func (n *Node) typeName() string {

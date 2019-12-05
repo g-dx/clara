@@ -139,6 +139,15 @@ func (t *Type) Is(kind TypeKind) bool {
 	return t.Kind == kind
 }
 
+func (t *Type) IsAny(kinds ... TypeKind) bool {
+	for _, kind := range kinds {
+		if t.Is(kind) {
+			return true
+		}
+	}
+	return false
+}
+
 func (t *Type) IsArray(kind TypeKind) bool {
 	return t.Is(Array) && t.AsArray().Elem.Is(kind)
 }
@@ -148,7 +157,7 @@ func (t *Type) IsFunction(kind TypeKind) bool {
 }
 
 func (t *Type) IsPointer() bool {
-	return t.Is(Array) || t.Is(Struct) || t.Is(String) || t.Is(Function) || t.Is(Enum)
+	return t.IsAny(Array, Struct, String, Function, Enum, Parameter)
 }
 
 func (t *Type) AsStruct() *StructType {
@@ -218,6 +227,28 @@ func (t *Type) Width() int {
 	case *StructType, *EnumType, *StringType, *ArrayType, *ParameterType: return ptrSize
 	default:
 		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
+	}
+}
+
+func (t *Type) IsPrimitive() bool {
+	switch t.Kind {
+	case Integer, Boolean, Byte:
+		return true
+	case Function:
+		f := t.AsFunction()
+		for _, p := range f.Params {
+			if p.IsPrimitive() {
+				return true
+			}
+		}
+		if f.ret.IsPrimitive() {
+			return true
+		}
+		return false
+	case Array:
+		return t.AsArray().Elem.IsPrimitive()
+	default:
+		return false
 	}
 }
 

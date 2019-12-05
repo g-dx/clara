@@ -116,6 +116,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	}
 
 	// Post-typecheck AST rewrite
+	WalkPostOrder(rootNode, func(n *Node) { applyBoxing(n, rootSymtab) })
 	WalkPostOrder(rootNode, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
 	WalkPostOrder(rootNode, func(n *Node) { declareCaseVars(rootSymtab, n) })
 	WalkPostOrder(rootNode, func(n *Node) { lowerMatchStatement(rootSymtab, n) })

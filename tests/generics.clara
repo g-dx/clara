@@ -13,6 +13,41 @@ fn main() {
 
     // Output parameter required
     cast«int, bool»(1).println() // EXPECT: true
+
+    // ------------------------------------------------------------------
+    // Boxing/Unboxing
+
+    // No boxing
+    identity("No boxing").println() // EXPECT: No boxing
+
+    // Primitive boxed arg & unboxed return primitive
+    identity(10).println() // EXPECT: 10
+
+    // Function boxed arg & boxed return function
+    identity(fn(i: int) bool = i > 5)(10).println() // EXPECT: true
+
+    // Primitive boxed arg & boxed closure
+    closure(12345678)().println() // EXPECT: 12345678
+
+    // Complex function boxed arg & unboxed primitive return
+    apply2(10, fn(i: int) fn(int) bool {
+        return fn(i: int) bool = i > 5
+    }).println() // EXPECT: true
+}
+
+fn identity«T»(t: T) T {
+    gc()
+    return t
+}
+
+fn closure«T»(t: T) fn() T {
+    return fn«T»() T = identity(t) // TODO: We shouldn't have to declare T again here
+}
+
+fn apply2«T, R»(t: T, f: fn(T) fn(T) R) R {
+    tmp1 := f(t)
+    tmp2 := tmp1(t)
+    return tmp2
 }
 
 fn apply«T, R»(t: T, f: fn(T) R) R = f(t)
