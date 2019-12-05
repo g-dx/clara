@@ -3,3 +3,5 @@
 keyword will likely be required.
 - Add byte support for bitwise operators.
 - Update ASM generation to produce PIE executables.
+- Generic call sites within other generic functions require type parameters to match between functions
+- Generic closures require type parameters to be declared again
