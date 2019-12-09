@@ -36,6 +36,7 @@ const (
 	errMissingReturnMsg         = "%v:%d:%d: error, missing return for function '%v'"
 	errIntegerOverflowMsg       = "%v:%d:%d: error, constant '%v' overflow integer type"
 	errUnknownEnumCaseMsg       = "%v:%d:%d: error, unknown case '%v' for enum '%v'"
+	errMatchNotExhaustiveMsg    = "%v:%d:%d: error, match over enum '%v' is not exhaustive"
 	errNotAnEnumCaseMsg         = "%v:%d:%d: error, '%v' is not an enum case"
 	errTooManyArgsMsg           = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
 	errTypeParameterNotBoundMsg = "%v:%d:%d: error, type parameter '%v' is not bound for this function call"

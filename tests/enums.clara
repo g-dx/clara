@@ -12,13 +12,7 @@ fn main() {
     eval(Case5(fn() {
         printf("x = %d\n", x)                  // EXPECT: x = 10
     }))
-
-
-    // Check no output
-    match(Case1(1, 2, 3)) {
-        case Case3(st):
-            // Not evaluated...
-    }
+    Basic("Hello").getVal().println()          // EXPECT: Hello
 }
 
 fn eval(e: enum1) {
@@ -52,6 +46,13 @@ enum enum1 {
 
 enum enum2 {
     Basic(s: string)
+}
+
+fn getVal(e: enum2) string {
+    match e {
+        case Basic(s):
+            return s
+    }
 }
 
 struct s {

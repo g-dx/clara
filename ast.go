@@ -70,6 +70,26 @@ func (n *Node) isTerminating() bool {
 	case opReturn:
 		return true
 
+	case opCase:
+		if len(n.stmts) == 0 {
+			return false
+		}
+		if !n.stmts[len(n.stmts)-1].isTerminating() {
+			return false
+		}
+		return true
+
+	case opMatch:
+		if len(n.stmts) == 0 {
+			return false
+		}
+		for _, n := range n.stmts {
+			if !n.isTerminating() {
+				return false
+			}
+		}
+		return true
+
 	case opIf:
 
 		// Walk all right nodes to gather if/elseif/else structure

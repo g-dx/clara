@@ -18,8 +18,10 @@ fn main() {
     match s.e.e1 {
         case First(a):
             println(a.i[0]) // EXPECT: 123456789
+        case Second(f):
     }
     match s.e.e2 {
+        case First(a):
         case Second(f):
             println(f.f2().b[0]) // EXPECT: 127
     }

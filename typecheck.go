@@ -424,7 +424,15 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			cases[fn] = true
 		}
 
-		// TODO: Check all cases are handled or "remaining" keyword has been used
+		if len(errs) > 0 {
+			goto end
+		}
+
+		// TODO: Allow "remaining" keyword to be used
+		if len(n.stmts) != len(enum.Members) {
+			errs = append(errs, semanticError2(errMatchNotExhaustiveMsg, left.token, left.typ))
+			goto end
+		}
 
 	case opCase:
 
