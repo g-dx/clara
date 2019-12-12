@@ -687,27 +687,25 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 		return nil, semanticError(errConstructorOverrideMsg, n.token)
 	}
 
-	// Collect struct field types
-	var args []*Type
-	var params []*Node
+	// Create function
+	ft := &FunctionType{ret: n.sym.Type, Kind: StructCons}
+	fs := &Symbol{Name: constructorName, IsGlobal: true, Type: &Type{Kind: Function, Data: ft}}
+	root.symtab.Define(fs)
+
+	// Create & add fn to root
+	cons := &Node{token: &lex.Token{Val: constructorName}, op: opConsFnDcl, sym: fs}
+	root.Add(cons)
 
 	for _, field := range n.stmts {
 
 		// Copy symbol
-		s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
-		args = append(args, s.Type)
+		ft.Params = append(ft.Params, field.sym.Type)
 
 		// Copy node
-		params = append(params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
+		s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
+		cons.params = append(cons.params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
 	}
-
-	// Create & define symbol
-	fnSym := &Symbol{Name: constructorName, IsGlobal: true, Type: &Type{Kind: Function, Data: &FunctionType{Params: args, ret: n.sym.Type, Kind: StructCons}}}
-	root.symtab.Define(fnSym)
-
-	// Add AST node
-	root.Add(&Node{token: &lex.Token{Val: constructorName}, op: opConsFnDcl, params: params, sym: fnSym})
-	return fnSym, nil
+	return fs, nil
 }
 
 func semanticError(msg string, t *lex.Token, vals ...interface{}) error {
