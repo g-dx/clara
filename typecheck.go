@@ -679,11 +679,12 @@ func reifyType(t *Type, bound map[*Type]*Type) *Type {
 		panic("reifying structs & enums is not yet supported!")
 
 	default:
-		tt, ok := bound[t]
-		if !ok {
-			return t
+		for k, tt := range bound {
+			if k.Matches(t) {
+				return tt
+			}
 		}
-		return tt
+		return t
 	}
 }
 

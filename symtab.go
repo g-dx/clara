@@ -128,7 +128,12 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		if x.Is(Parameter) {
 			return t.AsParameter().Name == x.AsParameter().Name
 		}
-		return bound[t].MatchesImpl(x, allowBinding, bound)
+		for k, tt := range bound {
+			if k.Matches(t) {
+				return tt.MatchesImpl(x, allowBinding, bound)
+			}
+		}
+		return false
 
 	default:
 		panic("Unknown or unexpected type comparison!")
@@ -260,12 +265,10 @@ type StructType struct {
 }
 
 func (st *StructType) GetField(name string) *Symbol {
-	off := 0
 	for _, field := range st.Fields {
 		if field.Name == name {
 			return field
 		}
-		off += ptrSize
 	}
 	return nil // Not found
 }
