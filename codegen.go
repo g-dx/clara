@@ -673,6 +673,9 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
 
+		if expr.op == opDiv {
+			asm.ins(movq, _false, rdx)
+		}
 		asm.ins(movq, rax, rbx)
 		asm.ins(popq, rax)
 		fn.decSp(1)
