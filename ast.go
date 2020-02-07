@@ -291,6 +291,7 @@ const (
 	opNeg
 	opDot
 	opAnd
+	opBNot
 	opBAnd
 	opBOr
 	opBXor
@@ -333,6 +334,7 @@ var nodeTypes = map[int]string{
 	opSub:         "Binary Op [Min]",
 	opMul:         "Binary Op [Mul]",
 	opDiv:         "Binary Op [Div]",
+	opBNot:        "Bitwise Op [~]",
 	opBAnd:        "Bitwise Op [&]",
 	opBOr:         "Bitwise Op [|]",
 	opBXor:        "Bitwise Op [^]",

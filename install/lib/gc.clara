@@ -149,7 +149,7 @@ fn clearMark(b: block) {
     if not b.isMarked() {
         panic("clearMark() called on unmarked block!")
     }
-    b.header = b.header & 0x7FFFFFFFFFFFFFFE // TODO: ~0x1 would be nicer
+    b.header = b.header & ~0x1
 }
 
 fn isMarked(b: block) bool = (b.header & 0x1) == 0x1

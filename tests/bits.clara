@@ -31,4 +31,10 @@ fn main() {
     // Xor
     println(0x0F ^ 0xF0) // EXPECT: 255
     println(0xF ^ 0xF) // EXPECT: 0
+
+    // Not
+    println(~(-2)) // EXPECT: 1
+    println(~(-1)) // EXPECT: 0
+    println(~0) // EXPECT: -1
+    println(~1) // EXPECT: -2
 }

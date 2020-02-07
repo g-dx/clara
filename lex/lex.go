@@ -49,6 +49,7 @@ const (
 	// Bitwisre Operators
 	BAnd
 	BOr
+	BNot
 	BXor
 	BLeft
 	BRight
@@ -99,7 +100,7 @@ func (k Kind) IsBinaryOperator() bool {
 
 func (k Kind) IsUnaryOperator() bool {
 	switch k {
-	case Not, Min, Neg:
+	case Not, Min, Neg, BNot:
 		return true
 	default:
 		return false
@@ -121,7 +122,7 @@ func (k Kind) Precedence() int {
 	switch k {
 	case Dot:
 		return 12
-	case Not, Neg:
+	case Not, Neg, BNot:
 		return 11
 	case Mul, Div:
 		return 10
@@ -159,7 +160,7 @@ func (k Kind) Associativity() Associative {
 	switch k {
 	case LParen, Plus, And, Or, Mul, Div, Min, Eq, Dot, Neg, BAnd, BOr, BXor, BLeft, BRight:
 		return Left
-	case Not:
+	case Not, BNot:
 		return Right
 	case Gt, Lt:
 		return None
@@ -210,6 +211,7 @@ var KindValues = map[Kind]string{
 	BXor:       "^",
 	BLeft:      "<<",
 	BRight:     ">>",
+	BNot:       "~",
 	Mul:        "*",
 	Plus:       "+",
 	Div:        "/",
@@ -338,6 +340,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(Min)
 		case r == '*':
 			l.emit(Mul)
+		case r == '~':
+			l.emit(BNot)
 		case r == '^':
 			l.emit(BXor)
 		case r == '|':

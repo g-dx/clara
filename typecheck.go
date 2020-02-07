@@ -135,6 +135,19 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 		n.typ = boolType
 
+	case opBNot:
+		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
+
+		if !left.hasType() {
+			goto end
+		}
+
+		if !left.typ.Is(Integer) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, boolType))
+			goto end
+		}
+		n.typ = intType
+
 	case opNeg:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 

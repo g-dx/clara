@@ -685,12 +685,14 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		// For imul, result is: rdx(high-64 bits):rax(low 64-bits)
 		// For idiv, result is: rdx(remainder):rax(quotient)
 
-	case opNot:
+	case opNot, opBNot:
 
 		asm.ins(popq, rax)
 		fn.decSp(1)
 		asm.ins(notq, rax)
-		asm.ins(andq, _true, rax)
+		if expr.op == opNot {
+			asm.ins(andq, _true, rax)
+		}
 
 	case opNeg:
 

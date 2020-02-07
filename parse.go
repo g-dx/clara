@@ -279,6 +279,8 @@ func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 	switch p.Kind() {
 	case lex.Not:
 		return opNot, p.next()
+	case lex.BNot:
+		return opBNot, p.next()
 	case lex.Dot:
 		return opDot, p.next()
 	case lex.Plus:
