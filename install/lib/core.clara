@@ -3,6 +3,40 @@
 // --------------------------------------------------------------------------------
 
 fn toByte(i: int) byte = i
+fn toBytes(s: string) []byte {
+    buf := byteArray(s.length)
+    i := 0
+    while i < s.length {
+        buf[i] = s[i]
+        i = i + 1
+    }
+    return buf
+}
+fn toBinary(i: int) string {
+    buf := NewByteBuffer(78) // 64 digits + 7, 2-byte separators
+    j := 63
+    digits := "01"
+    sep := "·"
+    while j > -1 { // TODO: Support >= operator
+        n := 0
+        mask := 1 << j
+        if (i & mask) == mask {
+            n = 1
+        }
+        buf.append(digits[n])
+        if j > 0 and j.mod(8) == 0 {
+            buf.append(sep)
+        }
+        j = j - 1
+    }
+    return buf.toString()
+}
+
+// --------------------------------------------------------------------------------
+// Math
+// --------------------------------------------------------------------------------
+
+fn mod(i: int, m: int) int = i - ((i / m) * m)
 
 // --------------------------------------------------------------------------------
 // Wrappers
@@ -21,10 +55,15 @@ fn unwrapBool(w: boolWrapper) bool = w.val
 // Printing
 // --------------------------------------------------------------------------------
 
+fn print(s: string) = printf("%s", s)
 fn println(s: string) = printf("%s\n", s)
 fn println(i: int) = printf("%lli\n", i)
 fn println(b: byte) = printf("%hhi\n", b)
 fn println(b: bool) = println(b.toString())
+
+// Int
+fn printHex(i: int) = printf("0x%llx\n", i)
+fn printHexPadded(i: int) = printf("0x%016llx\n", i)
 
 fn toString(b: bool) string {
     if b {

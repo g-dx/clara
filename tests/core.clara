@@ -1,0 +1,23 @@
+fn main() {
+
+    (~1).toBinary().println() // TODO: Fix parser!
+    0.toBinary().println()
+    1.toBinary().println()
+    128.toBinary().println()
+    255.toBinary().println()
+
+    // EXPECT: 11111111·11111111·11111111·11111111·11111111·11111111·11111111·11111110
+    // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·00000000
+    // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·00000001
+    // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·10000000
+    // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·11111111
+
+    13.mod(8).println() // EXPECT: 5
+    14.mod(8).println() // EXPECT: 6
+    15.mod(8).println() // EXPECT: 7
+    16.mod(8).println() // EXPECT: 0
+    17.mod(8).println() // EXPECT: 1
+    18.mod(8).println() // EXPECT: 2
+    19.mod(8).println() // EXPECT: 3
+    20.mod(8).println() // EXPECT: 4
+}
