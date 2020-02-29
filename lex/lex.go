@@ -22,6 +22,7 @@ const (
 	Comma  = ','
 	Colon  = ':'
 	Dot    = '.'
+	Hash   = '#'
 
 	Comment = 256 + iota // Start outside ascii range
 	Identifier
@@ -227,6 +228,7 @@ var KindValues = map[Kind]string{
 	Comma:      ",",
 	Colon:      ":",
 	Dot:        ".",
+	Hash:       "#",
 	Space:      "<space>",
 	EOL:        "<EOL>",
 	EOF:        "<EOF>",
@@ -325,6 +327,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(LGmet)
 		case r == '»':
 			l.emit(RGmet)
+		case r == '#':
+			l.emit(Hash)
 		case r == ',':
 			l.emit(Comma)
 		case r == ':':

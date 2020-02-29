@@ -11,6 +11,7 @@ import (
 // AST
 
 type Node struct {
+	attrs  attributes
 	token  *lex.Token
 	left   *Node
 	right  *Node

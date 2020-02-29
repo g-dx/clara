@@ -27,6 +27,7 @@ var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
 
 // Current function being compiled
 type function struct {
+	attrs   attributes
 	AstName string
 	Type    *FunctionType
 	gcRoots *GcState
@@ -37,6 +38,7 @@ type function struct {
 }
 
 func (f *function) reset(n *Node) {
+	f.attrs = n.attrs
 	f.AstName = n.sym.Name
 	f.Type = n.sym.Type.AsFunction()
 	f.gcRoots = &GcState{}
@@ -172,7 +174,7 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 			case opBlockFnDcl:
 				genStmtList(asm, n.stmts, fn)
 				if fn.Type.ret.Is(Nothing) && !n.IsReturnLastStmt() {
-					genFnExit(asm, n.sym.Name == "entrypoint")
+					genFnExit(asm, fn.attrs.externalReturn())
 				}
 			case opExprFnDcl:
 				genReturnStmt(asm, n.stmts[0], fn)
@@ -555,7 +557,7 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 	}
 
 	// Clean stack & return
-	genFnExit(asm, false)
+	genFnExit(asm, fn.attrs.externalReturn())
 }
 
 func genFnCall(asm asmWriter, n *Node, f *function) {

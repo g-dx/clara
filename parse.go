@@ -22,6 +22,24 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
+const (
+	extRet = 1 << iota
+)
+
+type attributes int
+func (attr attributes) externalReturn() bool {
+	return (attr & extRet) == extRet
+}
+
+func (attr attributes) Add(name string) attributes {
+	switch name {
+	case "ExtRet":
+		return attr | extRet
+	default:
+		return attr // TODO: Report unknown attributes
+	}
+}
+
 func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 
 	// Setup handler to recover from unexpected EOF
@@ -35,15 +53,16 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 
 	// loop over tokens
 	for p.isNot(lex.EOF) {
+		attr := p.parseAttributes()
 		switch p.Kind() {
 		case lex.Fn:
-			root.Add(p.parseFn(false))
+			root.Add(p.parseFn(attr, false))
 
 		case lex.Struct:
-			root.Add(p.parseStruct())
+			root.Add(p.parseStruct(attr))
 
 		case lex.Enum:
-			root.Add(p.parseEnum())
+			root.Add(p.parseEnum(attr))
 
 		default:
 			kinds := []string{lex.KindValues[lex.Fn], lex.KindValues[lex.Struct], lex.KindValues[lex.Enum]}
@@ -56,7 +75,23 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 	return p.errs
 }
 
-func (p *Parser) parseEnum() *Node {
+func (p *Parser) parseAttributes() (attr attributes) {
+	if !p.is(lex.Hash) {
+		return
+	}
+	p.need(lex.Hash)
+	p.need(lex.LBrack)
+	if p.isNot(lex.LBrack) {
+		attr = attr.Add(p.need(lex.Identifier).Val)
+		for p.match(lex.Comma) {
+			attr = attr.Add(p.need(lex.Identifier).Val)
+		}
+	}
+	p.need(lex.RBrack)
+	return
+}
+
+func (p *Parser) parseEnum(attrs attributes) *Node {
 	p.need(lex.Enum)
 	id := p.need(lex.Identifier)
 	p.need(lex.LBrace)
@@ -67,10 +102,10 @@ func (p *Parser) parseEnum() *Node {
 				left: &Node{op: opNamedType, token: id}})
 	}
 	p.need(lex.RBrace)
-	return &Node{op: opEnumDcl, token: id, stmts: cons}
+	return &Node{attrs: attrs, op: opEnumDcl, token: id, stmts: cons}
 }
 
-func (p *Parser) parseStruct() *Node {
+func (p *Parser) parseStruct(attrs attributes) *Node {
 	p.need(lex.Struct)
 	id := p.need(lex.Identifier)
 	p.need(lex.LBrace)
@@ -79,10 +114,10 @@ func (p *Parser) parseStruct() *Node {
 		fields = append(fields, p.parseParameter())
 	}
 	p.need(lex.RBrace)
-	return &Node{op: opStructDcl, token: id, stmts: fields}
+	return &Node{attrs: attrs, op: opStructDcl, token: id, stmts: fields}
 }
 
-func (p *Parser) parseFn(isAnon bool) *Node {
+func (p *Parser) parseFn(attrs attributes, isAnon bool) *Node {
 	id := p.need(lex.Fn)
 	if !isAnon {
 		id = p.need(lex.Identifier)
@@ -92,7 +127,7 @@ func (p *Parser) parseFn(isAnon bool) *Node {
 		types, start := p.parseTypeList()
 		typeList = &Node{op: opTypeList, token: start, params: types }
 	}
-	n := &Node{token: id, params: p.parseParameters()}
+	n := &Node{attrs: attrs, token: id, params: p.parseParameters()}
 	n.right = typeList
 	if p.is(lex.Fn, lex.LBrack, lex.Identifier) {
 		n.left = p.parseType()
@@ -267,7 +302,7 @@ func (p *Parser) parseOperand() *Node {
 		return p.parseType() // TODO: Allow 'opFuncType' to be an operand too
 
 	case kind == lex.Fn:
-		return p.parseFn(true)
+		return p.parseFn(attributes(0), true)
 
 	default:
 		p.syntaxError("<expression>")

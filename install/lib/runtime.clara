@@ -16,6 +16,7 @@ struct runtime {
 }
 
 // C -> Clara entrypoint
+#[ExtRet]
 fn entrypoint(argc: int, argv: int, envp: int) {
     setStackBase(getFramePointer())
 
