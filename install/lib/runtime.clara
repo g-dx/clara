@@ -129,6 +129,24 @@ fn indexOutOfBounds(index: int) {
     exit(1)
 }
 
+//  struct timeval64 {
+//     __int64_t   tv_sec;         /* seconds */
+//     __int64_t   tv_usec;        /* and microseconds */
+//  };
+struct time {
+    sec: int
+    usec: int
+}
+
+fn Now() time {
+    t := Time(0, 0)
+    gettimeofday(t, 0)
+    return t
+}
+fn toMicros(t: time) int = (t.sec * 1000000) + t.usec
+fn toMillis(t: time) int = t.toMicros()/1000
+fn toSecs(t: time) int = t.toMicros()/1000000
+
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
@@ -154,3 +172,6 @@ fn getRuntime() runtime
 // type: Type of return type
 // Returns the calculated memory location interpreted as the parameterised type
 fn unsafe(ptr: int, off: int, type: int) int // Implemented in assembly by codegen.go
+
+// Source: https://www.gnu.org/software/libc/manual/html_node/Getting-the-Time.html#Getting-the-Time
+fn gettimeofday(t: time, zero: int) nothing
