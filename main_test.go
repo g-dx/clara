@@ -20,6 +20,31 @@ type expectation struct {
 	line int
 }
 
+func TestPanic(t *testing.T) {
+
+	files, err := filepath.Glob("./tests/panic/*.clara")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Process each test case
+	for _, f := range files {
+		t.Run(filepath.Base(f), func(t *testing.T) {
+			f := f
+			t.Parallel()
+			expects := ParseExpectations(f, t)
+			if len(expects) != 1 {
+				t.Fatalf("Only one expectation allowed for panic tests - found %d\n", len(expects))
+			}
+			expect := expects[0]
+			out := CompileAndRun(f, t, true)
+			if !strings.Contains(out, expect.val) {
+				t.Errorf("\n- ./%v:\n - contains: '%v'\n - got     : '%v'\n", f, expect.val, out)
+			}
+		})
+	}
+}
+
 func TestE2E(t *testing.T) {
 	files, err := filepath.Glob("./tests/*.clara")
 	if err != nil {
@@ -31,28 +56,10 @@ func TestE2E(t *testing.T) {
 		t.Run(filepath.Base(f), func(t *testing.T) {
 			f := f
 			t.Parallel()
-			// Read file
-			bytes, err := ioutil.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			test := string(bytes)
-			steps := strings.Split(test, "\n")
-
-			// Gather all expectations
-			var expects []*expectation
-			for i, step := range steps {
-				if strings.HasPrefix(step, "//") { // Skip commented out lines
-					continue
-				}
-				match := regex.FindStringSubmatch(step)
-				if match != nil {
-					expects = append(expects, &expectation{val: match[1], line: i+1})
-				}
-			}
+			expects := ParseExpectations(f, t)
 
 			// Compile test, execute test & parse output
-			output := CompileAndRun(f, t)
+			output := CompileAndRun(f, t, false)
 			lines := strings.Split(output, "\n")
 			lines = lines[:len(lines)-1] // Trim empty final line
 
@@ -79,7 +86,7 @@ func TestE2E(t *testing.T) {
 	}
 }
 
-func CompileAndRun(progPath string, t *testing.T) string {
+func CompileAndRun(progPath string, t *testing.T, allowExecErr bool) string {
 
 	// Compile program
 	binary, errs := Compile(
@@ -110,9 +117,31 @@ func CompileAndRun(progPath string, t *testing.T) string {
 	cmd := exec.Command(binary)
 	outBytes, err := cmd.CombinedOutput()
 	out := string(outBytes)
-	if err != nil {
+	if err != nil && !allowExecErr {
 		t.Log(out)
 		t.Fatalf("Execution failure: %v\n", err)
 	}
 	return out
+}
+
+func ParseExpectations(filename string, t *testing.T) []*expectation {
+	// Read file
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := strings.Split(string(content), "\n")
+
+	// Gather all expectations
+	var expects []*expectation
+	for i, step := range steps {
+		if strings.HasPrefix(step, "//") { // Skip commented out lines
+			continue
+		}
+		match := regex.FindStringSubmatch(step)
+		if match != nil {
+			expects = append(expects, &expectation{val: match[1], line: i+1})
+		}
+	}
+	return expects
 }
