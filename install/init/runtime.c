@@ -12,8 +12,6 @@ intptr_t blocks;
 
 intptr_t getBlocks() { return blocks; }
 void setBlocks(intptr_t b) { blocks = b; }
-int isValidBlock(intptr_t b) { return b != 0; } // NUL check
-intptr_t emptyBlock() { return 0; } // NUL block
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Stack frame support

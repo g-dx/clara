@@ -159,8 +159,6 @@ fn typeId(b: block) int = (b.header & 0xFFFF << 48) >> 48
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
-fn isValidBlock(b: block) bool
-fn emptyBlock() block
 
 // Implemented in codegen.go
 fn typeInfoTable() []typeInfo
