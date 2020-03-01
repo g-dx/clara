@@ -397,7 +397,9 @@ func genFnExit(asm asmWriter, skipGc bool) {
 func genIoobTrampoline(asm asmWriter, ioob operand) {
 
 	// rbx is index register. See: codegen.go:647
+	asm.tab(".text")
 	asm.label("ioob")
+	asm.ins(andq, intOp(-16), rsp) // Destructively align stack
 	asm.ins(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
 	asm.ins(call, ioob)
 	// NOTE: Never returns so no need for GC word, return, etc
@@ -762,7 +764,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		// Bounds check
 		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
 		asm.ins(cmpq, rax.deref(), rbx) // index - array.length
-		asm.ins(jae, labelOp("ioob"))   // Defined in runtime.c
+		asm.ins(jae, labelOp("ioob"))
 
 		// Displace + 8 to skip over length
 		if takeAddr {
