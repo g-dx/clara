@@ -27,7 +27,7 @@ const (
 )
 
 type attributes int
-func (attr attributes) externalReturn() bool {
+func (attr attributes) isExternalReturn() bool {
 	return (attr & extRet) == extRet
 }
 

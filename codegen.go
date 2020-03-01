@@ -174,7 +174,7 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 			case opBlockFnDcl:
 				genStmtList(asm, n.stmts, fn)
 				if fn.Type.ret.Is(Nothing) && !n.IsReturnLastStmt() {
-					genFnExit(asm, fn.attrs.externalReturn())
+					genFnExit(asm, fn.attrs.isExternalReturn())
 				}
 			case opExprFnDcl:
 				genReturnStmt(asm, n.stmts[0], fn)
@@ -560,7 +560,7 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 	}
 
 	// Clean stack & return
-	genFnExit(asm, fn.attrs.externalReturn())
+	genFnExit(asm, fn.attrs.isExternalReturn())
 }
 
 func genFnCall(asm asmWriter, n *Node, f *function) {
