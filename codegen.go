@@ -400,7 +400,8 @@ func genIoobTrampoline(asm asmWriter, ioob operand) {
 	asm.tab(".text")
 	asm.label("ioob")
 	asm.ins(andq, intOp(-16), rsp) // Destructively align stack
-	asm.ins(movq, rbx, rdi) // NOTE: When stack machine changes to single reg machine or linear scan this must change too!
+	asm.ins(movq, rbx, rdi) // Load index, NOTE: Depends on current register usage!
+	asm.ins(movq, rax.deref(), rsi) // Load array length, NOTE: Depends on current register usage!
 	asm.ins(call, ioob)
 	// NOTE: Never returns so no need for GC word, return, etc
 }

@@ -120,9 +120,9 @@ fn panic(cause: string) {
 }
 
 // Invoked by an ASM trampoline (See codegen.go) for invalid array access
-fn indexOutOfBounds(index: int) {
+fn indexOutOfBounds(index: int, length: int) {
     printf("\n// -----------------------------------------------------------------------------\n")
-    printf("// Crash: Index (%d) is out of bounds!\n", index)
+    printf("// Panic: index out of bounds! index = %d, array.length = %d\n", index, length)
     printf("// -----------------------------------------------------------------------------\n")
     printf("\nBacktrace:\nTODO!\n\n")
     // TODO: Output stacktrace
