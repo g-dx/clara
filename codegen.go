@@ -678,11 +678,11 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
 
-		if expr.op == opDiv {
-			asm.ins(movq, _false, rdx)
-		}
 		asm.ins(movq, rax, rbx)
 		asm.ins(popq, rax)
+		if expr.op == opDiv {
+			asm.ins(cqo) // Sign-extend rax into rdx
+		}
 		fn.decSp(1)
 		asm.ins(ins[expr.op], rbx, rax)
 

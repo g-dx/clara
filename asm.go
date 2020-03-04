@@ -266,6 +266,7 @@ const (
 	subq
 	imulq
 	idivq
+	cqo
 
 	// Looping instructions
 	jmp
@@ -303,6 +304,7 @@ var instNames = map[inst]string{
 	subq:   "subq",
 	imulq:  "imulq",
 	idivq:  "idivq",
+	cqo:    "cqo",
 	jmp:    "jmp",
 	jne:    "jne",
 	jae:    "jae",
