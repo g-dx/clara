@@ -68,13 +68,14 @@ fn toString(buf: byteBuffer) string = buf.data.toString(buf.size)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn append(buf: byteBuffer, s: string) {
+fn append(buf: byteBuffer, s: string) byteBuffer {
     newSize := buf.size + s.length
     if newSize > buf.data.length {
         buf.grow()
     }
     copyString(s, 0, buf.data, buf.size)
     buf.size = newSize
+    return buf
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
