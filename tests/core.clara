@@ -12,6 +12,13 @@ fn main() {
     // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·10000000
     // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·11111111
 
+    // TODO: Fix parser!
+    toString(1 << 63).println()    // EXPECT: -9223372036854775808
+    toString(-1).println()         // EXPECT: -1
+    toString(0).println()          // EXPECT: 0
+    toString(1).println()          // EXPECT: 1
+    toString(~(1 << 63)).println() // EXPECT: 9223372036854775807
+
     13.mod(8).println() // EXPECT: 5
     14.mod(8).println() // EXPECT: 6
     15.mod(8).println() // EXPECT: 7

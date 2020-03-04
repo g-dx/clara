@@ -72,3 +72,31 @@ fn toString(b: bool) string {
         return "false"
     }
 }
+fn toString(val: int) string {
+    if val == 0 {
+        return "0"
+    }
+    digits := "0123456789"
+    // Int min: -9223372036854775808
+    // Int max: 9223372036854775807
+    buf := byteArray(20)
+    base := 10
+    n := val
+    x := buf.length - 1
+    while not (n == 0) {
+        quotient := n / base
+        // TODO: This isn't great. A plus unary operator would be nice here which would issue
+        if val < 0 {
+            buf[x] = digits[(base * quotient) - n]
+        } else {
+            buf[x] = digits[n - (base * quotient)]
+        }
+        n = quotient
+        x = x - 1
+    }
+    if val < 0 {
+        buf[x] = 0x2d // minus sign
+        x = x - 1
+    }
+    return buf.toString(x+1, buf.length-1-x)
+}
