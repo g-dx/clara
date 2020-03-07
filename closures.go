@@ -42,7 +42,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 			// Build AST to capture free variables
 			var envArgs []*Node
 			for _, v := range freeVars {
-				envArgs = append(envArgs, &Node{op: opIdentifier, token: &lex.Token{Val: v.Name}, sym: v, typ: v.Type})
+				envArgs = append(envArgs, ident(lex.Val(v.Name), v,))
 			}
 
 			// AST: fn() { ... } -> Cl(<fn name>, ClEnv(freeVars...))
@@ -50,8 +50,8 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 			n.token = lex.WithVal(clFn.token, clCons.Name)
 			n.sym = clCons
 			n.stmts = []*Node{
-				{op: opIdentifier, token: clFn.token, sym: clFn.sym, typ: clFn.typ},
-				{op: opFuncCall, token: &lex.Token{Val: envCons.Name}, typ: envCons.Type, sym: envCons, stmts: envArgs},
+				ident(clFn.token, clFn.sym),
+				fnCallBySym(lex.Val(envCons.Name), envCons, envArgs...),
 			}
 			n.left = nil
 			n.right = nil
@@ -91,7 +91,7 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 		// AST: <name>(args...) -> invokeDynamic(<name>, args...)
 		var stmts []*Node
 		if n.sym != nil {
-			stmts = append([]*Node{{op: opIdentifier, token: n.token, sym: n.sym, typ: n.typ}}, n.stmts...)
+			stmts = append([]*Node{ident(n.token, n.sym)}, n.stmts...)
 		} else {
 			stmts = append([]*Node{n.left}, n.stmts...)
 		}
@@ -117,7 +117,7 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 
 	// Update AST & function type to pass "env" as first parameter
 	envToken := &lex.Token{Val: "$env$"}
-	n.params = append([]*Node{{op: opIdentifier, token: envToken, sym: env, typ: env.Type}}, n.params...)
+	n.params = append([]*Node{ident(envToken, env)}, n.params...)
 	fn := n.sym.Type.AsFunction()
 	fn.Params = append([]*Type{env.Type}, fn.Params...)
 
@@ -128,13 +128,13 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 				if freeVar == e.sym {
 
 					// AST: <var> -> env.<var> or <fnCall> -> env.<fnCall>
-					left := &Node{op: opIdentifier, token: envToken, sym: env, typ: env.Type}
+					left := ident(envToken, env)
 					var right *Node
 					sym := env.Type.AsStruct().GetField(e.sym.Name)
 					if e.op == opIdentifier {
-						right = &Node{op: opIdentifier, token: e.token, sym: sym, typ: sym.Type}
+						right = ident(e.token, sym)
 					} else {
-						right = &Node{op: opFuncCall, token: e.token, sym: sym, typ: sym.Type, stmts: e.stmts}
+						right = fnCallBySym(e.token, sym, e.stmts...)
 					}
 					e.op = opDot
 					e.token = lex.WithVal(e.token, ".")

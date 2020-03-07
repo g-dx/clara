@@ -213,6 +213,18 @@ func (n *Node) Describe() string {
 	}
 }
 
+// ----------------------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------------------
+
+func ident(t *lex.Token, s *Symbol) *Node {
+	return &Node{op: opIdentifier, token: t, sym: s, typ: s.Type}
+}
+
+func fnCallBySym(val *lex.Token, s *Symbol, args ... *Node) *Node {
+	return &Node{op: opFuncCall, token: val, typ: s.Type.AsFunction().ret, sym: s, stmts: args}
+}
+
 func generateStruct(root *Node, name string, fields ... *Symbol) (*Symbol, *Symbol) {
 
 	var nodes []*Node
@@ -222,7 +234,7 @@ func generateStruct(root *Node, name string, fields ... *Symbol) (*Symbol, *Symb
 		// Create new symbol & associated AST
 		sym := &Symbol{Name: f.Name, Addr: i * ptrSize, Type: f.Type}
 		syms = append(syms, sym)
-		nodes = append(nodes, &Node{op: opIdentifier, token: &lex.Token{Val: sym.Name}, sym: sym})
+		nodes = append(nodes, ident(lex.Val(sym.Name), sym))
 	}
 
 	// Create struct declaration & symbol

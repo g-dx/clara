@@ -494,7 +494,7 @@ func (h *astHelper) fnCallBySym(s *Symbol, args ... *Node) *Node {
 	if s == nil {
 		panic("nil function symbol")
 	}
-	return &Node{op: opFuncCall, token: lex.WithVal(lex.NoToken, s.Name), sym: s, typ: s.Type.AsFunction().ret, stmts: args}
+	return fnCallBySym(lex.WithVal(lex.NoToken, s.Name), s, args...)
 }
 
 func (h *astHelper) fnCallByType(n *Node, args ...*Node) *Node {
@@ -513,7 +513,7 @@ func (h *astHelper) returnExpr(n *Node) *Node {
 func (h *astHelper) dasStmt(symtab *SymTab, n *Node, name string) *Node {
 	sym := &Symbol{Name: name, Type: n.typ, IsStack: true}
 	symtab.Define(sym)
-	id := &Node{op: opIdentifier, token: lex.WithVal(lex.NoToken, sym.Name), sym: sym, typ: n.typ}
+	id := ident(lex.WithVal(lex.NoToken, sym.Name), sym)
 	return &Node{op: opDas, token: lex.NoToken, left: id, right: n}
 }
 
@@ -572,9 +572,9 @@ func declareCaseVars(symtab *SymTab, n *Node) {
 				field := enum.GetField(fmt.Sprintf("_%v", i))
 				vars = append(vars,
 					&Node{op: opDas, left: v, right: &Node{op: opDot,
-						left:  &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{n.left}},
-						right: &Node{op: opIdentifier, sym: field},
-						typ: v.typ}, // Expression yields type on left!
+						left:  fnCallBySym(lex.NoToken, asEnum, n.left),
+						right: ident(lex.NoToken, field),
+						typ:   v.typ}, // Expression yields type on left!
 					})
 			}
 			cas.stmts = append(vars, cas.stmts...)
@@ -606,7 +606,7 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 		// }
 
 		// Declare var for match expression result
-		matchVar := &Node{op: opIdentifier, sym: &Symbol{Name: "$tmp", Type: n.left.typ, IsStack: true}, typ: n.left.typ}
+		matchVar := ident(lex.NoToken, &Symbol{Name: "$tmp", Type: n.left.typ, IsStack: true})
 		matchExpr := &Node{op: opDas, left: matchVar, right: n.left}
 
 		// Convert cases to if/else if
@@ -619,8 +619,8 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 			tag := cas.sym.Type.AsFunction().AsEnumCons().Tag
 			caseExpr := &Node{op: opEq,
 				left: &Node{op: opDot,
-					left:  &Node{op: opFuncCall, sym: asEnum, stmts: []*Node{matchVar}},
-					right: &Node{op: opIdentifier, sym: enum.GetField("tag")},
+					left:  fnCallBySym(lex.NoToken, asEnum, matchVar),
+					right: ident(lex.NoToken, enum.GetField("tag")),
 				},
 				right: &Node{op: opLit, sym: &Symbol{Name: strconv.Itoa(tag), Type: intType}},
 				typ:   boolType,
@@ -703,7 +703,7 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 
 		// Copy node
 		s := &Symbol{Name: field.sym.Name, Type: field.sym.Type}
-		cons.params = append(cons.params, &Node{token: field.token, op: opIdentifier, sym: s, typ: s.Type})
+		cons.params = append(cons.params, ident(field.token, s))
 	}
 	return fs, nil
 }

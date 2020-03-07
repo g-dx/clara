@@ -252,6 +252,10 @@ func WithVal(token *Token, val string) *Token {
 	return &Token{token.Kind, val, token.Pos, token.Line, token.File}
 }
 
+func Val(val string) *Token {
+	return &Token{Val: val}
+}
+
 var NoToken = &Token{Min, "(-)", 0, 0, "<none>"}
 
 func (t Token) String() string {
