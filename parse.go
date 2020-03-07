@@ -296,7 +296,22 @@ func (p *Parser) parseOperand() *Node {
 		return &Node{op: opLit, token: p.next()}
 
 	case kind == lex.Identifier:
-		return p.parseIdentifier()
+		x := p.parseIdentifier()
+		for p.is(lex.LGmet, lex.LParen, lex.LBrack) {
+			switch p.Kind() {
+			case lex.LParen:
+				args, tok := p.parseArgs()
+				x = &Node {op: opFuncCall, token: tok, left: x, stmts: args}
+			case lex.LBrack:
+				idx, tok := p.parseIndex()
+				x = &Node {op: opArray, token: tok, left: x, right: idx}
+			case lex.LGmet:
+				types, _ := p.parseTypeList()
+				args, tok := p.parseArgs()
+				x = &Node {op: opFuncCall, token: tok, left: x, stmts: args, params: types}
+			}
+		}
+		return x
 
 	case kind == lex.LBrack:
 		return p.parseType() // TODO: Allow 'opFuncType' to be an operand too
@@ -359,39 +374,7 @@ func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
 }
 
 func (p *Parser) parseIdentifier() *Node {
-	val := p.need(lex.Identifier)
-	var ident *Node
-	switch p.Kind() {
-	case lex.LGmet:
-		types, _ := p.parseTypeList()
-		args, _ := p.parseArgs()
-		ident = &Node {op: opFuncCall, token: val, stmts: args, params: types}
-	case lex.LParen:
-		args, _ := p.parseArgs()
-		ident = &Node {op: opFuncCall, token: val, stmts: args}
-	case lex.LBrack:
-		idx, tok := p.parseIndex()
-		ident = &Node {op: opArray, token: tok, left: &Node{op: opIdentifier, token: val}, right: idx}
-	default:
-		ident = &Node {op: opIdentifier, token: val}
-	}
-
-	// Check for further calls or index operators
-	for p.is(lex.LParen, lex.LBrack, lex.LGmet) {
-		switch p.Kind() {
-		case lex.LGmet:
-			types, _ := p.parseTypeList()
-			args, _ := p.parseArgs()
-			ident = &Node {op: opFuncCall, token: val, stmts: args, params: types}
-		case lex.LParen:
-			args, tok := p.parseArgs()
-			ident = &Node {op: opFuncCall, token: tok, left: ident, stmts: args}
-		case lex.LBrack:
-			idx, tok := p.parseIndex()
-			ident = &Node {op: opArray, token: tok, left: ident, right: idx}
-		}
-	}
-	return ident
+	return &Node{op: opIdentifier, token: p.need(lex.Identifier)}
 }
 
 func (p *Parser) parseArgs() (args []*Node, start *lex.Token) {

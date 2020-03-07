@@ -568,8 +568,8 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 	// Determine how function is referenced
 	var s *Symbol
 	var fn *FunctionType
-	if n.sym != nil {
-		s = n.sym
+	if n.left.sym != nil {
+		s = n.left.sym
 		fn = s.Type.AsFunction()
 	} else {
 		asm.ins(movq, rax, r15) // TODO: This is a callee saved register. If we use it, we should save it!
@@ -733,13 +733,24 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			asm.ins(inst, rbp.displace(-v.Addr), rax)
 
 		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
-			asm.ins(movabs, symOp(v.Type.AsFunction().AsmName(v.Name)), rax)
+			// HACK to workaround absolute addressing!
+			// TODO: Figure out how to get a PIC relative address of an external function
+			if v.Type.AsFunction().IsExternal() {
+				asm.ins(movq, _false, rax)
+			} else {
+				asm.ins(movabs, symOp(v.Type.AsFunction().AsmName(v.Name)), rax)
+			}
 
 		default: // Struct field operand
 			asm.ins(movq, intOp(v.Addr), rax)
 		}
 
 	case opFuncCall:
+
+		// Discard the address of the function to invoke
+		// TODO: Once PIC-relative addressing is available update genFnCall to consume this result
+		asm.ins(popq, rax)
+		fn.decSp(1)
 
 		genFnCall(asm, expr, fn)
 

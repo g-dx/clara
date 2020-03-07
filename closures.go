@@ -47,15 +47,16 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 
 			// AST: fn() { ... } -> Cl(<fn name>, ClEnv(freeVars...))
 			n.op = opFuncCall
-			n.token = lex.WithVal(clFn.token, clCons.Name)
-			n.sym = clCons
+			n.token = lex.NoToken
 			n.stmts = []*Node{
 				ident(clFn.token, clFn.sym),
 				fnCallBySym(lex.Val(envCons.Name), envCons, envArgs...),
 			}
-			n.left = nil
+			n.left = ident(lex.WithVal(clFn.token, clCons.Name), clCons)
 			n.right = nil
 			n.params = nil
+			n.sym = nil
+			n.typ = clCons.Type.AsFunction().ret
 
 		} else {
 
@@ -89,17 +90,9 @@ func rewriteAnonFnAndClosures(rootNode *Node, n *Node) {
 		s := rootNode.symtab.MustResolve("invokeDynamic")
 
 		// AST: <name>(args...) -> invokeDynamic(<name>, args...)
-		var stmts []*Node
-		if n.sym != nil {
-			stmts = append([]*Node{ident(n.token, n.sym)}, n.stmts...)
-		} else {
-			stmts = append([]*Node{n.left}, n.stmts...)
-		}
-		n.stmts = stmts
-		n.token = lex.WithVal(n.token, s.Name)
-		n.left = nil
-		n.sym = s
-		n.typ = s.Type
+		n.stmts = append([]*Node{n.left}, n.stmts...)
+		n.left = ident(lex.WithVal(n.token, s.Name), s)
+		n.token = lex.NoToken
 	}
 }
 
@@ -122,24 +115,17 @@ func clRewriteFreeVars(n *Node, env *Symbol, freeVars []*Symbol) {
 	fn.Params = append([]*Type{env.Type}, fn.Params...)
 
 	WalkPostOrder(n, func(e *Node) {
-		if e.Is(opIdentifier, opFuncCall) {
+		if e.Is(opIdentifier) {
 			// TODO: O(n) here, we should be able to be O(1)
 			for _, freeVar := range freeVars {
 				if freeVar == e.sym {
 
 					// AST: <var> -> env.<var> or <fnCall> -> env.<fnCall>
-					left := ident(envToken, env)
-					var right *Node
 					sym := env.Type.AsStruct().GetField(e.sym.Name)
-					if e.op == opIdentifier {
-						right = ident(e.token, sym)
-					} else {
-						right = fnCallBySym(e.token, sym, e.stmts...)
-					}
+					e.left = ident(envToken, env)
+					e.right = ident(e.token, sym)
 					e.op = opDot
 					e.token = lex.WithVal(e.token, ".")
-					e.left = left
-					e.right = right
 					e.stmts = nil
 					e.sym = sym
 				}
@@ -172,10 +158,10 @@ func (fc *freeVarChecker) IdentityFreeVars(n *Node) bool {
 	case opensScope(n):
 		fc.scopes = append(fc.scopes, n.symtab)
 
-	case n.Is(opIdentifier, opFuncCall) && fc.isFree(n):
+	case n.Is(opIdentifier) && fc.isFree(n):
 		fc.free[n.sym] = true
 
-	case n.Is(opDot, opArray) && n.left.Is(opIdentifier, opFuncCall):
+	case n.Is(opDot, opArray) && n.left.Is(opIdentifier):
 		if fc.isFree(n.left) {
 			fc.free[n.left.sym] = true
 		}

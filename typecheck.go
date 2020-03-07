@@ -244,16 +244,16 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			// Rewrite to func call
 			n.op = opFuncCall
 			n.token = right.token
-			n.right = nil
 
 			// Check if call is field _of_ struct or normal dot selection rules apply
-			if left.typ.Is(Struct) && left.typ.AsStruct().HasField(right.token.Val) {
+			if left.typ.Is(Struct) && left.typ.AsStruct().HasField(right.left.token.Val) {
 				n.stmts = right.stmts
-				n.left = &Node{op: opDot, token: lex.WithVal(n.token, "."), left: left, right: &Node{op: opIdentifier, token: right.token}}
+				n.left = &Node{op: opDot, token: lex.WithVal(n.token, "."), left: left, right: right.left}
 			} else {
 				n.stmts = append([]*Node{n.left}, right.stmts...)
-				n.left = nil
+				n.left = right.left
 			}
+			n.right = nil
 
 			// Type check func call
 			errs = append(errs, typeCheck(n, symtab, fn, debug)...)
@@ -508,6 +508,20 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		return errs
 	}
 
+	// Typecheck function call source
+	switch n.left.op {
+	case opBlockFnDcl, opDot, opFuncCall, opArray:
+		errs = append(errs, typeCheck(n.left, symtab, fn, debug)...)
+	case opIdentifier:
+		err := typeCheckIdentifier(n.left, symtab, true)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if !n.left.hasType() {
+		return errs
+	}
+
 	// Type check type parameters
 	for _, param := range n.params {
 		errs = append(errs, typeCheck(param, symtab, fn, debug)...)
@@ -536,19 +550,19 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	}
 
 	// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
-	if n.token.Val == "printf" || n.token.Val == "debug" {
-		s, _ := fnSymtab.Resolve(n.token.Val)
+	if n.left.token.Val == "printf" || n.left.token.Val == "debug" {
+		s, _ := fnSymtab.Resolve(n.left.token.Val)
 		n.sym = s
 		n.typ = nothingType
 		return errs
 	}
 
 	// SPECIAL CASE: Allow anything into the unsafe function
-	if n.token.Val == "unsafe" {
-		s, _ := fnSymtab.Resolve(n.token.Val)
+	if n.left.token.Val == "unsafe" {
+		s, _ := fnSymtab.Resolve(n.left.token.Val)
 		unsafe := s.Type.AsFunction()
 		if len(n.stmts) != 3 {
-			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.stmts), len(unsafe.Params)))
+			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.left.token, len(n.stmts), len(unsafe.Params)))
 		}
 		n.sym = s
 		n.typ = n.stmts[len(n.stmts)-1].typ
@@ -564,11 +578,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	var boundTypes map[*Type]*Type
 
 	// TODO: Split into two functions. TypeCheckFnCallByType, TypeCheckFnCallBySymbol (*Node, *Type, map[*Type]*Type)
-	if n.left != nil {
-		errs = append(errs, typeCheck(n.left, symtab, fn, debug)...)
-		if !n.left.hasType() {
-			return errs
-		}
+	if n.left.sym == nil {
 		err, bound := matchFuncCallByType(n.left.typ, n)
 		if err != nil {
 			return append(errs, err)
@@ -577,10 +587,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		returnType = n.left.typ.AsFunction().ret
 		boundTypes = bound
 	} else {
-		s, ok := fnSymtab.Resolve(n.token.Val)
-		if !ok {
-			return append(errs, semanticError2(errResolveFunctionMsg, n.token, n.Describe()))
-		}
+		s := n.left.sym
 		match, bound, serrs := matchFuncCallBySymbol(s, n)
 		if match == nil {
 			if len(serrs) == 1 {
@@ -595,7 +602,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 			return append(errs, semanticError2(errOverloadResolutionMsg, n.token, n.Describe(),
 				candidates.String()))
 		}
-		n.sym = match
+		n.left.sym = match
 		returnType = match.Type.AsFunction().ret
 		boundTypes = bound
 	}

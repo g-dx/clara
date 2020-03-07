@@ -150,18 +150,18 @@ func (n *Node) Is(ops ...int) bool {
 }
 
 func (n *Node) isNonGlobalFnCall() bool {
-	return n.op == opFuncCall && (n.sym == nil || !n.sym.IsGlobal)
+	return n.op == opFuncCall && (n.left.sym == nil || !n.left.sym.IsGlobal)
 }
 
 func (n *Node) isGenericFnCall() bool {
 	if !n.Is(opFuncCall) {
 		return false
 	}
-	if n.left != nil {
-		return len(n.left.typ.AsFunction().Types) > 0
+	if n.left.sym != nil {
+		return len(n.left.sym.Type.AsFunction().Types) > 0
 	}
-	if n.sym != nil {
-		return len(n.sym.Type.AsFunction().Types) > 0
+	if n.left.typ != nil {
+		return len(n.left.typ.AsFunction().Types) > 0
 	}
 	panic("Function call not annotated with function type!")
 }
@@ -222,7 +222,7 @@ func ident(t *lex.Token, s *Symbol) *Node {
 }
 
 func fnCallBySym(val *lex.Token, s *Symbol, args ... *Node) *Node {
-	return &Node{op: opFuncCall, token: val, typ: s.Type.AsFunction().ret, sym: s, stmts: args}
+	return &Node{op: opFuncCall, token: lex.Val("()"), left: ident(val, s), typ: s.Type.AsFunction().ret, stmts: args }
 }
 
 func generateStruct(root *Node, name string, fields ... *Symbol) (*Symbol, *Symbol) {

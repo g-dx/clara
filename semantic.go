@@ -323,7 +323,7 @@ func applyBoxing(n *Node, symtab *SymTab) {
 				fnDcl.Add(h.returnExpr(h.unboxExpr(fnDcl.params[0])))
 
 				// Immediately invoke anonymous function
-				n.stmts = []*Node {h.fnCallBySym(n.sym, n.stmts...)}
+				n.stmts = []*Node {h.fnCallBySym(n.left.sym, n.stmts...)}
 				n.token = lex.NoToken
 				n.left = fnDcl
 				n.sym = nil
@@ -357,9 +357,9 @@ func (h *astHelper) interceptFnCallBySym(s *Symbol, n * Node) {
 	if !s.Type.Is(Function) {
 		panic(fmt.Sprintf("Intercept symbol is not a fn!"))
 	}
-	n.stmts = []*Node {h.fnCallBySym(n.sym, n.stmts...)}
+	n.stmts = []*Node {h.fnCallBySym(n.left.sym, n.stmts...)}
 	n.token = lex.WithVal(lex.NoToken, s.Name)
-	n.sym = s
+	n.left.sym = s
 	n.typ = s.Type.AsFunction().ret
 	n.params = nil
 }
