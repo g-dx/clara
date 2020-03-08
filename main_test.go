@@ -87,6 +87,11 @@ func TestE2E(t *testing.T) {
 }
 
 func CompileAndRun(progPath string, t *testing.T, allowExecErr bool) string {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("\nCompiler Crash: %s\n", progPath)
+		}
+	}()
 
 	// Compile program
 	binary, errs := Compile(
