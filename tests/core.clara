@@ -1,6 +1,6 @@
 fn main() {
 
-    (~1).toBinary().println() // TODO: Fix parser!
+    (~1).toBinary().println()
     0.toBinary().println()
     1.toBinary().println()
     128.toBinary().println()
@@ -12,7 +12,6 @@ fn main() {
     // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·10000000
     // EXPECT: 00000000·00000000·00000000·00000000·00000000·00000000·00000000·11111111
 
-    // TODO: Fix parser!
     toString(1 << 63).println()    // EXPECT: -9223372036854775808
     toString(-1).println()         // EXPECT: -1
     toString(0).println()          // EXPECT: 0

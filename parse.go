@@ -56,7 +56,7 @@ func (p *Parser) Parse(tokens []*lex.Token, root *Node) (errs []error) {
 		attr := p.parseAttributes()
 		switch p.Kind() {
 		case lex.Fn:
-			root.Add(p.parseFn(attr, false))
+			root.Add(p.parseFn(attr, p.need(lex.Fn), false))
 
 		case lex.Struct:
 			root.Add(p.parseStruct(attr))
@@ -117,8 +117,7 @@ func (p *Parser) parseStruct(attrs attributes) *Node {
 	return &Node{attrs: attrs, op: opStructDcl, token: id, stmts: fields}
 }
 
-func (p *Parser) parseFn(attrs attributes, isAnon bool) *Node {
-	id := p.need(lex.Fn)
+func (p *Parser) parseFn(attrs attributes, id *lex.Token, isAnon bool) *Node {
 	if !isAnon {
 		id = p.need(lex.Identifier)
 	}
@@ -146,20 +145,6 @@ func (p *Parser) parseFn(attrs attributes, isAnon bool) *Node {
 		} else {
 			p.syntaxError(lex.KindValues[lex.LBrace] + " or " + lex.KindValues[lex.As])
 			p.next()
-		}
-	}
-
-	// Anonymous/closure block functions can be immediately invoked
-	if isAnon && n.op == opBlockFnDcl {
-		for p.is(lex.LParen, lex.LBrack) {
-			switch p.Kind() {
-			case lex.LParen:
-				args, tok := p.parseArgs()
-				n = &Node {op: opFuncCall, token: tok, left: n, stmts: args}
-			case lex.LBrack:
-				idx, tok := p.parseIndex()
-				n = &Node {op: opArray, token: tok, left: n, right: idx}
-			}
 		}
 	}
 	return n
@@ -259,135 +244,161 @@ func (p *Parser) parseDeclarationAssignment(n *Node) *Node {
 	return &Node{op: opDas, token: p.need(lex.Das), left: n, right: p.parseExpr(0)}
 }
 
-//
-// NOTE: The following two functions implement the "Precedence Climbing" algorithm as described here:
-// https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm#climbing
-//
-func (p *Parser) parseExpr(prec int) (*Node) {
+// ---------------------------------------------------------------------------------------
+// Pratt Parsers
 
-	t := p.parseOperand()
-	for next := p.Kind(); next.IsBinaryOperator() && next.Precedence() >= prec; next = p.Kind() {
-		op, tok := p.parseOperator(false)
-		q := next.Precedence()
-		if next.Associativity() == lex.Left {
-			q += 1
-		}
-		t1 := p.parseExpr(q)
-		t = &Node{ op: op, token: tok, left: t, right: t1 }
+func parseBinaryOperator(p *Parser, left *Node, token *lex.Token) *Node {
+	precedence := token.Kind.Precedence()
+	if token.Kind.Associativity() == lex.Right {
+		precedence -= 1 //
 	}
-	return t
+	return &Node{op: infixKindToOp[token.Kind], token: token, left: left, right: p.parseExpr(precedence)}
 }
 
-func (p *Parser) parseOperand() *Node {
-
-	kind := p.Kind()
-	switch {
-	case kind.IsUnaryOperator():
-		op, tok := p.parseOperator(true)
-		return &Node{op: op, token: tok, left: p.parseExpr(tok.Kind.Precedence())} // NOTE: must use kind defined in token as may be different from next
-
-	case kind == lex.LParen:
-		p.need(lex.LParen)
-		expr := p.parseExpr(0)
-		p.need(lex.RParen)
-		return expr
-
-	case kind == lex.Integer || kind == lex.String || kind == lex.True || kind == lex.False:
-		return &Node{op: opLit, token: p.next()}
-
-	case kind == lex.Identifier:
-		x := p.parseIdentifier()
-		for p.is(lex.LGmet, lex.LParen, lex.LBrack) {
-			switch p.Kind() {
-			case lex.LParen:
-				args, tok := p.parseArgs()
-				x = &Node {op: opFuncCall, token: tok, left: x, stmts: args}
-			case lex.LBrack:
-				idx, tok := p.parseIndex()
-				x = &Node {op: opArray, token: tok, left: x, right: idx}
-			case lex.LGmet:
-				types, _ := p.parseTypeList()
-				args, tok := p.parseArgs()
-				x = &Node {op: opFuncCall, token: tok, left: x, stmts: args, params: types}
-			}
-		}
-		return x
-
-	case kind == lex.LBrack:
-		return p.parseType() // TODO: Allow 'opFuncType' to be an operand too
-
-	case kind == lex.Fn:
-		return p.parseFn(attributes(0), true)
-
-	default:
-		p.syntaxError("<expression>")
-		return &Node{op: opError, token: p.next()}
-	}
+func parseArray(p *Parser, left *Node, token *lex.Token) *Node {
+	idx := p.parseExpr(0)
+	p.need(lex.RBrack)
+	return &Node {op: opArray, token: token, left: left, right: idx}
 }
 
-func (p *Parser) parseOperator(isUnary bool) (int, *lex.Token) {
-	switch p.Kind() {
-	case lex.Not:
-		return opNot, p.next()
-	case lex.BNot:
-		return opBNot, p.next()
-	case lex.Dot:
-		return opDot, p.next()
-	case lex.Plus:
-		return opAdd, p.next()
-	case lex.Mul:
-		return opMul, p.next()
-	case lex.Div:
-		return opDiv, p.next()
-	case lex.Eq:
-		return opEq, p.next()
-	case lex.Min:
-		// Rewrite token to differentiate binary subtract from unary minus
-		if isUnary {
-			t := p.next()
-			t.Kind = lex.Neg
-			return opNeg, t
-		}
-		return opSub, p.next()
-	case lex.And:
-		return opAnd, p.next()
-	case lex.Or:
-		return opOr, p.next()
-	case lex.Gt:
-		return opGt, p.next()
-	case lex.Lt:
-		return opLt, p.next()
-	case lex.BAnd:
-		return opBAnd, p.next()
-	case lex.BOr:
-		return opBOr, p.next()
-	case lex.BXor:
-		return opBXor, p.next()
-	case lex.BLeft:
-		return opBLeft, p.next()
-	case lex.BRight:
-		return opBRight, p.next()
-	default:
-		p.syntaxError("<operator>")
-		return opError, p.next()
-	}
+func parseFunction(p *Parser, token *lex.Token) *Node {
+	return p.parseFn(attributes(0), token,true)
 }
 
-func (p *Parser) parseIdentifier() *Node {
-	return &Node{op: opIdentifier, token: p.need(lex.Identifier)}
-}
-
-func (p *Parser) parseArgs() (args []*Node, start *lex.Token) {
-	start = p.need(lex.LParen)
+func parseCall(p *Parser, left *Node, token *lex.Token) *Node {
+	var args []*Node
 	if p.isNot(lex.RParen) {
-		args = append(args, p.parseExpr(0))
-		for p.match(lex.Comma) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
 			args = append(args, p.parseExpr(0))
 		}
 	}
 	p.need(lex.RParen)
-	return args, start
+	return &Node {op: opFuncCall, token: token, left: left, stmts: args}
 }
+
+func parseTypedCall(p *Parser, left *Node, token *lex.Token) *Node {
+	var types []*Node
+	if p.isNot(lex.RGmet) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
+			types = append(types, p.parseType())
+		}
+	}
+	p.need(lex.RGmet)
+	p.need(lex.LParen)
+	n := parseCall(p, left, token)
+	n.params = types
+	return n
+}
+
+func parseIdentifier(_ *Parser, token *lex.Token) *Node {
+	return &Node{op: opIdentifier, token: token}
+}
+
+func parseLiteral(_ *Parser, token *lex.Token) *Node {
+	return &Node{op: opLit, token: token}
+}
+
+func parseGroup(p *Parser, _ *lex.Token) *Node {
+	expr := p.parseExpr(0)
+	p.need(lex.RParen)
+	return expr
+}
+
+func parsePrefixOperator(p *Parser, token *lex.Token) *Node {
+	return &Node{op: prefixKindToOp[token.Kind], token: token, left: p.parseExpr(token.Kind.Precedence())}
+}
+
+func parseArrayType(p *Parser, token *lex.Token) *Node {
+	p.need(lex.RBrack)
+	return &Node{op: opArrayType, token: token, left: p.parseType()}
+}
+
+var prefixKindToOp = map[lex.Kind]int{
+	lex.Not:  opNot,
+	lex.BNot: opBNot,
+	lex.Min:  opNeg,
+	// Neg is created by parser!
+}
+var infixKindToOp = map[lex.Kind]int{
+	lex.Plus: opAdd,
+	lex.Min: opSub,
+	lex.Mul: opMul,
+	lex.Div: opDiv,
+	lex.BLeft: opBLeft,
+	lex.BRight: opBRight,
+	lex.BAnd: opBAnd,
+	lex.BOr: opBOr,
+	lex.BXor: opBXor,
+	lex.Gt: opGt,
+	lex.Lt: opLt,
+	lex.Eq: opEq,
+	lex.Dot: opDot,
+	lex.Or: opOr,
+	lex.And: opAnd,
+}
+
+var infixParsers = make(map[lex.Kind]func(*Parser, *Node, *lex.Token) *Node)
+var prefixParsers = make(map[lex.Kind]func(*Parser, *lex.Token) *Node)
+
+func init() {
+	// Special handling
+	prefixParsers[lex.Identifier] = parseIdentifier
+	prefixParsers[lex.LParen] = parseGroup
+	prefixParsers[lex.Integer] = parseLiteral
+	prefixParsers[lex.String] = parseLiteral
+	prefixParsers[lex.True] = parseLiteral
+	prefixParsers[lex.False] = parseLiteral
+	prefixParsers[lex.Fn] = parseFunction
+	prefixParsers[lex.LBrack] = parseArrayType
+
+	infixParsers[lex.LParen] = parseCall
+	infixParsers[lex.LGmet] = parseTypedCall
+	infixParsers[lex.LBrack] = parseArray
+
+	binaryOperators(lex.Dot, lex.Plus, lex.Min, lex.Mul, lex.Div,
+		lex.BLeft, lex.BRight, lex.BRight, lex.BAnd, lex.BOr,
+		lex.BXor, lex.Gt, lex.Lt, lex.Eq, lex.Or, lex.And)
+	prefixOperators(lex.Not, lex.BNot, lex.Min)
+}
+
+func binaryOperators(kinds ... lex.Kind) {
+	for _, k := range kinds {
+		infixParsers[k] = parseBinaryOperator
+	}
+}
+
+func prefixOperators(kinds ... lex.Kind) {
+	for _, k := range kinds {
+		prefixParsers[k] = parsePrefixOperator
+	}
+}
+
+func (p *Parser) parseExpr(precedence int) *Node {
+	token := p.next()
+	prefix := prefixParsers[token.Kind];
+
+	// Skip token & continue
+	if prefix == nil {
+		p.syntaxError("<expression>")
+		return &Node{op: opError, token: p.next()}
+	}
+
+	nextPrecedence := func(next lex.Kind) int {
+		if _, ok := infixParsers[next]; !ok {
+			return 0
+		}
+		return next.Precedence()
+	}
+
+	left := prefix(p, token)
+	for precedence < nextPrecedence(p.Kind()) {
+		token := p.next()
+		left = infixParsers[token.Kind](p, left, token)
+	}
+	return left;
+}
+
+// ---------------------------------------------------------------------------------
 
 func (p *Parser) parseTypeList() (types []*Node, start *lex.Token) {
 	start = p.need(lex.LGmet)
@@ -399,13 +410,6 @@ func (p *Parser) parseTypeList() (types []*Node, start *lex.Token) {
 	}
 	p.need(lex.RGmet)
 	return types, start
-}
-
-func (p *Parser) parseIndex() (*Node, *lex.Token) {
-	start := p.need(lex.LBrack)
-	idx := p.parseExpr(0)
-	p.need(lex.RBrack)
-	return idx, start
 }
 
 func (p *Parser) parseIdentifiers() []*Node {

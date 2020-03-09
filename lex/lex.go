@@ -90,24 +90,6 @@ const (
 	Case
 )
 
-func (k Kind) IsBinaryOperator() bool {
-	switch k {
-	case Plus, Gt, Lt, And, Or, Mul, Div, Min, Eq, Dot, BAnd, BOr, BXor, BLeft, BRight:
-		return true
-	default:
-		return false
-	}
-}
-
-func (k Kind) IsUnaryOperator() bool {
-	switch k {
-	case Not, Min, Neg, BNot:
-		return true
-	default:
-		return false
-	}
-}
-
 func (k Kind) IsExprStart() bool {
 	switch k {
 	case Integer, String, Identifier, True, False, Not, LParen, Fn, Min:
@@ -121,7 +103,9 @@ func (k Kind) Precedence() int {
 
 	// TODO: other operators should get added here
 	switch k {
-	case Dot:
+	case LParen, LGmet:
+		return 13
+	case Dot, LBrack:
 		return 12
 	case Not, Neg, BNot:
 		return 11
