@@ -82,8 +82,7 @@ func (p *Parser) parseAttributes() (attr attributes) {
 	p.need(lex.Hash)
 	p.need(lex.LBrack)
 	if p.isNot(lex.LBrack) {
-		attr = attr.Add(p.need(lex.Identifier).Val)
-		for p.match(lex.Comma) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
 			attr = attr.Add(p.need(lex.Identifier).Val)
 		}
 	}
@@ -403,8 +402,7 @@ func (p *Parser) parseExpr(precedence int) *Node {
 func (p *Parser) parseTypeList() (types []*Node, start *lex.Token) {
 	start = p.need(lex.LGmet)
 	if p.isNot(lex.RGmet) {
-		types = append(types, p.parseType())
-		for p.match(lex.Comma) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
 			types = append(types, p.parseType())
 		}
 	}
@@ -425,8 +423,7 @@ func (p *Parser) parseParameters() []*Node {
 func (p *Parser) parseParenList(n func() *Node) (x []*Node) {
 	p.need(lex.LParen)
 	if p.isNot(lex.RParen) {
-		x = append(x, n())
-		for p.match(lex.Comma) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
 			x = append(x, n())
 		}
 	}
@@ -447,8 +444,7 @@ func (p *Parser) parseType() *Node {
 		var types []*Node
 		p.need(lex.LParen)
 		if p.isNot(lex.RParen) {
-			types = append(types, p.parseType())
-			for p.match(lex.Comma) {
+			for ok := true; ok; ok = p.match(lex.Comma) {
 				types = append(types, p.parseType())
 			}
 		}
