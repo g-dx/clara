@@ -745,6 +745,22 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			asm.ins(movq, intOp(v.Addr), rax)
 		}
 
+	case opTernary:
+
+		asm.ins(popq, rax)
+		fn.decSp(1)
+
+		elseLabel := asm.newLabel("else")
+		exitLabel := asm.newLabel("exit")
+
+		asm.ins(cmpq, _true, rax)
+		asm.ins(jne, labelOp(elseLabel))
+		genExpr(asm, expr.stmts[0], false, fn)
+		asm.ins(jmp, labelOp(exitLabel))
+		asm.label(elseLabel)
+		genExpr(asm, expr.stmts[1], false, fn)
+		asm.label(exitLabel)
+
 	case opFuncCall:
 
 		// Discard the address of the function to invoke

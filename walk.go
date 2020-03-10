@@ -54,7 +54,7 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 			Walk(isPreOrder, stmt, f)
 		}
 
-	case opWhile, opMatch:
+	case opWhile, opMatch, opTernary:
 		Walk(isPreOrder, n.left, f)
 		for _, stmt := range n.stmts {
 			Walk(isPreOrder, stmt, f)

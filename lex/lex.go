@@ -13,16 +13,17 @@ type Kind int32
 const (
 	Err = -1
 
-	RBrace = '}'
-	LBrace = '{'
-	RParen = ')'
-	LParen = '('
-	RBrack = ']'
-	LBrack = '['
-	Comma  = ','
-	Colon  = ':'
-	Dot    = '.'
-	Hash   = '#'
+	RBrace   = '}'
+	LBrace   = '{'
+	RParen   = ')'
+	LParen   = '('
+	RBrack   = ']'
+	LBrack   = '['
+	Comma    = ','
+	Colon    = ':'
+	Dot      = '.'
+	Hash     = '#'
+	Question = '?'
 
 	Comment = 256 + iota // Start outside ascii range
 	Identifier
@@ -127,7 +128,7 @@ func (k Kind) Precedence() int {
 		return 3
 	case And:
 		return 2
-	case Or:
+	case Or, Question:
 		return 1
 	default:
 		return 0 // Any other token
@@ -317,6 +318,8 @@ func lexText(l *Lexer) stateFn {
 			l.emit(RGmet)
 		case r == '#':
 			l.emit(Hash)
+		case r == '?':
+			l.emit(Question)
 		case r == ',':
 			l.emit(Comma)
 		case r == ':':

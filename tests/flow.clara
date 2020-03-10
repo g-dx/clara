@@ -17,6 +17,9 @@ fn main() {
 
     // Regression test for exit ASM
     exitAsmSequence()
+
+    println(true ? 1 : 2) // EXPECT: 1
+    println(false ? 1 : 2) // EXPECT: 2
 }
 
 fn exitAsmSequence() {

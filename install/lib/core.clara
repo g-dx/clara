@@ -65,13 +65,7 @@ fn println(b: bool) = println(b.toString())
 fn printHex(i: int) = printf("0x%llx\n", i)
 fn printHexPadded(i: int) = printf("0x%016llx\n", i)
 
-fn toString(b: bool) string {
-    if b {
-        return "true"
-    } else {
-        return "false"
-    }
-}
+fn toString(b: bool) string = b ? "true" : "false"
 fn toString(val: int) string {
     if val == 0 {
         return "0"
@@ -85,12 +79,7 @@ fn toString(val: int) string {
     x := buf.length - 1
     while not (n == 0) {
         quotient := n / base
-        // TODO: This isn't great. A plus unary operator would be nice here which would issue
-        if val < 0 {
-            buf[x] = digits[(base * quotient) - n]
-        } else {
-            buf[x] = digits[n - (base * quotient)]
-        }
+        buf[x] = digits[val < 0 ? (base * quotient) - n : n - (base * quotient)]
         n = quotient
         x = x - 1
     }

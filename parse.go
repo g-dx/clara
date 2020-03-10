@@ -254,6 +254,12 @@ func parseBinaryOperator(p *Parser, left *Node, token *lex.Token) *Node {
 	return &Node{op: infixKindToOp[token.Kind], token: token, left: left, right: p.parseExpr(precedence)}
 }
 
+func parseTernaryOperator(p *Parser, left *Node, token *lex.Token) *Node {
+	ifExpr := p.parseExpr(0)
+	p.need(lex.Colon)
+	return &Node {op: opTernary, token: token, left: left, stmts: []*Node{ ifExpr, p.parseExpr(token.Kind.Precedence() - 1) }}
+}
+
 func parseArray(p *Parser, left *Node, token *lex.Token) *Node {
 	idx := p.parseExpr(0)
 	p.need(lex.RBrack)
@@ -353,6 +359,7 @@ func init() {
 	infixParsers[lex.LParen] = parseCall
 	infixParsers[lex.LGmet] = parseTypedCall
 	infixParsers[lex.LBrack] = parseArray
+	infixParsers[lex.Question] = parseTernaryOperator
 
 	binaryOperators(lex.Dot, lex.Plus, lex.Min, lex.Mul, lex.Div,
 		lex.BLeft, lex.BRight, lex.BRight, lex.BAnd, lex.BOr,

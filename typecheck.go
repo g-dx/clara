@@ -35,6 +35,9 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
 		}
 
+	case opTernary:
+		errs = append(errs, typeCheckTernary(n, symtab, fn, debug)...)
+
 	case opIf, opElseIf:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
@@ -499,6 +502,29 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 end:
 	return errs
+}
+
+func typeCheckTernary(n *Node, symtab *SymTab, fn *FunctionType, debug bool) []error {
+	cond := n.left
+	if errs := typeCheck(cond, symtab, fn, debug); !cond.hasType() {
+		return errs
+	}
+	if !cond.typ.Is(Boolean) {
+		return []error{ semanticError2(errMismatchedTypesMsg, cond.token, cond.typ, boolType) }
+	}
+	ifExpr := n.stmts[0]
+	if errs := typeCheck(ifExpr, symtab, fn, debug); !ifExpr.hasType() {
+		return errs
+	}
+	elseExpr := n.stmts[1]
+	if errs := typeCheck(elseExpr, symtab, fn, debug); !elseExpr.hasType() {
+		return errs
+	}
+	if !ifExpr.typ.Matches(elseExpr.typ) {
+		return []error{ semanticError2(errMismatchedTypesMsg, elseExpr.token, elseExpr.typ, ifExpr.typ) }
+	}
+	n.typ = ifExpr.typ
+	return nil
 }
 
 func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
