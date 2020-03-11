@@ -543,6 +543,8 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		if err != nil {
 			errs = append(errs, err)
 		}
+	default:
+		errs = append(errs, semanticError(errResolveFunctionMsg, n.left.token))
 	}
 	if !n.left.hasType() {
 		return errs
