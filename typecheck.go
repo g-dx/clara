@@ -146,7 +146,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 		if !left.typ.Is(Integer) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, boolType))
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, intType))
 			goto end
 		}
 		n.typ = intType
