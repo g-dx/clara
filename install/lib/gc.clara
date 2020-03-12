@@ -126,16 +126,14 @@ enum typeInfo {
 }
 
 fn getName(t: typeInfo) string {
-    tName := "unknown"
     match t {
         case StructType(name, roots):
-            tName = name
+            return name
         case ArrayType(name, elemIsPointer):
-            tName = name
+            return name
         case StringType():
-            tName = "string"
+            return "string"
     }
-    return tName
 }
 
 fn setMark(b: block) {
