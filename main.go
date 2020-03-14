@@ -120,6 +120,7 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	WalkPostOrder(rootNode, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
 	WalkPostOrder(rootNode, func(n *Node) { declareCaseVars(rootSymtab, n) })
 	WalkPostOrder(rootNode, func(n *Node) { lowerMatchStatement(rootSymtab, n) })
+	WalkPostOrder(rootNode, lowerForStatement)
 	if len(errs) > 0 {
 		return "", errs
 	}

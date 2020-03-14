@@ -583,6 +583,32 @@ func declareCaseVars(symtab *SymTab, n *Node) {
 	}
 }
 
+func lowerForStatement(n *Node) {
+	//    for x in b {}                  // Iterator
+	//    for x in b where x > 2 {}      // Iterator with predicate
+	//    for x in 0..64 {}              // Built-in "range" iterator
+	//    for x in 0..b.length {}        // Built-in "range" iterator
+	if n.op == opFor {
+		variable := n.left
+		array := n.right
+		body := n.stmts
+
+		n.op = opBlock
+		n.token = lex.WithVal(n.token, "-")
+		idx := newVar("$idx$", intType)
+		while := while(lt(idx.copy(), length(array)))
+		while.stmts = append(while.stmts, as(variable, access(array, idx.copy())))
+		while.stmts = append(while.stmts, body...)
+		while.stmts = append(while.stmts, inc(idx.copy(), 1))
+
+		n.stmts = []*Node{ das(idx, intLit(0)), while }
+		n.left = nil
+		n.right = nil
+		n.typ = nil
+		n.sym = nil
+	}
+}
+
 func lowerMatchStatement(symtab *SymTab, n *Node) {
 	if n.op == opMatch {
 

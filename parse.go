@@ -167,6 +167,9 @@ func (p *Parser) parseStatement() *Node {
 	case kind == lex.While:
 		return p.parseWhile()
 
+	case kind == lex.For:
+		return p.parseFor()
+
 	case kind == lex.If:
 		return p.parseIf()
 
@@ -200,6 +203,14 @@ func (p *Parser) parseReturn() *Node {
 
 func (p *Parser) parseWhile() *Node {
 	return &Node{op: opWhile, token: p.need(lex.While), left: p.parseExpr(0), stmts: p.parseBlock()}
+}
+
+func (p *Parser) parseFor() *Node {
+	token := p.need(lex.For)
+	value := p.parseIdentifier()
+	p.need(lex.In)
+	collection := p.parseIdentifier()
+	return &Node{op: opFor, token: token, left: value, right: collection, stmts: p.parseBlock()}
 }
 
 func (p *Parser) parseIf() *Node {
@@ -241,6 +252,10 @@ func (p *Parser) parseAssignment(n *Node) *Node {
 
 func (p *Parser) parseDeclarationAssignment(n *Node) *Node {
 	return &Node{op: opDas, token: p.need(lex.Das), left: n, right: p.parseExpr(0)}
+}
+
+func (p *Parser) parseIdentifier() *Node {
+	return &Node{op: opIdentifier, token: p.need(lex.Identifier)}
 }
 
 // ---------------------------------------------------------------------------------------

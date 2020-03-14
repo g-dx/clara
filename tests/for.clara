@@ -1,0 +1,28 @@
+fn main() {
+  s := stringArray(3, "<default>")
+  s[0] = "first"
+  s[1] = "second"
+  s[2] = "third"
+  for v in s {
+    v.println()
+  }
+  // EXPECT: first
+  // EXPECT: second
+  // EXPECT: third
+
+  i := intArray(3)
+  i[0] = 6
+  i[1] = 4
+  i[2] = 2
+  v := true
+  for v in i {
+    v.println()
+  }
+  v.println()
+  // EXPECT: 6
+  // EXPECT: 4
+  // EXPECT: 2
+  // EXPECT: true
+  b := byteArray(0)
+  for v in b { }
+}

@@ -438,6 +438,10 @@ type Symbol struct {
 	Next 	  *Symbol // Only valid for function symbols!
 }
 
+func NewStackSym(name string, t *Type) *Symbol {
+	return &Symbol{Name: name, IsStack: true, Type: t}
+}
+
 func (s *Symbol) Describe() string {
 	switch s.Type.Kind {
 	case Function:

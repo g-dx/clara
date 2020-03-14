@@ -77,6 +77,13 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 			Walk(isPreOrder, n.right, f)
 		}
 
+	case opFor:
+		Walk(isPreOrder, n.right, f)
+		Walk(isPreOrder, n.left, f)
+		for _, stmt := range n.stmts {
+			Walk(isPreOrder, stmt, f)
+		}
+
 	case opLit, opError, opNamedType:
 		// ...
 

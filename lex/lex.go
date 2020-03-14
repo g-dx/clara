@@ -86,6 +86,8 @@ const (
 	Or
 	Struct
 	While
+	For
+	In
 	Enum
 	Match
 	Case
@@ -168,6 +170,8 @@ var key = map[string]Kind{
 	"or":     Or,
 	"struct": Struct,
 	"while":  While,
+	"for":    For,
+	"in":     In,
 	"enum":   Enum,
 	"match":  Match,
 	"case":   Case,
@@ -219,6 +223,8 @@ var KindValues = map[Kind]string{
 	EOF:        "<EOF>",
 	Struct:     "struct",
 	While:      "while",
+	For:        "for",
+	In:         "in",
 	Enum:       "enum",
 	Match:      "match",
 	Case:       "case",

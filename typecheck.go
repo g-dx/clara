@@ -35,6 +35,9 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
 		}
 
+	case opFor:
+		errs = append(errs, typeCheckFor(n, symtab, fn, debug)...)
+
 	case opTernary:
 		errs = append(errs, typeCheckTernary(n, symtab, fn, debug)...)
 
@@ -525,6 +528,31 @@ func typeCheckTernary(n *Node, symtab *SymTab, fn *FunctionType, debug bool) []e
 	}
 	n.typ = ifExpr.typ
 	return nil
+}
+
+func typeCheckFor(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+	n.symtab = symtab.Child()
+	err := typeCheckIdentifier(n.right, symtab, false)
+	if err != nil {
+		return append(errs, err)
+	}
+	if !n.right.typ.Is(Array) {
+		return append(errs, semanticError2(errMismatchedTypesMsg, n.right.token, n.right.typ, "<array>"))
+	}
+
+	// Create & assign new symbol
+	sym, ok := n.symtab.Define(NewStackSym(n.left.token.Val, n.right.typ.AsArray().Elem))
+	if ok {
+		panic("Symbol already defined in empty scope?")
+	}
+	n.left.sym = sym
+	n.left.typ = sym.Type
+
+	// Typecheck body
+	for _, stmt := range n.stmts {
+		errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
+	}
+	return errs
 }
 
 func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
