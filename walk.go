@@ -96,7 +96,8 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 		Walk(isPreOrder, n.left, f)
 
 	case opAs, opDas, opAdd, opSub, opMul, opDiv, opAnd, opOr, opBAnd,
-		opBOr, opBXor, opEq, opGt, opLt, opBLeft, opBRight, opDot, opArray:
+		opBOr, opBXor, opEq, opGt, opGte, opLt, opLte, opBLeft, opBRight,
+		opDot, opArray:
 		Walk(isPreOrder, n.left, f)
 		Walk(isPreOrder, n.right, f)
 

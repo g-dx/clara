@@ -194,7 +194,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 	case opFuncCall:
 		errs = append(errs, typeCheckFuncCall(n, symtab, symtab, fn, debug)...)
 
-	case opGt, opLt, opEq:
+	case opGt, opGte, opLt, opLte, opEq:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 

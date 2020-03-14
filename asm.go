@@ -256,7 +256,9 @@ const (
 	andq
 	cmpq
 	setg
+	setge
 	setl
+	setle
 	sete
 	shlq
 	sarq
@@ -298,7 +300,9 @@ var instNames = map[inst]string{
 	andq:   "andq",
 	cmpq:   "cmpq",
 	setg:   "setg",
+	setge:  "setge",
 	setl:   "setl",
+	setle:  "setle",
 	sete:   "sete",
 	addq:   "addq",
 	subq:   "subq",

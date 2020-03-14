@@ -59,7 +59,9 @@ const (
 	// -----------------------------------------------------------------------------------------------------------------
 	// Comparison Operators
 	Gt
+	Gte
 	Lt
+	Lte
 	Eq
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -118,7 +120,7 @@ func (k Kind) Precedence() int {
 		return 9
 	case BLeft, BRight:
 		return 8
-	case Gt, Lt:
+	case Gt, Gte, Lt, Lte:
 		return 7
 	case Eq:
 		return 6
@@ -195,7 +197,9 @@ var KindValues = map[Kind]string{
 	ElseIf:     "elseif",
 	Else:       "else",
 	Gt:         ">",
+	Gte:        ">=",
 	Lt:         "<",
+	Lte:        "<=",
 	BAnd:       "&",
 	BOr:        "|",
 	BXor:       "^",
@@ -350,17 +354,25 @@ func lexText(l *Lexer) stateFn {
 		case r == '&':
 			l.emit(BAnd)
 		case r == '>':
-			if l.peek() == '>' {
+			switch l.peek() {
+			case '>':
 				l.next()
 				l.emit(BRight)
-			} else {
+			case '=':
+				l.next()
+				l.emit(Gte)
+			default:
 				l.emit(Gt)
 			}
 		case r == '<':
-			if l.peek() == '<' {
+			switch l.peek() {
+			case '<':
 				l.next()
 				l.emit(BLeft)
-			} else {
+			case '=':
+				l.next()
+				l.emit(Lte)
+			default:
 				l.emit(Lt)
 			}
 		case r == '.':

@@ -350,7 +350,9 @@ var infixKindToOp = map[lex.Kind]int{
 	lex.BOr: opBOr,
 	lex.BXor: opBXor,
 	lex.Gt: opGt,
+	lex.Gte: opGte,
 	lex.Lt: opLt,
+	lex.Lte: opLte,
 	lex.Eq: opEq,
 	lex.Dot: opDot,
 	lex.Or: opOr,
@@ -378,7 +380,8 @@ func init() {
 
 	binaryOperators(lex.Dot, lex.Plus, lex.Min, lex.Mul, lex.Div,
 		lex.BLeft, lex.BRight, lex.BRight, lex.BAnd, lex.BOr,
-		lex.BXor, lex.Gt, lex.Lt, lex.Eq, lex.Or, lex.And)
+		lex.BXor, lex.Gt, lex.Gte, lex.Lt, lex.Lte, lex.Eq,
+		lex.Or, lex.And)
 	prefixOperators(lex.Not, lex.BNot, lex.Min)
 }
 

@@ -17,7 +17,7 @@ fn toBinary(i: int) string {
     j := 63
     digits := "01"
     sep := "·"
-    while j > -1 { // TODO: Support >= operator
+    while j >= 0 {
         n := 0
         mask := 1 << j
         if (i & mask) == mask {

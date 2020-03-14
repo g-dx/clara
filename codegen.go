@@ -705,7 +705,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		fn.decSp(1)
 		asm.ins(negq, rax)
 
-	case opGt, opLt, opEq:
+	case opGt, opGte, opLt, opLte, opEq:
 
 		asm.ins(movq, rax, rbx)
 		asm.ins(popq, rax)
@@ -830,7 +830,9 @@ func init() {
 	ins[opBXor] = xorq
 	ins[opEq] = sete
 	ins[opGt] = setg
+	ins[opGte] = setge
 	ins[opLt] = setl
+	ins[opLte] = setle
 	ins[opBLeft] = shlq
 	ins[opBRight] = sarq
 }

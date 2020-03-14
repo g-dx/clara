@@ -372,7 +372,9 @@ const (
 	opElseIf
 	opElse
 	opGt
+	opGte
 	opLt
+	opLte
 	opOr
 	opError
 	opRoot
@@ -413,7 +415,9 @@ var nodeTypes = map[int]string{
 	opElseIf:      "ElseIf Stmt",
 	opElse:        "Else Stmt",
 	opGt:          "Comparison Op [>]",
+	opGte:         "Comparison Op [>=]",
 	opLt:          "Comparison Op [<]",
+	opLte:         "Comparison Op [<=]",
 	opNot:         "Bool Negation [not]",
 	opNeg:         "Numeric Negation [not]",
 	opDot:         "Dot Select",
