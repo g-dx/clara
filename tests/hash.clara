@@ -2,24 +2,24 @@ fn main() {
 
     // Tests from: http://www.isthe.com/chongo/src/fnv/test_fnv.c
 
-    in  := stringArray(12, "")
-    out := intArray(12)
-    in[0]  = ""         out[0] = 0x811c9dc5
-    in[1]  = "a"        out[1] = 0xe40c292c
-    in[2]  = "b"        out[2] = 0xe70c2de5
-    in[3]  = "c"        out[3] = 0xe60c2c52
-    in[4]  = "d"        out[4] = 0xe10c2473
-    in[5]  = "e"        out[5] = 0xe00c22e0
-    in[6]  = "f"        out[6] = 0xe30c2799
-    in[7]  = "fo"       out[7] = 0x6222e842
-    in[8]  = "foo"      out[8] = 0xa9f37ed7
-    in[9]  = "foob"     out[9] = 0x3f5076ef
-    in[10] = "fooba"   out[10] = 0x39aaa18a
-    in[11] = "foobar"  out[11] = 0xbf9cf968
+    vIn  := stringArray(12, "")
+    vOut := intArray(12)
+    vIn[0]  = ""         vOut[0] = 0x811c9dc5
+    vIn[1]  = "a"        vOut[1] = 0xe40c292c
+    vIn[2]  = "b"        vOut[2] = 0xe70c2de5
+    vIn[3]  = "c"        vOut[3] = 0xe60c2c52
+    vIn[4]  = "d"        vOut[4] = 0xe10c2473
+    vIn[5]  = "e"        vOut[5] = 0xe00c22e0
+    vIn[6]  = "f"        vOut[6] = 0xe30c2799
+    vIn[7]  = "fo"       vOut[7] = 0x6222e842
+    vIn[8]  = "foo"      vOut[8] = 0xa9f37ed7
+    vIn[9]  = "foob"     vOut[9] = 0x3f5076ef
+    vIn[10] = "fooba"   vOut[10] = 0x39aaa18a
+    vIn[11] = "foobar"  vOut[11] = 0xbf9cf968
 
     i := 0
-    while i < in.length {
-        eval(in[i], out[i])
+    while i < vIn.length {
+        eval(vIn[i], vOut[i])
         i = i + 1
     }
     // EXPECT: OK
