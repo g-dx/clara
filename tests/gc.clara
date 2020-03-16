@@ -2,9 +2,9 @@
 //
 // If gcSweep() does not work (or is disabled) this fails on my machine (16Gb RAM)
 fn main() {
-    x := 100000
+    x := 10000
     while x > 0 {
-        intArray(0xCCCCCCC)
+        intArray(1 << 32)
         x = x - 1
     }
 }
