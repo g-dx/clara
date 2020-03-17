@@ -17,10 +17,8 @@ fn main() {
     vIn[10] = "fooba"   vOut[10] = 0x39aaa18a
     vIn[11] = "foobar"  vOut[11] = 0xbf9cf968
 
-    i := 0
-    while i < vIn.length {
+    for i in 0 .. vIn.length {
         eval(vIn[i], vOut[i])
-        i = i + 1
     }
     // EXPECT: OK
     // EXPECT: OK

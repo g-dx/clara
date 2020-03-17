@@ -29,12 +29,10 @@ fn entrypoint(argc: int, argv: int, envp: int) {
 fn parseArgs(argc: int, argv: int) []string {
     args := stringArray(argc, "")
     buf := NewByteBuffer(16)
-    i := 0
-    while i < argc {
+    for i in 0 .. argc {
         buf.parseCString(unsafe(argv, i * 8, pointer).deref)
         args[i] = buf.toString()
         buf.reset()
-        i = i + 1
     }
     return args
 }
@@ -101,12 +99,10 @@ struct env {
 fn size(e: env) int = e.key.length
 fn isSet(e: env, key: string) bool = not e.get(key).Equals("__KEY_NOT_FOUND__")
 fn get(e: env, key: string) string {
-    i := 0
-    while i < e.key.length {
+    for i in 0 .. e.key.length {
         if e.key[i].Equals(key) {
             return e.val[i]
         }
-        i = i + 1
     }
     return "__KEY_NOT_FOUND__" // TODO: This is horrible! We need proper Optional/Maybe support
 }

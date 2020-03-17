@@ -5,11 +5,9 @@
 
 fn fnv1a(s: string) int {
     hash := 0x811c9dc5
-    i := 0
-    while i < s.length {
+    for i in 0 .. s.length {
         hash = hash ^ (s[i] & 0xff)
         hash = (hash * 0x01000193) & 0xffffffff
-        i = i + 1
     }
     return hash
 }

@@ -3,12 +3,11 @@ fn Equals(s1: string, s2: string) bool {
     if not (s1.length == s2.length) {
         return false
     }
-    i := 0
-    while i < s1.length {
+
+    for i in 0 .. s1.length {
         if not (s1[i] == s2[i]) {
             return false
         }
-        i = i + 1
     }
     return true
 }
@@ -41,12 +40,10 @@ fn Index(s: string, sub: string) int {
         return i == sub.length
     }
 
-    pos := 0
-    while pos < s.length {
+    for pos in 0 .. s.length {
         if s[pos] == sub[0] and matchRun(s, sub, pos+1) {
             return pos // Match found
         }
-        pos = pos + 1
     }
     return -1
 }

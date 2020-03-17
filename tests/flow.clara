@@ -41,13 +41,11 @@ fn branchOn(f: fn(int) bool) {
 }
 
 fn loopUpTo(n: int, f: fn(int) bool) {
-    i := 0
-    while i < n {
+    for i in 0 .. n {
         if f(i) {
             return
         }
         printf("%i\n", i)
-        i = i + 1
     }
 }
 

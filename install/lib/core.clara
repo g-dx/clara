@@ -5,19 +5,16 @@
 fn toByte(i: int) byte = i
 fn toBytes(s: string) []byte {
     buf := byteArray(s.length)
-    i := 0
-    while i < s.length {
+    for i in 0 .. s.length {
         buf[i] = s[i]
-        i = i + 1
     }
     return buf
 }
 fn toBinary(i: int) string {
     buf := NewByteBuffer(78) // 64 digits + 7, 2-byte separators
-    j := 63
     digits := "01"
     sep := "·"
-    while j >= 0 {
+    for j in 64 .. 0 {
         n := 0
         mask := 1 << j
         if (i & mask) == mask {
@@ -27,7 +24,6 @@ fn toBinary(i: int) string {
         if j > 0 and j.mod(8) == 0 {
             buf.append(sep)
         }
-        j = j - 1
     }
     return buf.toString()
 }

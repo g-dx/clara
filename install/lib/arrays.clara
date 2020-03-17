@@ -23,10 +23,8 @@ fn stringArray(length: int, default: string) []string {
     // Initialise contents. This prevents NULL from escaping into user
     // code. Revisit when option/maybe is fully worked out
     // ----------------------------------------------------------------------
-    i := 0
-    while i < a.length {
+    for i in 0 .. a.length {
         a[i] = default
-        i = i + 1
     }
     return a
 }

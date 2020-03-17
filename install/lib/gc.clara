@@ -21,10 +21,8 @@ fn gcMark() {
     while not fp.isStackBase() {
         fp = fp.next
         debug("gc", "▶ (%d) <description>\n", j)
-        i := 0
-        while i < roots.length {
-            gcMarkSlot(fp, roots[i])
-            i = i + 1
+        for root in roots {
+            gcMarkSlot(fp, root)
         }
         roots = fp.map.roots
         j = j + 1
@@ -64,20 +62,16 @@ fn gcMarkPointer(ptr: int, level: int) {
     block.setMark()
     match info {
         case StructType(name, roots):
-            i := 0
-            while i < roots.length {
-                gcMarkPointer(deref(ptr, roots[i] * 8), level + 5)
-                i = i + 1
+            for root in roots {
+                gcMarkPointer(deref(ptr, root * 8), level + 5)
             }
         case StringType():
             // Already marked - no further action required
         case ArrayType(name, elemIsPointer):
             if elemIsPointer {
                 len := deref(ptr, 0)
-                i := 0
-                while i < len {
+                for i in 0 .. len {
                     gcMarkPointer(deref(ptr, 8 + (i * 8)), level + 5)
-                    i = i + 1
                 }
             }
     }

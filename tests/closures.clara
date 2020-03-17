@@ -28,11 +28,9 @@ fn main() {
                 }
 
             case While():
-                j := 1
-                while j > 0 {
+                for j in 1 .. 0 {
                     v := 0xABCDEF
                     eval(v)
-                    j = j - 1
                 }
 
             case Case(v):
@@ -51,6 +49,7 @@ fn main() {
     x(If())                            // EXPECT: 0x12345678
     x(ElseIf())                        // EXPECT: 0x87654321
     x(Else())                          // EXPECT: 0x56781234
+    x(While())                         // EXPECT: 0xabcdef
     x(Case(0x2222222))                 // EXPECT: 0x2222222
     x(Struct(T(S(0x5555555))))         // EXPECT: 0x5555555
     x(Array(intArray(10)))             // EXPECT: 0xa
