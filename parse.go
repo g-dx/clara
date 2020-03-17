@@ -209,8 +209,11 @@ func (p *Parser) parseFor() *Node {
 	token := p.need(lex.For)
 	value := p.parseIdentifier()
 	p.need(lex.In)
-	collection := p.parseIdentifier()
-	return &Node{op: opFor, token: token, left: value, right: collection, stmts: p.parseBlock()}
+	right := p.parseExpr(0)
+	if p.is(lex.DotDot) {
+		right = &Node{op: opRange, token: p.next(), left: right, right: p.parseExpr(0)}
+	}
+	return &Node{op: opFor, token: token, left: value, right: right, stmts: p.parseBlock()}
 }
 
 func (p *Parser) parseIf() *Node {

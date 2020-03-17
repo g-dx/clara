@@ -196,7 +196,7 @@ func (fc *freeVarChecker) isFree(n *Node) bool {
 
 func opensScope(n *Node) bool {
 	switch n.op {
-	case opIf, opElseIf, opElse, opCase, opWhile:
+	case opIf, opElseIf, opElse, opCase, opWhile, opFor:
 		return true
 	default:
 		return false

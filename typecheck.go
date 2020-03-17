@@ -97,7 +97,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 		n.typ = rType
 
-	case opAnd, opOr, opAdd, opMul, opSub, opDiv, opBAnd, opBOr, opBXor, opBLeft, opBRight:
+	case opAnd, opOr, opAdd, opMul, opSub, opDiv, opBAnd, opBOr, opBXor, opBLeft, opBRight, opRange:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
 
@@ -532,16 +532,26 @@ func typeCheckTernary(n *Node, symtab *SymTab, fn *FunctionType, debug bool) []e
 
 func typeCheckFor(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
 	n.symtab = symtab.Child()
-	err := typeCheckIdentifier(n.right, symtab, false)
-	if err != nil {
-		return append(errs, err)
+	errs = append(errs, typeCheck(n.right, symtab, fn, debug)...)
+	if !n.right.hasType() {
+		return errs
 	}
-	if !n.right.typ.Is(Array) {
-		return append(errs, semanticError2(errMismatchedTypesMsg, n.right.token, n.right.typ, "<array>"))
+
+	// 2 case - either an range expression or an array
+	var varType *Type
+	switch {
+	case n.right.typ.Kind == Array:
+		varType = n.right.typ.AsArray().Elem
+
+	case n.right.Is(opRange):
+		varType = n.right.typ
+
+	default:
+		errs = append(errs, semanticError2(errMismatchedTypesMsg, n.right.token, n.right.typ, "<array> or <range expression>"))
 	}
 
 	// Create & assign new symbol
-	sym, ok := n.symtab.Define(NewStackSym(n.left.token.Val, n.right.typ.AsArray().Elem))
+	sym, ok := n.symtab.Define(NewStackSym(n.left.token.Val, varType))
 	if ok {
 		panic("Symbol already defined in empty scope?")
 	}

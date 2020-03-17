@@ -71,6 +71,7 @@ const (
 	EOF
 	Das // Declaration & assignment
 	As  // Assignment
+	DotDot // Range
 
 	// -----------------------------------------------------------------------------------------------------------------
 
@@ -221,6 +222,7 @@ var KindValues = map[Kind]string{
 	Comma:      ",",
 	Colon:      ":",
 	Dot:        ".",
+	DotDot:     "..",
 	Hash:       "#",
 	Space:      "<space>",
 	EOL:        "<EOL>",
@@ -376,7 +378,12 @@ func lexText(l *Lexer) stateFn {
 				l.emit(Lt)
 			}
 		case r == '.':
-			l.emit(Dot)
+			if l.peek() == '.' {
+				l.next()
+				l.emit(DotDot)
+			} else {
+				l.emit(Dot)
+			}
 		case r == '"':
 			return lexString
 		case r == '=':

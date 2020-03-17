@@ -56,6 +56,7 @@ var operatorTypes = OperatorTypes{
 	opSub:    {Integer, Byte},
 	opMul:    {Integer, Byte},
 	opDiv:    {Integer, Byte},
+	opRange:  {Integer, Byte},
 	opOr:     {Boolean},
 	opAnd:    {Boolean},
 	opBAnd:   {Integer, Byte},
@@ -584,24 +585,36 @@ func declareCaseVars(symtab *SymTab, n *Node) {
 }
 
 func lowerForStatement(n *Node) {
-	//    for x in b {}                  // Iterator
-	//    for x in b where x > 2 {}      // Iterator with predicate
-	//    for x in 0..64 {}              // Built-in "range" iterator
-	//    for x in 0..b.length {}        // Built-in "range" iterator
+	// Maybe: for x in b where x > 2 {}      // Iterator with predicate
 	if n.op == opFor {
-		variable := n.left
-		array := n.right
-		body := n.stmts
+		arrayOrRange := n.right
+		var val *Node
 
+		// 2 cases - arrayOrRange or range expression
+		if arrayOrRange.typ.Is(Array) {
+			val := newVar("$val$", intType)
+			while := while(lt(val.copy(), length(arrayOrRange)))
+			while.stmts = append(while.stmts, as(n.left, access(arrayOrRange, val.copy())))
+			while.stmts = append(while.stmts, n.stmts...)
+			while.stmts = append(while.stmts, inc(val.copy(), 1))
+			n.stmts = []*Node{ das(val, intLit(0)), while }
+		} else {
+			val = n.left
+			initVal := arrayOrRange.left
+			cond := lt(val.copy(), arrayOrRange.right)
+			nextVal := inc(val.copy(), 1)
+			if arrayOrRange.right.Is(opLit) && arrayOrRange.right.token.Val == "0" {
+				initVal = plus(arrayOrRange.left, intLit(-1))
+				cond = lte(arrayOrRange.right, val.copy())
+				nextVal = inc(val.copy(), -1)
+			}
+			while := while(cond)
+			while.stmts = append(while.stmts, n.stmts...)
+			while.stmts = append(while.stmts, nextVal)
+			n.stmts = []*Node{ das(val, initVal), while }
+		}
 		n.op = opBlock
 		n.token = lex.WithVal(n.token, "-")
-		idx := newVar("$idx$", intType)
-		while := while(lt(idx.copy(), length(array)))
-		while.stmts = append(while.stmts, as(variable, access(array, idx.copy())))
-		while.stmts = append(while.stmts, body...)
-		while.stmts = append(while.stmts, inc(idx.copy(), 1))
-
-		n.stmts = []*Node{ das(idx, intLit(0)), while }
 		n.left = nil
 		n.right = nil
 		n.typ = nil

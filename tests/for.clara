@@ -3,9 +3,7 @@ fn main() {
   s[0] = "first"
   s[1] = "second"
   s[2] = "third"
-  for v in s {
-    v.println()
-  }
+  for v in s { v.println() }
   // EXPECT: first
   // EXPECT: second
   // EXPECT: third
@@ -15,9 +13,7 @@ fn main() {
   i[1] = 4
   i[2] = 2
   v := true
-  for v in i {
-    v.println()
-  }
+  for v in i { v.println() }
   v.println()
   // EXPECT: 6
   // EXPECT: 4
@@ -25,4 +21,21 @@ fn main() {
   // EXPECT: true
   b := byteArray(0)
   for v in b { }
+
+  for v in 0 .. 3 { v.println() }
+  // EXPECT: 0
+  // EXPECT: 1
+  // EXPECT: 2
+
+  for v in 3 .. 0 { v.println() }
+  // EXPECT: 2
+  // EXPECT: 1
+  // EXPECT: 0
+
+  start := 0
+  end := 3
+  for v in start .. end { v.println() }
+  // EXPECT: 0
+  // EXPECT: 1
+  // EXPECT: 2
 }

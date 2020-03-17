@@ -244,6 +244,10 @@ func lt(left, right *Node) *Node {
 	return &Node{op: opLt, token: lex.NoToken, left: left, right: right, typ: boolType}
 }
 
+func lte(left, right *Node) *Node {
+	return &Node{op: opLte, token: lex.NoToken, left: left, right: right, typ: boolType}
+}
+
 func while(cond *Node) *Node {
 	return &Node{op: opWhile, token: lex.NoToken, left: cond}
 }
@@ -383,6 +387,7 @@ const (
 	opMatch
 	opCase
 	opTernary
+	opRange
 	opFor
 )
 
@@ -435,6 +440,7 @@ var nodeTypes = map[int]string{
 	opTypeList:   "«TypeList»",
 	opTernary:   "Ternary Op [?:]",
 	opFor:       "For",
+	opRange:     "Range",
 }
 
 func printTree(n *Node, f func(*Node) bool, out io.Writer) {
