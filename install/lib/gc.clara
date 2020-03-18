@@ -33,11 +33,11 @@ fn gcMark() {
     // Global variables
     // -------------------------------------------------------------
     debug("gc", "\nGlobals\n")
-    gcMarkPointer(unsafe(getRuntime(), 0, int), 0)
+    gcMarkPointer(unsafe(getRuntime(), 0, type(int)), 0)
 }
 
 fn gcMarkSlot(fp: frame, off: byte) {
-    gcMarkPointer(unsafe(fp, -off * 8, pointer).deref, 1)
+    gcMarkPointer(unsafe(fp, -off * 8, type(pointer)).deref, 1)
 }
 
 fn gcMarkPointer(ptr: int, level: int) {
@@ -45,7 +45,7 @@ fn gcMarkPointer(ptr: int, level: int) {
         gcMarkDebug(ptr, level, "???", "❌")
         return
     }
-    block := unsafe(ptr, -16, block)
+    block := unsafe(ptr, -16, type(block))
     info := typeInfoTable()[block.typeId()]
 
     if block.isReadOnly() {
@@ -110,7 +110,7 @@ struct pointer {
     deref: int
 }
 
-fn deref(ptr: int, off: int) int = unsafe(ptr, off, pointer).deref
+fn deref(ptr: int, off: int) int = unsafe(ptr, off, type(pointer)).deref
 
 // Compile time generated structure holding runtime type information
 enum typeInfo {

@@ -3,16 +3,16 @@ fn main() {
     p := Person("Mr", "Name", 18)
 
     // Walk struct fields
-    println(unsafe(p, 0, stringPointer).val) // EXPECT: Mr
-    println(unsafe(p, 8, stringPointer).val) // EXPECT: Name
-    println(unsafe(p, 16, intPointer).val)   // EXPECT: 18
+    println(unsafe(p, 0, type(stringPointer)).val) // EXPECT: Mr
+    println(unsafe(p, 8, type(stringPointer)).val) // EXPECT: Name
+    println(unsafe(p, 16, type(intPointer)).val)   // EXPECT: 18
 
     // Update struct fields
-    unsafe(p, 0, stringPointer).val = "Mrs"
+    unsafe(p, 0, type(stringPointer)).val = "Mrs"
     println(p.title) // EXPECT: Mrs
-    unsafe(p, 8, stringPointer).val = "Other"
+    unsafe(p, 8, type(stringPointer)).val = "Other"
     println(p.name) // EXPECT: Other
-    unsafe(p, 16, intPointer).val = 36
+    unsafe(p, 16, type(intPointer)).val = 36
     println(p.age) // EXPECT: 36
 }
 

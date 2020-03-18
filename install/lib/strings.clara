@@ -141,4 +141,4 @@ fn toString(b: []byte, pos: int, length: int) string {
 
 // TODO: Should be private!
 // NOTE: -8 to offset the +8 which codegen.go adds for arrays/string -> external fns
-fn asString(b: []byte) string = unsafe(b, -8, string)
+fn asString(b: []byte) string = unsafe(b, -8, type(string))

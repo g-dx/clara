@@ -53,7 +53,7 @@ fn byteArray(size: int, length: int, id: int, desc: string) []byte {
     return h.toByteArray()
 }
 
-fn toStringArray(header: arrayHeader) []string = unsafe(header, 0, []string)
-fn toIntArray(header: arrayHeader) []int = unsafe(header, 0, []int)
-fn toByteArray(header: arrayHeader) []byte = unsafe(header, 0, []byte)
-fn toHeader(b: block) arrayHeader = unsafe(b, 0, arrayHeader)
+fn toStringArray(header: arrayHeader) []string = unsafe(header, 0, type([]string))
+fn toIntArray(header: arrayHeader) []int = unsafe(header, 0, type([]int))
+fn toByteArray(header: arrayHeader) []byte = unsafe(header, 0, type([]byte))
+fn toHeader(b: block) arrayHeader = unsafe(b, 0, type(arrayHeader))

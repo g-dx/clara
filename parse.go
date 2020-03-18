@@ -331,9 +331,11 @@ func parsePrefixOperator(p *Parser, token *lex.Token) *Node {
 	return &Node{op: prefixKindToOp[token.Kind], token: token, left: p.parseExpr(token.Kind.Precedence())}
 }
 
-func parseArrayType(p *Parser, token *lex.Token) *Node {
-	p.need(lex.RBrack)
-	return &Node{op: opArrayType, token: token, left: p.parseType()}
+func parseType(p *Parser, _ *lex.Token) *Node {
+	p.need(lex.LParen)
+	n := p.parseType()
+	p.need(lex.RParen)
+	return n
 }
 
 var prefixKindToOp = map[lex.Kind]int{
@@ -374,7 +376,7 @@ func init() {
 	prefixParsers[lex.True] = parseLiteral
 	prefixParsers[lex.False] = parseLiteral
 	prefixParsers[lex.Fn] = parseFunction
-	prefixParsers[lex.LBrack] = parseArrayType
+	prefixParsers[lex.Type] = parseType
 
 	infixParsers[lex.LParen] = parseCall
 	infixParsers[lex.LGmet] = parseTypedCall

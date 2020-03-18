@@ -30,7 +30,7 @@ fn parseArgs(argc: int, argv: int) []string {
     args := stringArray(argc, "")
     buf := NewByteBuffer(16)
     for i in 0 .. argc {
-        buf.parseCString(unsafe(argv, i * 8, pointer).deref)
+        buf.parseCString(unsafe(argv, i * 8, type(pointer)).deref)
         args[i] = buf.toString()
         buf.reset()
     }
@@ -43,7 +43,7 @@ fn parseCString(buf: byteBuffer, arg: int) {
     max := 1<<6  // Read bytes in 64-bit blocks
     while loop {
         shift := 0
-        bytes := unsafe(arg, off, pointer).deref
+        bytes := unsafe(arg, off, type(pointer)).deref
         while shift < max and loop {
             b := (bytes >> shift) & 0xFF
             if b == 0x00 {
@@ -60,11 +60,11 @@ fn parseCString(buf: byteBuffer, arg: int) {
 fn parseEnv(envp: int) env {
     forEach := fn(envp: int, f: fn(int, int)) int {
         i := 0
-        var := unsafe(envp, i * 8, pointer).deref
+        var := unsafe(envp, i * 8, type(pointer)).deref
         while not (var == 0) {
             f(var, i)
             i = i + 1
-            var = unsafe(envp, i * 8, pointer).deref
+            var = unsafe(envp, i * 8, type(pointer)).deref
         }
         return i
     }
@@ -167,7 +167,7 @@ fn getRuntime() runtime
 // off: Offset from pointer
 // type: Type of return type
 // Returns the calculated memory location interpreted as the parameterised type
-fn unsafe(ptr: int, off: int, type: int) int // Implemented in assembly by codegen.go
+fn unsafe(ptr: int, off: int, _type: int) int // Implemented in assembly by codegen.go
 
 // Source: https://www.gnu.org/software/libc/manual/html_node/Getting-the-Time.html#Getting-the-Time
 fn gettimeofday(t: time, zero: int) nothing

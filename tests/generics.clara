@@ -51,7 +51,7 @@ fn apply2«T, R»(t: T, f: fn(T) fn(T) R) R {
 }
 
 fn apply«T, R»(t: T, f: fn(T) R) R = f(t)
-fn cast«T, R»(t: T) R = unsafe(t, 0, R)
+fn cast«T, R»(t: T) R = unsafe(t, 0, type(R))
 
 struct employee {
     name: string

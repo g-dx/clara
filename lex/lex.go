@@ -94,6 +94,7 @@ const (
 	Enum
 	Match
 	Case
+	Type
 )
 
 func (k Kind) IsExprStart() bool {
@@ -178,6 +179,7 @@ var key = map[string]Kind{
 	"enum":   Enum,
 	"match":  Match,
 	"case":   Case,
+	"type":   Type,
 }
 
 var KindValues = map[Kind]string{
@@ -234,6 +236,7 @@ var KindValues = map[Kind]string{
 	Enum:       "enum",
 	Match:      "match",
 	Case:       "case",
+	Type:       "type",
 	Err:        "<error>",
 }
 
