@@ -761,6 +761,12 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		genExpr(asm, expr.stmts[1], false, fn)
 		asm.label(exitLabel)
 
+	case opArrayLit:
+
+		// Left has builder logic to create array & populate with elements
+		asm.ins(popq, rax)
+		fn.decSp(1)
+
 	case opFuncCall:
 
 		// Discard the address of the function to invoke

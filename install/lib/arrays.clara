@@ -8,6 +8,12 @@ fn copyArray(src: []byte, srcPos: int, dest: []byte, destPos: int) {
     copyArray(src, srcPos+1, dest, destPos+1)
 }
 
+// TODO: Should either "any" type or type <T>
+fn setElement(src: []int, pos: int, val: int) []int {
+    src[pos] = val
+    return src
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct arrayHeader {

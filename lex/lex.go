@@ -99,7 +99,7 @@ const (
 
 func (k Kind) IsExprStart() bool {
 	switch k {
-	case Integer, String, Identifier, True, False, Not, LParen, Fn, Min:
+	case Integer, String, Identifier, True, False, Not, LParen, Fn, Min, LBrack:
 		return true
 	default:
 		return false

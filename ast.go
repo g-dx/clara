@@ -389,6 +389,7 @@ const (
 	opTernary
 	opRange
 	opFor
+	opArrayLit
 )
 
 var nodeTypes = map[int]string{
@@ -441,6 +442,7 @@ var nodeTypes = map[int]string{
 	opTernary:   "Ternary Op [?:]",
 	opFor:       "For",
 	opRange:     "Range",
+	opArrayLit:  "Array Literal",
 }
 
 func printTree(n *Node, f func(*Node) bool, out io.Writer) {

@@ -40,6 +40,7 @@ const (
 	errNotAnEnumCaseMsg         = "%v:%d:%d: error, '%v' is not an enum case"
 	errTooManyArgsMsg           = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
 	errTypeParameterNotBoundMsg = "%v:%d:%d: error, type parameter '%v' is not bound for this function call"
+	errEmptyArrayLiteralMsg     = "%v:%d:%d: error, empty array literal not allowed ... yet!"
 	maxCaseArgCount             = 5
 	maxFnArgCount               = 6
 
@@ -592,12 +593,20 @@ func lowerForStatement(n *Node) {
 
 		// 2 cases - arrayOrRange or range expression
 		if arrayOrRange.typ.Is(Array) {
-			val := newVar("$val$", intType)
+			var stmts []*Node
+
+			// Array literals need assigned to a slot first
+			if arrayOrRange.Is(opArrayLit) {
+				arrayLitSlot := newVar("$arrayLit$", intArrayType)
+				stmts = append(stmts, das(arrayLitSlot, arrayOrRange.left))
+				arrayOrRange = arrayLitSlot
+			}
+			val := newVar("$idx$", intType)
 			while := while(lt(val.copy(), length(arrayOrRange)))
 			while.stmts = append(while.stmts, as(n.left, access(arrayOrRange, val.copy())))
 			while.stmts = append(while.stmts, n.stmts...)
 			while.stmts = append(while.stmts, inc(val.copy(), 1))
-			n.stmts = []*Node{ das(val, intLit(0)), while }
+			n.stmts = append(stmts, das(val, intLit(0)), while)
 		} else {
 			val = n.left
 			initVal := arrayOrRange.left
@@ -619,6 +628,20 @@ func lowerForStatement(n *Node) {
 		n.right = nil
 		n.typ = nil
 		n.sym = nil
+	}
+}
+
+func rewriteArrayLiteralExpr(n *Node, symtab *SymTab) {
+	if n.Is(opArrayLit) {
+		setElement := symtab.MustResolve("setElement")
+		x := fnCallBySym(lex.NoToken, symtab.MustResolve("intArray"), intLit(len(n.stmts)))
+		for i, expr := range n.stmts {
+			if i < len(n.stmts) {
+				x = fnCallBySym(lex.NoToken, setElement, x, intLit(i), expr)
+			}
+		}
+		n.left = x
+		n.stmts = nil
 	}
 }
 

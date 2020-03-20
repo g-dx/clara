@@ -338,6 +338,17 @@ func parseType(p *Parser, _ *lex.Token) *Node {
 	return n
 }
 
+func parseArrayLiteral(p *Parser, token *lex.Token) *Node {
+	var args []*Node
+	if p.isNot(lex.RBrack) {
+		for ok := true; ok; ok = p.match(lex.Comma) {
+			args = append(args, p.parseExpr(0))
+		}
+	}
+	p.need(lex.RBrack)
+	return &Node{op: opArrayLit, token: token, stmts: args}
+}
+
 var prefixKindToOp = map[lex.Kind]int{
 	lex.Not:  opNot,
 	lex.BNot: opBNot,
@@ -377,6 +388,7 @@ func init() {
 	prefixParsers[lex.False] = parseLiteral
 	prefixParsers[lex.Fn] = parseFunction
 	prefixParsers[lex.Type] = parseType
+	prefixParsers[lex.LBrack] = parseArrayLiteral
 
 	infixParsers[lex.LParen] = parseCall
 	infixParsers[lex.LGmet] = parseTypedCall

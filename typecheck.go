@@ -316,6 +316,9 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			goto end
 		}
 
+	case opArrayLit:
+		errs = append(errs, typeCheckArrayLit(n, symtab, fn, debug)...)
+
 	case opArray:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 		errs = append(errs, typeCheck(right, symtab, fn, debug)...)
@@ -527,6 +530,23 @@ func typeCheckTernary(n *Node, symtab *SymTab, fn *FunctionType, debug bool) []e
 		return []error{ semanticError2(errMismatchedTypesMsg, elseExpr.token, elseExpr.typ, ifExpr.typ) }
 	}
 	n.typ = ifExpr.typ
+	return nil
+}
+
+func typeCheckArrayLit(n *Node, symtab *SymTab, fn *FunctionType, debug bool) []error {
+	if len(n.stmts) == 0 {
+		return []error{ semanticError(errEmptyArrayLiteralMsg, n.token) }
+	}
+	for _, expr := range n.stmts {
+		if errs := typeCheck(expr, symtab, fn, debug); !expr.hasType() {
+			return errs
+		}
+		// Type of first element defines type for rest of elements
+		if !expr.typ.Matches(n.stmts[0].typ) {
+			return []error{ semanticError2(errMismatchedTypesMsg, expr.token, expr.typ, intType) }
+		}
+	}
+	n.typ = &Type{Kind: Array, Data: &ArrayType{Elem: n.stmts[0].typ}}
 	return nil
 }
 

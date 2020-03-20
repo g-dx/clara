@@ -112,13 +112,12 @@ fn main() {
     }
 
     // Equals
-    eqs := stringArray(12, "")
-    eqs[0] = "" eqs[1] = ""  // EXPECT: true
-    eqs[2] = "a" eqs[3] = "" // EXPECT: false
-    eqs[4] = "" eqs[5] = "a" // EXPECT: false
-    eqs[6] = "a" eqs[7] = "a" // EXPECT: true
-    eqs[8] = "a" eqs[9] = "A" // EXPECT: false
-    eqs[10] = "🔐" eqs[11] = "🔐" // EXPECT: true
+    eqs := ["", "",     // EXPECT: true
+            "a", "",    // EXPECT: false
+            "", "a",    // EXPECT: false
+            "a", "a",   // EXPECT: true
+            "a", "A",   // EXPECT: false
+            "🔐", "🔐"] // EXPECT: true
     // TODO: Add more tests
     for i in 0 .. eqs.length {
         println(eqs[i].Equals(eqs[i+1]))

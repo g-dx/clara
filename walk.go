@@ -101,6 +101,11 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 		Walk(isPreOrder, n.left, f)
 		Walk(isPreOrder, n.right, f)
 
+	case opArrayLit:
+		for _, stmt := range n.stmts {
+			Walk(isPreOrder, stmt, f)
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected node type: %v", nodeTypes[n.op]))
 	}

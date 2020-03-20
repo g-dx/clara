@@ -23,4 +23,25 @@ fn main() {
     // EXPECT: [2] = third
     // EXPECT: [3] = fourth
     // EXPECT: [4] = fifth
+
+    x := 0
+    y := -12345
+    f := fn() int = 1010101
+    for x in [1, 2, x, 4, y, f()] { x.println() }
+    // EXPECT: 1
+    // EXPECT: 2
+    // EXPECT: 0
+    // EXPECT: 4
+    // EXPECT: -12345
+    // EXPECT: 1010101
+
+    for x in [true, false] { x.println() }
+    // EXPECT: true
+    // EXPECT: false
+
+    for x in ["a", "b", "c", "d"] { x.println() }
+    // EXPECT: a
+    // EXPECT: b
+    // EXPECT: c
+    // EXPECT: d
 }
