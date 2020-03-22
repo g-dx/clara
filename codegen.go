@@ -489,16 +489,14 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 
 	// Evaluate expression & push result to stack
 	genExpr(asm, n.right, false, fn)
-	asm.ins(pushq, rax)
-	fn.incSp(1)
+	save(asm, fn, rax)
 
 	// Evaluate mem location to store
 	slot := n.left
 	genExpr(asm, slot, true, fn)
 
 	// Pop result
-	asm.ins(popq, rbx)
-	fn.decSp(1)
+	restore(asm, fn, rbx)
 	src := rbx
 
 	// Check if int -> byte cast required
@@ -572,7 +570,8 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		s = n.left.sym
 		fn = s.Type.AsFunction()
 	} else {
-		asm.ins(movq, rax, r15) // TODO: This is a callee saved register. If we use it, we should save it!
+		genExpr(asm, n.left, false, f)
+		save(asm, f, rax)
 		fn = n.left.typ.AsFunction()
 	}
 
@@ -604,6 +603,11 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		asm.ins(movq, intOp(0), rax) // No floating-point register usage yet...
 	}
 
+	// Recover fn address from stack, if required
+	if s == nil {
+		restore(asm, f, rax)
+	}
+
 	// Align stack as per ABI
 	if !f.isSpAligned() {
 		asm.ins(subq, intOp(8), rsp)
@@ -611,7 +615,7 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 
 	// Call function
 	if s == nil {
-		asm.ins(call, r15.indirect()) // anonymous func call: register indirect
+		asm.ins(call, rax.indirect()) // anonymous func call: register indirect
 	} else if s.IsStack {
 		asm.ins(call, rbp.displace(-s.Addr).indirect()) // Parameter func call: memory indirect
 	} else {
@@ -632,18 +636,6 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 }
 
 func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
-
-	// Post-fix, depth first search!
-	if expr.left != nil {
-		genExpr(asm, expr.left, false, fn)
-		asm.ins(pushq, rax) // Push acc to stack
-		fn.incSp(1)
-	}
-	if expr.right != nil {
-		genExpr(asm, expr.right, false, fn)
-	}
-
-	// Implements stack machine
 
 	switch expr.op {
 
@@ -678,12 +670,15 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
 
+		genExpr(asm, expr.left, false, fn)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
+
 		asm.ins(movq, rax, rbx)
-		asm.ins(popq, rax)
+		restore(asm, fn, rax)
 		if expr.op == opDiv {
 			asm.ins(cqo) // Sign-extend rax into rdx
 		}
-		fn.decSp(1)
 		asm.ins(ins[expr.op], rbx, rax)
 
 		// NOTES:
@@ -692,8 +687,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opNot, opBNot:
 
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		genExpr(asm, expr.left, false, fn)
 		asm.ins(notq, rax)
 		if expr.op == opNot {
 			asm.ins(andq, _true, rax)
@@ -701,24 +695,27 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opNeg:
 
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		genExpr(asm, expr.left, false, fn)
 		asm.ins(negq, rax)
 
 	case opGt, opGte, opLt, opLte, opEq:
 
+		genExpr(asm, expr.left, false, fn)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
 		asm.ins(movq, rax, rbx)
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		restore(asm, fn, rax)
 		asm.ins(cmpq, rbx, rax)
 		asm.ins(ins[expr.op], al)
 		asm.ins(andq, _true, rax) // Clear top bits
 
 	case opBLeft, opBRight:
 
+		genExpr(asm, expr.left, false, fn)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
 		asm.ins(movq, rax, rcx)
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		restore(asm, fn, rax)
 		asm.ins(ins[expr.op], cl, rax)
 
 	case opIdentifier:
@@ -747,8 +744,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opTernary:
 
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		genExpr(asm, expr.left, false, fn)
 
 		elseLabel := asm.newLabel("else")
 		exitLabel := asm.newLabel("exit")
@@ -764,36 +760,35 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 	case opArrayLit:
 
 		// Left has builder logic to create array & populate with elements
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		genExpr(asm, expr.left, false, fn)
 
 	case opFuncCall:
-
-		// Discard the address of the function to invoke
-		// TODO: Once PIC-relative addressing is available update genFnCall to consume this result
-		asm.ins(popq, rax)
-		fn.decSp(1)
-
 		genFnCall(asm, expr, fn)
 
 	case opDot:
+
+		genExpr(asm, expr.left, false, fn)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
 
 		inst := movq
 		if takeAddr {
 			inst = leaq
 		}
 		asm.ins(movq, rax, rbx)
-		asm.ins(popq, rax)
-		fn.decSp(1)
+		restore(asm, fn, rax)
 		asm.ins(inst, rax.index(rbx), rax)
 
 	case opArray:
 
 		width := expr.typ.Width()
 
+		genExpr(asm, expr.left, false, fn)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
+
 		asm.ins(movq, rax, rbx)
-		asm.ins(popq, rax) // stack(index) -> rbx
-		fn.decSp(1)
+		restore(asm, fn, rax) // stack(index) -> rbx
 
 		// Bounds check
 		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
@@ -821,6 +816,16 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
 	}
+}
+
+func save(asm asmWriter, fn *function, r reg) {
+	asm.ins(pushq, r)
+	fn.incSp(1)
+}
+
+func restore(asm asmWriter, fn *function, r reg) {
+	asm.ins(popq, r)
+	fn.decSp(1)
 }
 
 var ins = make(map[int]inst)
