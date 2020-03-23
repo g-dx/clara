@@ -20,7 +20,6 @@ import (
 
 */
 
-var claralloc = "clara_claralloc.int.string.int" // NOTE: keep in sync with ASM name generation!
 var noGc = labelOp("_noGc")
 
 var regs = []reg{rdi, rsi, rdx, rcx, r8, r9}
@@ -106,6 +105,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 
 	// Runtime functions declared in Clara code
 	ioob := symtab.MustResolve("indexOutOfBounds")
+	alloc := symtab.MustResolve("claralloc")
 
 	// Holds compilation state for current function
 	fn := &function{}
@@ -116,7 +116,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	for _, n := range tree {
 		if n.isFuncDcl() {
 			fn.reset(n)
-			genFunc(asm, n, fn, gt)
+			genFunc(asm, n, fn, gt, alloc)
 		}
 	}
 
@@ -138,7 +138,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	return nil
 }
 
-func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
+func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes, alloc *Symbol) {
 
 	// Ensure we only generate code for "our" functions
 	if !fn.Type.IsExternal() {
@@ -168,7 +168,7 @@ func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes) {
 		// Generate functions
 		switch fn.Type.Kind {
 		case StructCons, EnumCons:
-			genConstructor(asm, fn, n.params, n.token.Val, gt.AssignId(fn.Type.ret))
+			genConstructor(asm, fn, n.params, n.token.Val, gt.AssignId(fn.Type.ret), alloc)
 		case Normal, Closure:
 			switch n.op {
 			case opBlockFnDcl:
@@ -406,7 +406,7 @@ func genIoobTrampoline(asm asmWriter, ioob operand) {
 	// NOTE: Never returns so no need for GC word, return, etc
 }
 
-func genConstructor(asm asmWriter, f *function, params []*Node, name string, id int) {
+func genConstructor(asm asmWriter, f *function, params []*Node, name string, id int, alloc *Symbol) {
 
 	size := ptrSize * len(params)
 	if f.Type.IsEnumCons() {
@@ -417,7 +417,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 	asm.ins(movq, intOp(size), rdi)
 	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", f.Type.Describe(name))), rsi)
 	asm.ins(movabs, intOp(id), rdx)
-	asm.ins(call, fnOp(claralloc)) // Implemented in lib/mem.clara
+	asm.ins(call, fnOp(alloc.Type.AsFunction().AsmName(alloc.Name))) // Implemented in lib/mem.clara
 	asm.addr(f.NewGcMap())
 
 	off := 0
