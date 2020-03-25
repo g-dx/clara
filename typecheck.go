@@ -285,6 +285,14 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 				return errs
 			}
 
+			// SPECIAL CASE: Pointer types can be dereferenced by
+			if left.typ.Is(Pointer) && right.token.Val == "deref" {
+				right.sym = &Symbol{Name: "deref", Addr: 0, Type: pointerType}
+				right.typ = right.sym.Type
+				n.typ = right.typ
+				return errs
+			}
+
 			// Check we have a struct
 			var strct *StructType
 			if left.typ.Is(Struct) {

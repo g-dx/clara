@@ -19,6 +19,7 @@ var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
 var byteArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: byteType } }
 var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
 var stringArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: stringType } }
+var pointerType = &Type{ Kind: Pointer, Data: IntType{ Width: 8} }
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -34,6 +35,7 @@ const (
 	Array
 	Parameter
 	Nothing
+	Pointer
 )
 
 var typeKindNames = map[TypeKind]string {
@@ -47,6 +49,7 @@ var typeKindNames = map[TypeKind]string {
 	Array:    "[]",
 	Nothing:   "nothing",
 	Parameter: "T",
+	Pointer:   "pointer",
 }
 
 func (tk TypeKind) String() string {
@@ -134,7 +137,8 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 			}
 		}
 		return false
-
+	case Pointer:
+		return x.Kind == Pointer
 	default:
 		panic("Unknown or unexpected type comparison!")
 	}

@@ -37,7 +37,7 @@ fn gcMark() {
 }
 
 fn gcMarkSlot(fp: frame, off: byte) {
-    gcMarkPointer(unsafe(fp, -off * 8, type(pointer)).deref, 1)
+    gcMarkPointer(unsafe(fp, -off * 8, type(pointer)).deref.toInt(), 1)
 }
 
 fn gcMarkPointer(ptr: int, level: int) {
@@ -106,11 +106,8 @@ fn gcSweep() {
     }
 }
 
-struct pointer {
-    deref: int
-}
-
-fn deref(ptr: int, off: int) int = unsafe(ptr, off, type(pointer)).deref
+fn deref(ptr: int, off: int) int = unsafe(ptr, off, type(pointer)).deref.toInt()
+fn toInt(p: pointer) int = unsafe(p, 0, type(int))
 
 // Compile time generated structure holding runtime type information
 enum typeInfo {

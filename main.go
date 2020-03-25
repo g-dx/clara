@@ -204,6 +204,7 @@ func stdSyms() []*Symbol {
 		{ Name: "int", Type: intType, IsType: true },
 		{ Name: "byte", Type: byteType, IsType: true },
 		{ Name: "bool", Type: boolType, IsType: true },
+		{ Name: "pointer", Type: pointerType, IsType: true },
 		{ Name: "nothing", Type: nothingType, IsType: true },
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
