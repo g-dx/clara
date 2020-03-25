@@ -211,7 +211,7 @@ func stdSyms() []*Symbol {
 		{ Name: "[]byte", Type: byteArrayType },
 		// invokeDynamic (implemented in assembly)
 		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Params: []*Type{}, ret: nothingType} } },
+			&FunctionType{ Params: []*Type{pointerType, pointerType, pointerType, pointerType, pointerType, pointerType}, ret: nothingType} } },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},

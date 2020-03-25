@@ -33,52 +33,52 @@ fn gcMark() {
     // Global variables
     // -------------------------------------------------------------
     debug("gc", "\nGlobals\n")
-    gcMarkPointer(unsafe(getRuntime(), 0, type(int)), 0)
+    gcMarkPointer(unsafe(getRuntime(), 0, type(pointer)), 0)
 }
 
 fn gcMarkSlot(fp: frame, off: byte) {
-    gcMarkPointer(unsafe(fp, -off * 8, type(pointer)).deref.toInt(), 1)
+    gcMarkPointer(fp.slot(off).deref, 1)
 }
 
-fn gcMarkPointer(ptr: int, level: int) {
-    if ptr == 0 {
-        gcMarkDebug(ptr, level, "???", "❌")
+fn gcMarkPointer(p: pointer, level: int) {
+    if p.isNull() {
+        gcMarkDebug(p, level, "???", "❌")
         return
     }
-    block := unsafe(ptr, -16, type(block))
+    block := unsafe(p, -16, type(block))
     info := typeInfoTable()[block.typeId()]
 
     if block.isReadOnly() {
-        gcMarkDebug(ptr, level, info.getName(), "🔐")
+        gcMarkDebug(p, level, info.getName(), "🔐")
         return
     }
     if block.isMarked() {
-        gcMarkDebug(ptr, level, info.getName(), "🆗")
+        gcMarkDebug(p, level, info.getName(), "🆗")
         return
     }
 
     // Mark block & process type
-    gcMarkDebug(ptr, level, info.getName(), "✅")
+    gcMarkDebug(p, level, info.getName(), "✅")
     block.setMark()
     match info {
         case StructType(name, roots):
             for root in roots {
-                gcMarkPointer(deref(ptr, root * 8), level + 5)
+                gcMarkPointer(p.inc(root * 8).deref, level + 5)
             }
         case StringType():
             // Already marked - no further action required
         case ArrayType(name, elemIsPointer):
             if elemIsPointer {
-                len := deref(ptr, 0)
+                len := p.deref.toInt()
                 for i in 0 .. len {
-                    gcMarkPointer(deref(ptr, 8 + (i * 8)), level + 5)
+                    gcMarkPointer(p.inc(8 + (i * 8)).deref, level + 5)
                 }
             }
     }
 }
 
-fn gcMarkDebug(ptr: int, level: int, name: string, icon: string) {
-    debug("gc", " - (0x%09lx) %s%*s", ptr, icon, level, "")
+fn gcMarkDebug(p: pointer, level: int, name: string, icon: string) {
+    debug("gc", " - (0x%09lx) %s%*s", p, icon, level, "")
     debug("gc", "'%s'\n", name)
 }
 
@@ -106,8 +106,9 @@ fn gcSweep() {
     }
 }
 
-fn deref(ptr: int, off: int) int = unsafe(ptr, off, type(pointer)).deref.toInt()
 fn toInt(p: pointer) int = unsafe(p, 0, type(int))
+fn isNull(p: pointer) bool = unsafe(p, 0, type(int)) == 0
+fn inc(p: pointer, off: int) pointer = unsafe(p, off, type(pointer))
 
 // Compile time generated structure holding runtime type information
 enum typeInfo {

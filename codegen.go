@@ -106,6 +106,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	// Runtime functions declared in Clara code
 	ioob := symtab.MustResolve("indexOutOfBounds")
 	alloc := symtab.MustResolve("claralloc")
+	entrypoint := symtab.MustResolve("entrypoint")
 
 	// Holds compilation state for current function
 	fn := &function{}
@@ -126,7 +127,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genUnsafe(asm)
 	asm.spacer()
-	genAsmEntrypoint(asm)
+	genAsmEntrypoint(asm, fnOp(entrypoint.Type.AsFunction().AsmName(entrypoint.Name)))
 	asm.spacer()
 	genNoGc(asm)
 	asm.spacer()
@@ -307,7 +308,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 }
 
 func genInvokeDynamic(asm asmWriter, noGc operand) {
-	genFnEntry(asm, fnPrefix + "invokeDynamic", 1)
+	genFnEntry(asm, fnPrefix + "invokeDynamic.pointer.pointer.pointer.pointer.pointer.pointer", 1)
 	callLabel := asm.newLabel("call")
 	fnPtrLabel := asm.newLabel("fnPtr")
 
@@ -356,9 +357,10 @@ func genUnsafe(asm asmWriter) {
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
-func genAsmEntrypoint(asm asmWriter) {
+func genAsmEntrypoint(asm asmWriter, entrypoint fnOp) {
 	genFnEntry(asm, "clara_asm_entrypoint", 0)
-	asm.ins(call, fnOp("clara_entrypoint.int.int.int"))
+	// TODO: Ensure argc is a number in the correct format!
+	asm.ins(call, entrypoint)
 	genFnExit(asm, true) // NOTE: Stubbed in Clara code & called from C main() so no GC
 }
 

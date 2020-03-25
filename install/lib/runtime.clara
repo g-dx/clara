@@ -4,6 +4,8 @@ struct frame {
     map: gcMap
 }
 
+fn slot(f: frame, off: byte) pointer = unsafe(f, -off * 8, type(pointer))
+
 // GC roots at a particular point in a stack frame
 struct gcMap {
     roots: []byte
@@ -17,7 +19,7 @@ struct runtime {
 
 // C -> Clara entrypoint
 #[ExtRet]
-fn entrypoint(argc: int, argv: int, envp: int) {
+fn entrypoint(argc: int, argv: pointer, envp: pointer) {
     setStackBase(getFramePointer())
 
     // Configure runtime
@@ -26,24 +28,24 @@ fn entrypoint(argc: int, argv: int, envp: int) {
     main() // Off we go...
 }
 
-fn parseArgs(argc: int, argv: int) []string {
+fn parseArgs(argc: int, argv: pointer) []string {
     args := stringArray(argc, "")
     buf := NewByteBuffer(16)
     for i in 0 .. argc {
-        buf.parseCString(unsafe(argv, i * 8, type(pointer)).deref.toInt())
+        buf.parseCString(argv.inc(i * 8).deref)
         args[i] = buf.toString()
         buf.reset()
     }
     return args
 }
 
-fn parseCString(buf: byteBuffer, arg: int) {
+fn parseCString(buf: byteBuffer, arg: pointer) {
     loop := true
     off := 0
     max := 1<<6  // Read bytes in 64-bit blocks
     while loop {
         shift := 0
-        bytes := unsafe(arg, off, type(pointer)).deref.toInt()
+        bytes := arg.inc(off).deref.toInt()
         while shift < max and loop {
             b := (bytes >> shift) & 0xFF
             if b == 0x00 {
@@ -57,25 +59,25 @@ fn parseCString(buf: byteBuffer, arg: int) {
     }
 }
 
-fn parseEnv(envp: int) env {
-    forEach := fn(envp: int, f: fn(int, int)) int {
+fn parseEnv(envp: pointer) env {
+    forEach := fn(envp: pointer, f: fn(pointer, int)) int {
         i := 0
-        var := unsafe(envp, i * 8, type(pointer)).deref.toInt()
-        while not (var == 0) {
+        var := envp.inc(i * 8).deref
+        while not var.isNull() {
             f(var, i)
             i = i + 1
-            var = unsafe(envp, i * 8, type(pointer)).deref.toInt()
+            var = envp.inc(i * 8).deref
         }
         return i
     }
 
     // Parse env vars
-    n := forEach(envp, fn(arg: int, idx: int) {})
+    n := forEach(envp, fn(arg: pointer, idx: int) {})
     key := stringArray(n, "")
     val := stringArray(n, "")
 
     buf := NewByteBuffer(16)
-    forEach(envp, fn(arg: int, idx: int) {
+    forEach(envp, fn(arg: pointer, idx: int) {
         buf.parseCString(arg)
         s := buf.toString()
         i := s.Index("=") // TODO: Update Index() to support passing a []byte
@@ -163,11 +165,11 @@ fn getRuntime() runtime
 
 // WARNING: Type system escape hatch! Use with extreme caution!
 //
-// ptr: Pointer to heap
+// p: Pointer to heap
 // off: Offset from pointer
-// type: Type of return type
+// _type: Type of return type
 // Returns the calculated memory location interpreted as the parameterised type
-fn unsafe(ptr: int, off: int, _type: int) int // Implemented in assembly by codegen.go
+fn unsafe(p: pointer, off: int, _type: nothing) pointer // Implemented in assembly by codegen.go
 
 // Source: https://www.gnu.org/software/libc/manual/html_node/Getting-the-Time.html#Getting-the-Time
 fn gettimeofday(t: time, zero: int) nothing
