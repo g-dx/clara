@@ -102,6 +102,9 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 		Walk(isPreOrder, n.right, f)
 
 	case opArrayLit:
+		if n.left != nil {
+			Walk(isPreOrder, n.left, f)
+		}
 		for _, stmt := range n.stmts {
 			Walk(isPreOrder, stmt, f)
 		}

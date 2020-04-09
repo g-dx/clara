@@ -669,7 +669,7 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 
 		// Declare var for match expression result
 		matchVar := ident(lex.NoToken, &Symbol{Name: "$tmp", Type: n.left.typ, IsStack: true})
-		matchExpr := &Node{op: opDas, left: matchVar, right: n.left}
+		matchExpr := das(matchVar, n.left)
 
 		// Convert cases to if/else if
 		asEnum := symtab.MustResolve("asEnum")
@@ -683,8 +683,9 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 				left: &Node{op: opDot,
 					left:  fnCallBySym(lex.NoToken, asEnum, matchVar),
 					right: ident(lex.NoToken, enum.GetField("tag")),
+					typ: intType,
 				},
-				right: &Node{op: opLit, sym: &Symbol{Name: strconv.Itoa(tag), Type: intType}},
+				right: intLit(tag),
 				typ:   boolType,
 			}
 
