@@ -18,7 +18,7 @@ fn claralloc(size: int, description: string, id: int) block {
     if not b.isValidBlock() {
         panic("Failed to allocate memory!")
     }
-    b.header = id << 48
+    b.header = id << 47
     b.next = getBlocks()
     setBlocks(b)
     b = b.inc(16) // Skip past next & header

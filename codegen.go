@@ -127,6 +127,8 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genUnsafe(asm)
 	asm.spacer()
+	genToTaggedInt(asm)
+	asm.spacer()
 	genAsmEntrypoint(asm, fnOp(entrypoint.Type.AsFunction().AsmName(entrypoint.Name)))
 	asm.spacer()
 	genNoGc(asm)
@@ -275,13 +277,13 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 			// NOTE: The IDs used here must match the enum definition in gc.clara!
 			switch t.Kind {
 			case Struct, Enum:
-				w.tab(".8byte", "0x0")
+				w.taggedInt(0)
 				w.addr(labelOp(s[1:])) // TODO: Clean this up!
 				w.addr(roots[i])
 			case String:
-				w.tab(".8byte", "0x1")
+				w.taggedInt(1)
 			case Array:
-				w.tab(".8byte", "0x2")
+				w.taggedInt(2)
 				w.addr(labelOp(s[1:])) // TODO: Clean this up!
 				elemIsPointer := "0x0"
 				if t.AsArray().Elem.IsPointer() {
@@ -294,7 +296,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 
 	// Generate []typeInfo
 	typeInfoArray := asm.roSymbol("typeInfoArray", func(w asmWriter) {
-		w.tab(".8byte", strconv.Itoa(len(infos)))
+		w.taggedInt(len(infos))
 		for _, i := range infos {
 			w.addr(i)
 		}
@@ -314,8 +316,8 @@ func genInvokeDynamic(asm asmWriter, noGc operand) {
 
 	// Check for read-only (header & 2 == 2)
 	asm.ins(movq, rdi.displace(-ptrSize), rax)
-	asm.ins(andq, intOp(2), rax)
-	asm.ins(cmpq, intOp(2), rax)
+	asm.ins(andq, taggedIntOp(2), rax)
+	asm.ins(cmpq, taggedIntOp(2), rax)
 	asm.ins(je, labelOp(fnPtrLabel))
 
 	// ----------------------------------------------------------------------------
@@ -357,16 +359,24 @@ func genUnsafe(asm asmWriter) {
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
+func genToTaggedInt(asm asmWriter) {
+	genFnEntry(asm, "toTaggedInt", 0) // NOTE: Lie! This function takes 1 parameters!
+	// rdi + rdi + 1 = add int tag
+	asm.ins(leaq, rdi.displace(1).index(rdi), rax)
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
 func genAsmEntrypoint(asm asmWriter, entrypoint fnOp) {
 	genFnEntry(asm, "clara_asm_entrypoint", 0)
-	// TODO: Ensure argc is a number in the correct format!
+	tagAs(asm, Integer, rdi) // Tag argc as int
 	asm.ins(call, entrypoint)
 	genFnExit(asm, true) // NOTE: Stubbed in Clara code & called from C main() so no GC
 }
 
 func genNoGc(asm asmWriter) {
 	asm.tab(".data")
-	asm.raw("_noGc:\n   .8byte 0x0")
+	asm.label("_noGc")
+	asm.taggedInt(0)
 	asm.tab(".text")
 }
 
@@ -403,6 +413,7 @@ func genIoobTrampoline(asm asmWriter, ioob operand) {
 	asm.label("ioob")
 	asm.ins(andq, intOp(-16), rsp) // Destructively align stack
 	asm.ins(movq, rbx, rdi) // Load index, NOTE: Depends on current register usage!
+	tagAs(asm, Integer, rdi) // Retag index
 	asm.ins(movq, rax.deref(), rsi) // Load array length, NOTE: Depends on current register usage!
 	asm.ins(call, ioob)
 	// NOTE: Never returns so no need for GC word, return, etc
@@ -416,9 +427,9 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 	}
 
 	// Malloc memory of appropriate size
-	asm.ins(movq, intOp(size), rdi)
+	asm.ins(movq, taggedIntOp(size), rdi)
 	asm.ins(movabs, asm.stringLit(fmt.Sprintf("\"%v\"", f.Type.Describe(name))), rsi)
-	asm.ins(movabs, intOp(id), rdx)
+	asm.ins(movabs, taggedIntOp(id), rdx)
 	asm.ins(call, fnOp(alloc.Type.AsFunction().AsmName(alloc.Name))) // Implemented in lib/mem.clara
 	asm.addr(f.NewGcMap())
 
@@ -426,7 +437,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 
 	// Set tag (if required)
 	if f.Type.IsEnumCons() {
-		asm.ins(movq, intOp(f.Type.AsEnumCons().Tag), rax.displace(off))
+		asm.ins(movq, taggedIntOp(f.Type.AsEnumCons().Tag), rax.displace(off))
 		off += ptrSize
 	}
 
@@ -501,18 +512,18 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 	restore(asm, fn, rbx)
 	src := rbx
 
-	// Check if int -> byte cast required
-	if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
-		asm.ins(movsbq, src._8bit(), src) // sign extend lowest 8-bits into same reg
+	if slot.op == opArray && slot.typ.Is(Byte) && n.right.typ.IsAny(Byte, Integer) {
+		// Move a single, untagged byte to array slot
+		untag(asm, n.right, src)
+		asm.ins(movb, src._8bit(), rax.deref()) // [rax] = src (8-bits);
+	} else if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
+		// Cast int -> byte
+		int2Byte(asm, rax)
+		asm.ins(movq, src, rax.deref()) // [rax] = src;
+	} else {
+		// Simply write slot
+		asm.ins(movq, src, rax.deref()) // [rax] = src;
 	}
-
-	// SPECIAL CASE: If destination is byte array only move a single byte. Byte values elsewhere (on stack & in structs) are in 8-byte slots
-	mov := movq
-	if slot.op == opArray && slot.typ.Is(Byte) && (n.right.typ.Is(Byte) || n.right.typ.Is(Integer)) {
-		src = rbx._8bit()
-		mov = movb
-	}
-	asm.ins(mov, src, rax.deref()) // [rax] = src;
 
 	// If decl & assign start tracking as gc root
 	if n.op == opDas {
@@ -553,9 +564,12 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 	// If return has expression evaluate it
 	if expr != nil {
 		genExpr(asm, expr, false, fn)
-		// Check if int -> byte cast required
-		if expr.typ.Is(Integer) && fn.Type.ret.Is(Byte) {
-			asm.ins(movsbq, rax._8bit(), rax)
+		// Handle int/byte automatic conversion
+		switch {
+		case expr.typ.Is(Integer) && fn.Type.ret.Is(Byte):
+			int2Byte(asm, rax)
+		case expr.typ.Is(Byte) && fn.Type.ret.Is(Integer):
+			byte2Int(asm, rax)
 		}
 	}
 
@@ -581,22 +595,29 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 
 	// Generate arg code
 	for i, arg := range n.stmts {
-		genExpr(asm, arg, false, f) // Evaluate expression
+		// Evaluate expression, move into arg reg & record in use
+		genExpr(asm, arg, false, f)
+		asm.ins(movq, rax, regs[i])
 		f.RegisterInUse(arg.typ)
 
-		// Move result into reg
-
-		// SPECIAL CASE: Modify the pointer to a string or array to point "past" the length to the data. This
-		// means the value can be directly supplied to other libc functions without modification.
-		if (arg.typ.Is(String) || arg.typ.Is(Array)) && fn.IsExternal() {
-			asm.ins(leaq, rax.displace(8), regs[i])
+		// TODO: Mark libc functions using directives & process parameter here
+		if fn.IsExternal() {
+			switch arg.typ.Kind {
+			case String, Array:
+				// Modify pointer to point past array length
+				asm.ins(leaq, regs[i].displace(8), regs[i])
+			case Byte, Integer:
+				// Ensure valid "C" value
+				untag(asm, arg, regs[i])
+			}
 		} else {
-			asm.ins(movq, rax, regs[i])
-		}
-
-		// Check if int -> byte cast required
-		if i < len(fn.Params) && arg.typ.Is(Integer) && fn.Params[i].Is(Byte) {
-			asm.ins(movsbq, regs[i]._8bit(), regs[i])
+			// Handle int/byte automatic conversion
+			switch {
+			case arg.typ.Is(Integer) && fn.Params[i].Is(Byte):
+				int2Byte(asm, regs[i])
+			case arg.typ.Is(Byte) && fn.Params[i].Is(Integer):
+				byte2Int(asm, regs[i])
+			}
 		}
 	}
 
@@ -623,6 +644,8 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 	} else {
 		asm.ins(call, fnOp(fn.AsmName(s.Name))) // Named func call
 	}
+
+	// TODO: Mark libc functions using directives & process return value here
 
 	// Only generate GC function addresses for Clara functions
 	if !fn.IsExternal() {
@@ -658,10 +681,11 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 				ins = movabs
 			}
 			asm.ins(ins, strOp(expr.sym.Name), rax) // Push onto top of stack
+			tag(asm, expr, rax)
 
 		case Boolean:
 			v := _false
-			if expr.token.Val == "true" {
+			if expr.sym.Name == "true" {
 				v = _true
 			}
 			asm.ins(movq, v, rax) // Push onto top of stack
@@ -670,18 +694,29 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			panic(fmt.Sprintf("Unknown type for literal: %v", expr.sym.Type.Kind))
 		}
 
-	case opAdd, opSub, opMul, opDiv, opOr, opBOr, opAnd, opBAnd, opBXor:
+	case opOr, opAnd:
 
 		genExpr(asm, expr.left, false, fn)
 		save(asm, fn, rax)
 		genExpr(asm, expr.right, false, fn)
+		asm.ins(movq, rax, rbx)
+		restore(asm, fn, rax)
+		asm.ins(ins[expr.op], rbx, rax)
 
+	case opAdd, opSub, opMul, opDiv, opBOr, opBAnd, opBXor:
+
+		genExpr(asm, expr.left, false, fn)
+		untag(asm, expr.left, rax)
+		save(asm, fn, rax)
+		genExpr(asm, expr.right, false, fn)
+		untag(asm, expr.right, rax)
 		asm.ins(movq, rax, rbx)
 		restore(asm, fn, rax)
 		if expr.op == opDiv {
 			asm.ins(cqo) // Sign-extend rax into rdx
 		}
 		asm.ins(ins[expr.op], rbx, rax)
+		tag(asm, expr, rax)
 
 		// NOTES:
 		// For imul, result is: rdx(high-64 bits):rax(low 64-bits)
@@ -691,20 +726,27 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 		genExpr(asm, expr.left, false, fn)
 		asm.ins(notq, rax)
-		if expr.op == opNot {
+		switch expr.op {
+		case opNot:
 			asm.ins(andq, _true, rax)
+		case opBNot:
+			asm.ins(orq, intOp(tagFor(expr.left.typ.Kind)), rax) // SPECIAL CASE: Set tag again
 		}
 
 	case opNeg:
 
 		genExpr(asm, expr.left, false, fn)
+		untag(asm, expr.left, rax)
 		asm.ins(negq, rax)
+		tag(asm, expr.left, rax)
 
 	case opGt, opGte, opLt, opLte, opEq:
 
 		genExpr(asm, expr.left, false, fn)
+		untag(asm, expr.left, rax)
 		save(asm, fn, rax)
 		genExpr(asm, expr.right, false, fn)
+		untag(asm, expr.right, rax)
 		asm.ins(movq, rax, rbx)
 		restore(asm, fn, rax)
 		asm.ins(cmpq, rbx, rax)
@@ -714,11 +756,14 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 	case opBLeft, opBRight:
 
 		genExpr(asm, expr.left, false, fn)
+		untag(asm, expr.left, rax)
 		save(asm, fn, rax)
 		genExpr(asm, expr.right, false, fn)
+		untag(asm, expr.right, rax)
 		asm.ins(movq, rax, rcx)
 		restore(asm, fn, rax)
 		asm.ins(ins[expr.op], cl, rax)
+		tag(asm, expr, rax)
 
 	case opIdentifier:
 
@@ -785,16 +830,26 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 		width := expr.typ.Width()
 
+		// Calculate array address
 		genExpr(asm, expr.left, false, fn)
 		save(asm, fn, rax)
-		genExpr(asm, expr.right, false, fn)
 
+		// Calculate index
+		genExpr(asm, expr.right, false, fn)
+		untag(asm, expr.right, rax) // Strip tag from index
 		asm.ins(movq, rax, rbx)
-		restore(asm, fn, rax) // stack(index) -> rbx
+
+		// Load array address (don't pop as we need it later)
+		asm.ins(movq, rsp.deref(), rax)
 
 		// Bounds check
 		// https://blogs.msdn.microsoft.com/clrcodegeneration/2009/08/13/array-bounds-check-elimination-in-the-clr/
-		asm.ins(cmpq, rax.deref(), rbx) // index - array.length
+		asm.ins(movq, rax.deref(), rax)
+		untagAs(asm, Integer, rax) // Strip tag from length
+		asm.ins(cmpq, rax, rbx) // index - array.length
+
+		// Restore array address before jump!
+		restore(asm, fn, rax)
 		asm.ins(jae, labelOp("ioob"))
 
 		// Displace + 8 to skip over length
@@ -806,6 +861,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 			switch width {
 			case 1:
 				asm.ins(movsbq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
+				tag(asm, expr, rax) // Bytes are stored without a tag
 			case 8:
 				asm.ins(movq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
 			default:
@@ -817,6 +873,56 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	default:
 		panic(fmt.Sprintf("Can't generate expr code for op: %v", nodeTypes[expr.op]))
+	}
+}
+
+func tag(asm asmWriter, n *Node, r reg) {
+	tagAs(asm, n.typ.Kind, r)
+}
+
+func tagAs(asm asmWriter, t TypeKind, r reg) {
+	asm.ins(shlq, intOp(tagLenFor(t)), r)
+	asm.ins(orq, intOp(tagFor(t)), r)
+}
+
+func untag(asm asmWriter, n *Node, r reg) {
+	untagAs(asm, n.typ.Kind, r)
+}
+
+func untagAs(asm asmWriter, t TypeKind, r reg) {
+	asm.ins(sarq, intOp(tagLenFor(t)), r)
+}
+
+func byte2Int(asm asmWriter, r reg) {
+	asm.ins(orq, intOp(1), r)
+}
+
+func int2Byte(asm asmWriter, r reg) {
+	// Strip tag, sign extend lowest 8-bits into same reg & add tag
+	untagAs(asm, Integer, r)
+	asm.ins(movsbq, r._8bit(), r)
+	tagAs(asm, Byte, r)
+}
+
+func tagFor(tk TypeKind) int {
+	switch tk {
+	case Integer:
+		return 0b1
+	case Byte:
+		return 0b0
+	default:
+		panic(fmt.Sprintf("TypeKind (%v) does not have a tag", typeKindNames[tk]))
+	}
+}
+
+func tagLenFor(tk TypeKind) int {
+	switch tk {
+	case Integer:
+		return 1
+	case Byte:
+		return 1
+	default:
+		panic(fmt.Sprintf("TypeKind (%v) does not have a tag", typeKindNames[tk]))
 	}
 }
 

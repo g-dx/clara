@@ -63,3 +63,4 @@ func (p *peep) fnEnd()                                   { p.write() }
 func (p *peep) roSymbol(name string, f func(w asmWriter)) operand { p.write(); return p.w.roSymbol(name, f) }
 func (p *peep) gcMap(name string, offsets []int) labelOp { p.write(); return p.w.gcMap(name, offsets) }
 func (p *peep) flush()                                   { p.w.flush() }
+func (p *peep) taggedInt(i int)                          { p.w.taggedInt(i) }

@@ -117,6 +117,10 @@ func intOp(i int) operand {
 	return litOp(strconv.Itoa(i))
 }
 
+func taggedIntOp(i int) operand {
+	return intOp((i << 1) + 1)
+}
+
 func strOp(s string) operand {
 	return litOp(s)
 }
@@ -335,6 +339,7 @@ type asmWriter interface {
 	flush()
 	roSymbol(name string, f func(w asmWriter)) operand
 	gcMap(name string, offsets []int) labelOp
+	taggedInt(i int)
 }
 
 // Writer for GNU AS format (https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax)
@@ -379,7 +384,7 @@ func (gw *gasWriter) spacer() {
 func (gw *gasWriter) fnStart(name string) {
 
 	gw.tab(".text")
-	gw.tab(".8byte", "0x2") // "Read-only" GC header
+	gw.taggedInt(2) // "Read-only" GC header
 
 	if runtime.GOOS == "darwin" {
 		name = "_" + name
@@ -413,9 +418,10 @@ func (gw *gasWriter) flush() {
 			panic(err)
 		}
 
-		// string literal header (2 == readonly, type ID = 4 (string))
+		// string literal header (5 == readonly, type ID = 4 (string))
+		// TODO: Set type ID correctly here & clean this mess up!
 		gw.write("%s:\n   .8byte %v\n   .8byte %v\n   .ascii \"%v\\0\"\n",
-			label, "0x4000000000002", len(raw), s[1:len(s)-1])
+			label, "0x4000000000005", (len(raw) << 1) + 1, s[1:len(s)-1])
 	}
 	gw.literals = make(map[string]string) // Clear values
 }
@@ -443,7 +449,7 @@ func (gw *gasWriter) ins(i inst, ops ...operand) {
 }
 
 func (gw *gasWriter) roSymbol(name string, f func(w asmWriter)) operand {
-	gw.tab(".8byte", "0x2") // "Read-only" GC header, TODO: Set type ID here
+	gw.taggedInt(2) // "Read-only" GC header, TODO: Set type ID here
 	gw.label(fnOp(name).Print()) // TODO: Fix this mess!
 	f(gw)
 	return symOp(name)
@@ -451,14 +457,18 @@ func (gw *gasWriter) roSymbol(name string, f func(w asmWriter)) operand {
 
 func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
 	gw.label(name)
-	gw.tab(".8byte", strconv.Itoa(len(offsets)))
+	gw.taggedInt(len(offsets))
 	var s []string
 	for _, off := range offsets {
-		s = append(s, strconv.Itoa(off))
+		s = append(s, strconv.Itoa(off)) // Bytes are stored in arrays *without* tags!
 	}
 	gw.tab(".byte", strings.Join(s, ","))
 	gw.spacer()
 	return labelOp(name)
+}
+
+func (gw *gasWriter) taggedInt(i int) {
+	gw.tab(".8byte", strconv.Itoa((i << 1) + 1))
 }
 
 

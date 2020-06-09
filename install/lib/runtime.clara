@@ -40,22 +40,15 @@ fn parseArgs(argc: int, argv: pointer) []string {
 }
 
 fn parseCString(buf: byteBuffer, arg: pointer) {
-    loop := true
     off := 0
-    max := 1<<6  // Read bytes in 64-bit blocks
-    while loop {
-        shift := 0
-        bytes := arg.inc(off).deref.toInt()
-        while shift < max and loop {
-            b := (bytes >> shift) & 0xFF
-            if b == 0x00 {
-                loop = false // NUL - end of string
-            } else {
-                buf.append(b)
-                shift = shift + 8
-            }
+    while true {
+        bytes := arg.inc(off).deref.toTaggedInt()
+        b := bytes & 0xFF
+        if b == 0x00 {
+            return
         }
-        off = off + 8
+        buf.append(b)
+        off = off + 1
     }
 }
 

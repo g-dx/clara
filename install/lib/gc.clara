@@ -41,8 +41,8 @@ fn gcMarkSlot(fp: frame, off: byte) {
 }
 
 fn gcMarkPointer(p: pointer, level: int) {
-    if p.isNull() {
-        gcMarkDebug(p, level, "???", "❌")
+    if not p.isReal() {
+        gcMarkDebug(p, level, "<not a pointer>", "🧯")
         return
     }
     block := unsafe(p, -16, type(block))
@@ -69,7 +69,7 @@ fn gcMarkPointer(p: pointer, level: int) {
             // Already marked - no further action required
         case ArrayType(name, elemIsPointer):
             if elemIsPointer {
-                len := p.deref.toInt()
+                len := p.deref.toRawInt() // Array lengths are already tagged
                 for i in 0 .. len {
                     gcMarkPointer(p.inc(8 + (i * 8)).deref, level + 5)
                 }
@@ -106,8 +106,13 @@ fn gcSweep() {
     }
 }
 
-fn toInt(p: pointer) int = unsafe(p, 0, type(int))
-fn isNull(p: pointer) bool = unsafe(p, 0, type(int)) == 0
+fn toRawInt(p: pointer) int = unsafe(p, 0, type(int))
+fn isNull(p: pointer) bool = p.toTaggedInt() == 0
+fn isReal(p: pointer) bool {
+    i := p.toTaggedInt()
+    return ((i & 0x7) == 0) and i > 1024
+}
+
 fn inc(p: pointer, off: int) pointer = unsafe(p, off, type(pointer))
 
 // Compile time generated structure holding runtime type information
@@ -144,7 +149,7 @@ fn clearMark(b: block) {
 
 fn isMarked(b: block) bool = (b.header & 0x1) == 0x1
 fn isReadOnly(b: block) bool = (b.header & 0x2) == 0x2
-fn typeId(b: block) int = (b.header & 0xFFFF << 48) >> 48
+fn typeId(b: block) int = (b.header & 0xFFFF << 47) >> 47
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
@@ -152,3 +157,7 @@ fn typeId(b: block) int = (b.header & 0xFFFF << 48) >> 48
 
 // Implemented in codegen.go
 fn typeInfoTable() []typeInfo
+
+// Implemented in assembly by codegen.go
+// TODO: It would be nice to have control over this directly in Clara
+fn toTaggedInt(p: pointer) int

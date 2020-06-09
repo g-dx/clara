@@ -11,10 +11,10 @@ fn toBytes(s: string) []byte {
     return buf
 }
 fn toBinary(i: int) string {
-    buf := NewByteBuffer(78) // 64 digits + 7, 2-byte separators
+    buf := NewByteBuffer(77) // 63 digits + 7, 2-byte separators
     digits := "01"
     sep := "·"
-    for j in 64 .. 0 {
+    for j in 63 .. 0 {
         n := 0
         mask := 1 << j
         if (i & mask) == mask {
@@ -54,7 +54,8 @@ fn unwrapBool(w: boolWrapper) bool = w.val
 fn print(s: string) = printf("%s", s)
 fn println(s: string) = printf("%s\n", s)
 fn println(i: int) = printf("%lli\n", i)
-fn println(b: byte) = printf("%hhi\n", b)
+// TODO: Restore me!
+//fn printByte(b: byte) = printf("%hhi\n", b)
 fn println(b: bool) = println(b.toString())
 
 // Int
@@ -67,8 +68,8 @@ fn toString(val: int) string {
         return "0"
     }
     digits := "0123456789"
-    // Int min: -9223372036854775808
-    // Int max: 9223372036854775807
+    // Int min: -4611686018427387904
+    // Int max: 4611686018427387903
     buf := byteArray(20)
     base := 10
     n := val

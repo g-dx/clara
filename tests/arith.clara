@@ -36,12 +36,12 @@ fn main() {
     println(10 - 4 - 3 - 2 - 1) // EXPECT: 0
 
     // Max int & signed wrap around
-    maxInt := 9223372036854775807 // 1<<63 -1
-    minInt := -9223372036854775808 // -1<<63
-    println(maxInt)   // EXPECT: 9223372036854775807
-    println(minInt)   // EXPECT: -9223372036854775808
-    println(maxInt+1) // EXPECT: -9223372036854775808
-    println(minInt-1) // EXPECT: 9223372036854775807
+    maxInt := 4611686018427387903 // 1<<62 -1
+    minInt := -4611686018427387904 // -1<<62
+    println(maxInt)   // EXPECT: 4611686018427387903
+    println(minInt)   // EXPECT: -4611686018427387904
+    println(maxInt+1) // EXPECT: -4611686018427387904
+    println(minInt-1) // EXPECT: 4611686018427387903
 
     // Max byte & signed wrap around
     maxByte := toByte(127) // 1<<8 - 1
