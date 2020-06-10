@@ -117,7 +117,6 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 
 	// Post-typecheck AST rewrite
 	WalkPostOrder(rootNode, func(n *Node) { rewriteArrayLiteralExpr(n, rootSymtab) })
-	WalkPostOrder(rootNode, func(n *Node) { applyBoxing(n, rootSymtab) })
 	for _, n := range rootNode.stmts {
 		if !isFn(n, "invokeDynamic") {
 			WalkPostOrder(n, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
