@@ -118,7 +118,11 @@ func Compile(options options, claraLibPaths []string, progPath string, cLibPaths
 	// Post-typecheck AST rewrite
 	WalkPostOrder(rootNode, func(n *Node) { rewriteArrayLiteralExpr(n, rootSymtab) })
 	WalkPostOrder(rootNode, func(n *Node) { applyBoxing(n, rootSymtab) })
-	WalkPostOrder(rootNode, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
+	for _, n := range rootNode.stmts {
+		if !isFn(n, "invokeDynamic") {
+			WalkPostOrder(n, func(n *Node) { rewriteAnonFnAndClosures(rootNode, n) })
+		}
+	}
 	WalkPostOrder(rootNode, func(n *Node) { declareCaseVars(rootSymtab, n) })
 	WalkPostOrder(rootNode, func(n *Node) { lowerMatchStatement(rootSymtab, n) })
 	WalkPostOrder(rootNode, lowerForStatement)
@@ -209,9 +213,6 @@ func stdSyms() []*Symbol {
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
 		{ Name: "[]byte", Type: byteArrayType },
-		// invokeDynamic (implemented in assembly)
-		{ Name: "invokeDynamic", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Params: []*Type{pointerType, pointerType, pointerType, pointerType, pointerType, pointerType}, ret: nothingType} } },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
@@ -219,6 +220,10 @@ func stdSyms() []*Symbol {
 		{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 		&FunctionType{ Params: []*Type {stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
 	}
+}
+
+func isFn(n *Node, name string) bool {
+	return n.Is(opBlockFnDcl) && n.token.Val == name
 }
 
 func printLex(tokens []*lex.Token, out io.Writer) {

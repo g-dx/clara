@@ -133,8 +133,6 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 	asm.spacer()
 	genNoGc(asm)
 	asm.spacer()
-	genInvokeDynamic(asm, noGc) // Closure invocation support
-	asm.spacer()
 	genTypeInfoTable(asm, gt)
 	asm.spacer()
 	asm.flush() // Write final values
@@ -307,42 +305,6 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	genFnEntry(asm, "typeInfoTable", 0)
 	asm.ins(movabs, typeInfoArray, rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
-}
-
-func genInvokeDynamic(asm asmWriter, noGc operand) {
-	genFnEntry(asm, fnPrefix + "invokeDynamic.pointer.pointer.pointer.pointer.pointer.pointer", 1)
-	callLabel := asm.newLabel("call")
-	fnPtrLabel := asm.newLabel("fnPtr")
-
-	// Check for read-only (header & 2 == 2)
-	asm.ins(movq, rdi.displace(-ptrSize), rax)
-	asm.ins(andq, taggedIntOp(2), rax)
-	asm.ins(cmpq, taggedIntOp(2), rax)
-	asm.ins(je, labelOp(fnPtrLabel))
-
-	// ----------------------------------------------------------------------------
-	// Closure
-	asm.ins(movq, rdi.deref(), rax) // Deref closure to get func pointer
-	asm.ins(movq, rax, rbp.displace(-ptrSize)) // Copy func pointer to stack slot
-	asm.ins(movq, rdi.displace(ptrSize), rdi) // Deref closure to get env
-	asm.ins(jmp, labelOp(callLabel))
-
-	// ----------------------------------------------------------------------------
-	// Function Pointer
-	asm.label(fnPtrLabel)
-	asm.ins(movq, rdi, rbp.displace(-ptrSize)) // Copy *function to stack
-	asm.ins(movq, rsi, rdi)
-	asm.ins(movq, rdx, rsi)
-	asm.ins(movq, rcx, rdx)
-	asm.ins(movq, r8, rcx)
-	asm.ins(movq, r9, r8)
-	// ----------------------------------------------------------------------------
-
-	// Make call
-	asm.label(callLabel)
-	asm.ins(call, rbp.displace(-ptrSize).indirect())
-	asm.addr(noGc)
-	genFnExit(asm, false) // Called from Clara code
 }
 
 func genFramePointerAccess(asm asmWriter) {

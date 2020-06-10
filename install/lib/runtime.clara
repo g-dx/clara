@@ -139,6 +139,34 @@ fn toMillis(t: time) int = t.toMicros()/1000
 fn toSecs(t: time) int = t.toMicros()/1000000
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+// Runtime representation of a closure
+struct closure {
+    f: fn(clEnv, int, int, int, int, int) nothing
+    env: clEnv
+}
+
+struct clEnv {
+    // Captured variables ...
+}
+
+fn invokeDynamic(p: pointer, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) {
+    if p.isClosure() {
+        cl := unsafe(p, 0, type(closure))
+        cl.f(cl.env, arg1, arg2, arg3, arg4, arg5)
+    } else {
+        f := unsafe(p, 0, type(fn(int, int, int, int, int) nothing))
+        f(arg1, arg2, arg3, arg4, arg5)
+    }
+}
+
+// readonly = true ➞ fn pointer, readonly = false ➞ closure
+fn isClosure(p: pointer) bool {
+    header := p.inc(-8).deref.toRawInt()
+    return (header & 0x2) == 0x0
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // External Functions
 // ---------------------------------------------------------------------------------------------------------------------
 

@@ -314,8 +314,6 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			// Set right symbol and set parent as right
 			right.sym = sym
 			right.typ = sym.Type
-
-			n.sym = right.sym
 			n.typ = right.typ
 
 		} else {
