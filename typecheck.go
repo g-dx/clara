@@ -644,7 +644,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	// SPECIAL CASE: Skip dealing with variadic functions as printf & debug are the only ones
 	if n.left.token.Val == "printf" || n.left.token.Val == "debug" {
 		s, _ := fnSymtab.Resolve(n.left.token.Val)
-		n.sym = s
+		n.left.sym = s
 		n.typ = nothingType
 		return errs
 	}
@@ -656,7 +656,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 		if len(n.stmts) != 3 {
 			return append(errs, semanticError2(errInvalidNumberArgsMsg, n.left.token, len(n.stmts), len(unsafe.Params)))
 		}
-		n.sym = s
+		n.left.sym = s
 		n.typ = n.stmts[len(n.stmts)-1].typ
 		return errs
 	}
