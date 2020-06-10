@@ -420,6 +420,7 @@ func (gw *gasWriter) flush() {
 
 		// string literal header (5 == readonly, type ID = 4 (string))
 		// TODO: Set type ID correctly here & clean this mess up!
+		gw.tab(".align", "8")
 		gw.write("%s:\n   .8byte %v\n   .8byte %v\n   .ascii \"%v\\0\"\n",
 			label, "0x4000000000005", (len(raw) << 1) + 1, s[1:len(s)-1])
 	}
