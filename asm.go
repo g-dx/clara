@@ -384,7 +384,8 @@ func (gw *gasWriter) spacer() {
 func (gw *gasWriter) fnStart(name string) {
 
 	gw.tab(".text")
-	gw.taggedInt(2) // "Read-only" GC header
+	gw.tab(".align", "8")
+	gw.taggedInt(readOnlyGcHeader(5)) // gc.go defines these values
 
 	if runtime.GOOS == "darwin" {
 		name = "_" + name
@@ -471,6 +472,5 @@ func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
 func (gw *gasWriter) taggedInt(i int) {
 	gw.tab(".8byte", strconv.Itoa((i << 1) + 1))
 }
-
 
 func (gw *gasWriter) fnEnd() { /* ... */ }

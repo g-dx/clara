@@ -1,0 +1,32 @@
+fn main() {
+
+    // NOTE: Must not assign 'block' to a local var otherwise
+    // GC will attempt to walk it and crash!
+
+    unsafe("Hello", -24, type(block)).printTypeName() // EXPECT: string
+
+    unsafe(byteArray(0), -24, type(block)).printTypeName() // EXPECT: []byte
+
+    unsafe(intArray(0), -24, type(block)).printTypeName() // EXPECT: []int
+
+    unsafe(stringArray(0, ""), -24, type(block)).printTypeName() // EXPECT: []string
+
+    unsafe(println, -16, type(block)).printTypeName() // EXPECT: function
+
+    unsafe(SomeStruct(1), -16, type(block)).printTypeName() // EXPECT: someStruct
+
+    unsafe(Some(1), -16, type(block)).printTypeName() // EXPECT: option
+}
+
+fn printTypeName(b: block) {
+    typeInfoTable()[b.typeId()].getName().println()
+}
+
+struct someStruct {
+    i: int
+}
+
+enum option {
+    Some(i: int)
+    None()
+}

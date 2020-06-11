@@ -5,8 +5,14 @@ import (
 	"fmt"
 )
 
-const closureGc = fnPrefix + "closure_gc"
-const gcHeaderSize = ptrSize
+const (
+	readOnlyType = 0x2
+)
+
+func readOnlyGcHeader(id int) int {
+	return (id << 47) | readOnlyType
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 type GcState struct {
@@ -100,6 +106,10 @@ func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
 	// Id = 4
 	s := symtab.MustResolve("string")
 	gt.types = append(gt.types, s.Type)
+
+	// Id = 5, Create fake type for all functions
+	fn := &Type{ Function, &FunctionType{} }
+	gt.types = append(gt.types, fn)
 }
 
 func (gt *GcTypes) AssignId(typ *Type) int {

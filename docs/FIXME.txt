@@ -20,5 +20,4 @@ HTTP server work
 make it clear they are an internal concept which the GC shouldn't
 chase
 - Introduce an "any" type & update printf & friends
-- Possibly do the same for functions
 - Investigate exactly why "fn printByte(b: byte)" is disabled

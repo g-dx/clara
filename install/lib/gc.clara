@@ -74,6 +74,8 @@ fn gcMarkPointer(p: pointer, level: int) {
                     gcMarkPointer(p.inc(8 + (i * 8)).deref, level + 5)
                 }
             }
+        case FunctionType():
+            panic("Read-only functions cannot be marked")
     }
 }
 
@@ -120,6 +122,7 @@ enum typeInfo {
     StructType(name: string, roots: []byte)
     StringType()
     ArrayType(name: string, elemIsPointer: bool)
+    FunctionType()
 }
 
 fn getName(t: typeInfo) string {
@@ -130,6 +133,8 @@ fn getName(t: typeInfo) string {
             return name
         case StringType():
             return "string"
+        case FunctionType():
+            return "function"
     }
 }
 

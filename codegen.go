@@ -205,7 +205,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	var et *Type
 	for _, t := range gt.types {
 		switch t.Kind {
-		case String, Array:
+		case String, Array, Function:
 			roots = append(roots, noGc)
 			tag = 0
 		case Struct:
@@ -288,6 +288,8 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 					elemIsPointer = "0x1"
 				}
 				w.tab(".8byte", elemIsPointer)
+			case Function:
+				w.taggedInt(3)
 			}
 		}))
 	}
