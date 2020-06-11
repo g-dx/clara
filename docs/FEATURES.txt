@@ -1,11 +1,19 @@
-(Hopefully these are in the order they should be tackled...)
+In no particular order...
 
-- Allow panic() to operate as a return statement
-- Allow enum constructors to be namespaced by type
-- support modules
-- add short circuit boolean code gen
-- full register usage in code gen
-- support escape analysis for stack allocation
+- Support variadic functions
+- Support polymorphic types
+- Support stacktraces
+- Support string interpolation
+- Support escape analysis for stack allocation
+- Support full register usage
+- Support modules
+- Support namespacing constructors
+- Support nullable types
+- Support ignoring cases with 'remaining' keyword
+- Support lists
+- Support maps
+- Support standard functional programming operators (map, filter, reduce, etc)
+- Support some kind of "interface" type
 
 DONE:
 
