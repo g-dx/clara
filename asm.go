@@ -419,11 +419,11 @@ func (gw *gasWriter) flush() {
 			panic(err)
 		}
 
-		// string literal header (5 == readonly, type ID = 4 (string))
-		// TODO: Set type ID correctly here & clean this mess up!
 		gw.tab(".align", "8")
-		gw.write("%s:\n   .8byte %v\n   .8byte %v\n   .ascii \"%v\\0\"\n",
-			label, "0x4000000000005", (len(raw) << 1) + 1, s[1:len(s)-1])
+		gw.label(label)
+		gw.taggedInt(readOnlyGcHeader(4)) // gc.go defines fixed IDs
+		gw.taggedInt(len(raw))
+		gw.write("   .ascii \"%v\\0\"\n", s[1:len(s)-1])
 	}
 	gw.literals = make(map[string]string) // Clear values
 }
