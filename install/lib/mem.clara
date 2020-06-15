@@ -41,12 +41,13 @@ fn emptyBlock() block = unsafe(0, 0, type(block))
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Allocating-Cleared-Space.html#Allocating-Cleared-Space
+#[RawValues]
 fn calloc(count: int, eltsize: int) block
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Freeing-after-Malloc.html#Freeing-after-Malloc
+#[RawValues]
 fn free(b: block) nothing
 
 // Heap linked list
 fn getBlocks() block
 fn setBlocks(b: block) nothing
-

@@ -466,7 +466,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Attempt to find constructor
 		sym, ok := symtab.Resolve(n.token.Val)
-		if !ok || !sym.Type.Is(Function) || !sym.Type.AsFunction().IsEnumCons() {
+		if !ok || !sym.Type.Is(Function) || !sym.Type.AsFunction().Is(EnumCons) {
 			errs = append(errs, semanticError(errNotAnEnumCaseMsg, n.token))
 			goto end
 		}
@@ -785,7 +785,8 @@ func reifyType(t *Type, bound map[*Type]*Type) *Type {
 		}
 		returnType := reifyType(f.ret, bound)
 		// TODO: Should Data be copied too?
-		return &Type{Kind: Function, Data: &FunctionType{Kind: f.Kind, isVariadic: f.isVariadic, ret: returnType, Params: params, Data: f.Data}}
+		return &Type{Kind: Function, Data:
+			&FunctionType{Kind: f.Kind, isVariadic: f.isVariadic, ret: returnType, Params: params, Data: f.Data, RawValues: f.RawValues}}
 
 	case t.Is(Struct) || t.Is(Enum):
 		panic("reifying structs & enums is not yet supported!")

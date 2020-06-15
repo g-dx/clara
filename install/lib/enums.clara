@@ -10,6 +10,4 @@ struct enum_ {
     // Max of 5 fields/parameters
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// External Functions
 fn asEnum(p: pointer) enum_ = unsafe(p, 0, type(enum_))

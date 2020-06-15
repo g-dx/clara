@@ -8,14 +8,8 @@
 - Compiler crash:
     fn closure«T»(t: T) fn() T = fn() = t
 
-- Properly identify external function using a directive. E.g
-#[Ext]
-fn libc()
-
-And update tagging rules appropriately. This will be required for
-HTTP server work
-
 - Start to define a higher level interface for AsmWriter
 - Remove lots of tagging and untagging from expression handling
 - Introduce an "any" type & update printf & friends
 - Investigate exactly why "fn printByte(b: byte)" is disabled
+- Move #[RawValues] processing into an AST pass and out of codegen

@@ -157,12 +157,13 @@ fn isClosure(p: pointer) bool {
 fn asm_entrypoint() int
 
 // Source: libc, https://www.gnu.org/software/libc/manual/html_node/Normal-Termination.html#Normal-Termination
+#[RawValues]
 fn exit(status: int) nothing
 
-fn getFramePointer() frame // Implemented in assembly by codegen.go
+fn getFramePointer() frame
+
 fn isStackBase(f: frame) bool
 fn setStackBase(f: frame) nothing
-
 fn setRuntime(r: runtime) nothing
 fn getRuntime() runtime
 

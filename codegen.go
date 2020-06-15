@@ -142,7 +142,7 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 func genFunc(asm asmWriter, n *Node, fn *function, gt *GcTypes, alloc *Symbol) {
 
 	// Ensure we only generate code for "our" functions
-	if !fn.Type.IsExternal() {
+	if !fn.Type.Is(External) {
 
 		// Assign stack offsets for temporaries
 		temps := len(fn.Type.Params)
@@ -319,6 +319,7 @@ func genFramePointerAccess(asm asmWriter) {
 
 func genUnsafe(asm asmWriter) {
 	genFnEntry(asm, "unsafe", 0) // NOTE: Lie! This function takes 3 parameters!
+	untagAs(asm, Integer, rsi) // Strip tag from offset
 	asm.ins(leaq, rdi.index(rsi), rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
@@ -386,7 +387,7 @@ func genIoobTrampoline(asm asmWriter, ioob operand) {
 func genConstructor(asm asmWriter, f *function, params []*Node, name string, id int, alloc *Symbol) {
 
 	size := ptrSize * len(params)
-	if f.Type.IsEnumCons() {
+	if f.Type.Is(EnumCons) {
 		size += ptrSize // space for tag
 	}
 
@@ -400,7 +401,7 @@ func genConstructor(asm asmWriter, f *function, params []*Node, name string, id 
 	off := 0
 
 	// Set tag (if required)
-	if f.Type.IsEnumCons() {
+	if f.Type.Is(EnumCons) {
 		asm.ins(movq, taggedIntOp(f.Type.AsEnumCons().Tag), rax.displace(off))
 		off += ptrSize
 	}
@@ -564,8 +565,8 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		asm.ins(movq, rax, regs[i])
 		f.RegisterInUse(arg.typ)
 
-		// TODO: Mark libc functions using directives & process parameter here
-		if fn.IsExternal() {
+		// Create "raw" values for any external functions which require them
+		if fn.Is(External) && fn.RawValues {
 			switch arg.typ.Kind {
 			case String, Array:
 				// Modify pointer to point past array length
@@ -609,10 +610,13 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		asm.ins(call, fnOp(fn.AsmName(s.Name))) // Named func call
 	}
 
-	// TODO: Mark libc functions using directives & process return value here
+	// Convert any "raw" values
+	if fn.Is(External) && fn.RawValues && (fn.ret.Is(Byte) || fn.ret.Is(Integer)) {
+		tagAs(asm, fn.ret.Kind, rax)
+	}
 
 	// Only generate GC function addresses for Clara functions
-	if !fn.IsExternal() {
+	if !fn.Is(External) {
 		asm.addr(f.NewGcMap())
 	}
 
@@ -743,7 +747,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		case v.Type.Is(Function) && v.IsGlobal: // Named function operand
 			// HACK to workaround absolute addressing!
 			// TODO: Figure out how to get a PIC relative address of an external function
-			if v.Type.AsFunction().IsExternal() {
+			if v.Type.AsFunction().Is(External) {
 				asm.ins(movq, _false, rax)
 			} else {
 				asm.ins(movabs, symOp(v.Type.AsFunction().AsmName(v.Name)), rax)

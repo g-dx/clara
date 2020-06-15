@@ -186,6 +186,9 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 	if n.op == opExternFnDcl {
 		fnType.Kind = External
 	}
+	if n.attrs.requiresRawValues() {
+		fnType.RawValues = true
+	}
 	sym := &Symbol{Name: symName, IsGlobal: true, Type: &Type{Kind: Function, Data: fnType}}
 	if s, found := symtab.Define(sym); found {
 		if !allowOverload {

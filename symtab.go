@@ -315,11 +315,12 @@ type FunctionType struct {
 	Types      []*Type
 	ret        *Type
 	isVariadic bool
+	RawValues  bool
 }
 
 // Used during codegen to avoid clashes with shared library functions
 func (ft *FunctionType) AsmName(name string) string {
-	if ft.IsExternal() {
+	if ft.Is(External) {
 		return name
 	}
 	if name == "main" {
@@ -337,7 +338,7 @@ func (ft *FunctionType) AsmName(name string) string {
 }
 
 func (ft *FunctionType) Describe(name string) string {
-	if ft.IsExternal() {
+	if ft.Is(External) {
 		return fmt.Sprintf("%v (external)", name)
 	}
 
@@ -353,12 +354,13 @@ func (ft *FunctionType) Describe(name string) string {
 	return buf.String()
 }
 
-func (ft *FunctionType) IsExternal() bool {
-	return ft.Kind == External
-}
-
-func (ft *FunctionType) IsEnumCons() bool {
-	return ft.Kind == EnumCons
+func (ft *FunctionType) Is(kinds ... FuncKind) bool {
+	for _, kind := range kinds {
+		if ft.Kind == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func (ft *FunctionType) AsClosure() *ClosureFunc {

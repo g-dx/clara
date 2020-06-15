@@ -214,10 +214,10 @@ func stdSyms() []*Symbol {
 		{ Name: "[]byte", Type: byteArrayType },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
+			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true, RawValues: true}}},
 		// printf (from libc)
 		{ Name: "printf", IsGlobal: true, Type: &Type{ Kind: Function, Data:
-		&FunctionType{ Params: []*Type {stringType }, ret: nothingType, Kind: External, isVariadic: true}}},
+		&FunctionType{ Params: []*Type {stringType }, ret: nothingType, Kind: External, isVariadic: true, RawValues: true}}},
 	}
 }
 

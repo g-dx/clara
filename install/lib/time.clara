@@ -22,4 +22,5 @@ fn toSecs(t: time) int = t.toMicros()/1000000
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Source: https://www.gnu.org/software/libc/manual/html_node/Getting-the-Time.html#Getting-the-Time
+#[RawValues]
 fn gettimeofday(t: time, zero: int) nothing

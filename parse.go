@@ -24,17 +24,23 @@ func NewParser() *Parser {
 
 const (
 	extRet = 1 << iota
+	rawValues
 )
 
 type attributes int
 func (attr attributes) isExternalReturn() bool {
 	return (attr & extRet) == extRet
 }
+func (attr attributes) requiresRawValues() bool {
+	return (attr & rawValues) == rawValues
+}
 
 func (attr attributes) Add(name string) attributes {
 	switch name {
 	case "ExtRet":
 		return attr | extRet
+	case "RawValues":
+		return attr | rawValues
 	default:
 		return attr // TODO: Report unknown attributes
 	}
