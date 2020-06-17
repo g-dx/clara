@@ -73,7 +73,7 @@ fn parseEnv(envp: pointer) env {
     forEach(envp, fn(arg: pointer, idx: int) {
         buf.parseCString(arg)
         s := buf.toString()
-        i := s.Index("=") // TODO: Update Index() to support passing a []byte
+        i := s.IndexOf("=") // TODO: Update IndexOf() to support passing a []byte
         if i == -1 {
             key[idx] = s
             val[idx] = ""

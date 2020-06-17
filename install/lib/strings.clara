@@ -14,9 +14,11 @@ fn Equals(s1: string, s2: string) bool {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+fn IndexOf(s: string, sub: string) int = IndexOf(s, sub, 0)
+
 // Simple brute force substring match. If found return index or -1 if no match.
 // TODO: Replace with Rabin-Karp or Boyer-Moore
-fn Index(s: string, sub: string) int {
+fn IndexOf(s: string, sub: string, from: int) int {
     // Special cases
     if sub.length == 0 {
         return 0
@@ -24,7 +26,7 @@ fn Index(s: string, sub: string) int {
     if s.length == 0 {
         return -1
     }
-    if sub.length > s.length {
+    if sub.length + from > s.length {
         return -1
     }
 
@@ -40,7 +42,7 @@ fn Index(s: string, sub: string) int {
         return i == sub.length
     }
 
-    for pos in 0 .. s.length {
+    for pos in from .. s.length {
         if s[pos] == sub[0] and matchRun(s, sub, pos+1) {
             return pos // Match found
         }

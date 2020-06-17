@@ -126,7 +126,7 @@ fn main() {
 }
 
 fn eval(s: string, sub: string, expected: int) {
-    actual := Index(s, sub)
+    actual := IndexOf(s, sub)
     if actual == expected {
         println("OK")
     } else {
