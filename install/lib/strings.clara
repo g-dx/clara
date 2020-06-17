@@ -14,6 +14,10 @@ fn Equals(s1: string, s2: string) bool {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+fn Substring(s: string, start: int, end: int) string = toString(s.asByteArray(), start, end - start)
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 fn IndexOf(s: string, sub: string) int = IndexOf(s, sub, 0)
 
 // Simple brute force substring match. If found return index or -1 if no match.
@@ -143,3 +147,4 @@ fn toString(b: []byte, pos: int, length: int) string {
 
 // TODO: Should be private!
 fn asString(b: []byte) string = unsafe(b, 0, type(string))
+fn asByteArray(s: string) []byte = unsafe(s, 0, type([]byte))
