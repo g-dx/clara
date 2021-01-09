@@ -84,10 +84,10 @@ func Walk(isPreOrder bool, n *Node, f func(*Node) bool) {
 			Walk(isPreOrder, stmt, f)
 		}
 
-	case opLit, opError, opNamedType:
+	case opLit, opError:
 		// ...
 
-	case opIdentifier, opReturn:
+	case opIdentifier, opReturn, opNamedType:
 		if n.left != nil {
 			Walk(isPreOrder, n.left, f)
 		}

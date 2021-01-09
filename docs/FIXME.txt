@@ -5,11 +5,24 @@
 - Update ASM generation to produce PIE executables. This will allow passing external functions as parameters
 - Generic call sites within other generic functions require type parameters to match between functions
 - Generic closures require type parameters to be declared again
-- Compiler crash:
-    fn closure«T»(t: T) fn() T = fn() = t
+- Parser bug:
+
+struct x { f: fn(int) nothing }
+fn getX(x: x) fn(int) nothing = x.f
+X(println).get()(999)
+
+- Maybe perform top-level type processing using an "on-demand" scheme which must check for cycles. This
+  will allow merging the type instantiation of fields/enums/parameters into regular top level type processing.
 
 - Start to define a higher level interface for AsmWriter
 - Remove lots of tagging and untagging from expression handling
 - Introduce an "any" type & update printf & friends
 - Investigate exactly why "fn printByte(b: byte)" is disabled
 - Move #[RawValues] processing into an AST pass and out of codegen
+- Check for superfluous type parameters on methods, structs & fields
+- Compare and rank functions containing generic types. Eg:
+  * get(b: box«T») T
+  * get(b: box«int») int
+
+- Lexing does not appear to correctly handle guillemots (multi-byte characters) and produces
+  Token with invalid positions

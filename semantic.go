@@ -40,6 +40,7 @@ const (
 	errTooManyArgsMsg           = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
 	errTypeParameterNotBoundMsg = "%v:%d:%d: error, type parameter '%v' is not bound for this function call"
 	errEmptyArrayLiteralMsg     = "%v:%d:%d: error, empty array literal not allowed ... yet!"
+	errNoTypeParametersMsg      = "%v:%d:%d: error, type '%v' does not declare type parameters"
 	maxCaseArgCount             = 5
 	maxFnArgCount               = 6
 
@@ -88,7 +89,20 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 			topType = &Type{Kind: Enum, Data: &EnumType{Name: n.token.Val}}
 
 		case opStructDcl:
-			topType = &Type{Kind: Struct, Data: &StructType{Name: n.token.Val}}
+			n.symtab = symtab.Child()
+			var types []*Type
+			for _, tParam := range n.params {
+				sym, found := n.symtab.Define(&Symbol{Name: tParam.token.Val, IsType: true})
+				if found {
+					errs = append(errs, semanticError(errRedeclaredMsg, tParam.token))
+					continue
+				}
+				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: tParam.token.Val}}
+				tParam.sym = sym
+				tParam.typ = sym.Type
+				types = append(types, sym.Type)
+			}
+			topType = &Type{Kind: Struct, Data: &StructType{Name: n.token.Val, Types: types}}
 
 		case opBlockFnDcl, opExprFnDcl, opExternFnDcl:
 			// NOTE: This type is unimportant as function symbols created here
@@ -142,30 +156,27 @@ loop:
 			n.stmts = nil // Clear constructors
 
 		case opStructDcl:
-			s, _ := symtab.Resolve(n.token.Val)
-			strt := s.Type.AsStruct()
 
-			// Calculate field information
-			x := 0
-			n.symtab = symtab.Child()
-			for _, stmt := range n.stmts {
+			strt := n.sym.Type.AsStruct()
+
+			fields:
+			for x, stmt := range n.stmts {
 
 				// Look up type
 				fieldType, err := createType(n.symtab, stmt.left)
 				if err != nil {
 					errs = append(errs, err)
-					continue loop
+					continue fields
 				}
 				s := &Symbol{Name: stmt.token.Val, Addr: x * ptrSize, Type: fieldType}
 
 				// Define field
 				if _, found := n.symtab.Define(s); found {
 					errs = append(errs, semanticError(errRedeclaredMsg, stmt.token))
-					continue loop
+					continue fields
 				}
 				strt.Fields = append(strt.Fields, s)
 				stmt.sym = s
-				x += 1
 			}
 
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
@@ -177,7 +188,105 @@ loop:
 			}
 		}
 	}
+
+	if len(errs) != 0 {
+		return errs
+	}
+
+	// Perform type instantiation for all generic types now that all top
+	// level types have been processed
+	onError := func(err error) { errs = append(errs, err) }
+
+	for _, n := range rootNode.stmts {
+		switch n.op {
+		case opStructDcl:
+			instantiateFieldTypes(n, onError)
+		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
+			instantiateFunctionTypes(n, onError)
+		}
+	}
 	return errs
+}
+
+func instantiateFieldTypes(n *Node, onError func(err error)) {
+	for _, field := range n.stmts {
+		// TODO: Set field.typ to new type as well?
+		instantiated := instantiateType(n.symtab, field.left, onError)
+		field.sym.Type = instantiated
+	}
+}
+
+func instantiateFunctionTypes(n *Node, onError func(err error)) {
+	for i, param := range n.params {
+		// TODO: Set param.typ to new type as well?
+		instantiated := instantiateType(n.symtab, param.left, onError)
+		param.sym.Type = instantiated
+		n.sym.Type.AsFunction().Params[i] = instantiated
+	}
+	if n.left != nil {
+		n.sym.Type.AsFunction().ret = instantiateType(n.symtab, n.left, onError)
+	}
+}
+
+func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
+
+	switch n.op {
+	case opNamedType:
+		// TODO: Ignore errors here? Checked earlier?
+		s, _ := symtab.ResolveAll(n.token.Val, func(s *Symbol) bool { return s.IsType })
+
+		if n.left == nil {
+			return s.Type
+		}
+		// Instantiate type parameter recursively
+		var types []*Type
+		for _, typeParam := range n.left.params {
+			types = append(types, instantiateType(symtab, typeParam, onError))
+		}
+		switch s.Type.Kind {
+		case Struct:
+			st := s.Type.AsStruct()
+			if len(st.Types) == 0 {
+				onError(semanticError2(errNoTypeParametersMsg, n.token, st.Name))
+				return s.Type
+			}
+			if len(st.Types) != len(types) {
+				onError(semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(st.Types)))
+				return s.Type
+			}
+			bound := make(map[*Type]*Type)
+			for i, t := range types {
+				bound[st.Types[i]] = t
+			}
+			return substituteType(s.Type, bound)
+		case Enum:
+			// TODO:
+
+			return s.Type
+		case Integer, String, Boolean, Byte, Pointer, Parameter, Nothing:
+			onError(semanticError2(errNoTypeParametersMsg, n.token, s.Name))
+			return s.Type
+		default:
+			panic("unreachable")
+		}
+	case opFuncType:
+		// TODO: If no parameters or return is generic nothing to
+		var params []*Type
+		for _, param := range n.stmts {
+			params = append(params, instantiateType(symtab, param, onError))
+		}
+		fn := &FunctionType{Params: params, ret: nothingType}
+		if n.left != nil {
+			fn.ret = instantiateType(symtab, n.left, onError)
+		}
+		return &Type{Kind: Function, Data: fn}
+
+	case opArrayType:
+		return &Type{Kind: Array, Data: &ArrayType{Elem: instantiateType(symtab, n.left, onError)}}
+
+	default:
+		panic(fmt.Sprintf("AST node [%v] does not represent a type!", nodeTypes[n.op]))
+	}
 }
 
 func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) (*FunctionType, error) {
@@ -245,12 +354,22 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 	return fnType, nil
 }
 
+// TODO: Should return a list of errs
 func createType(symtab *SymTab, n *Node) (*Type, error) {
 	switch n.op {
 	case opNamedType:
 		s, ok := symtab.ResolveAll(n.token.Val, func(s *Symbol) bool { return s.IsType })
 		if !ok {
 			return nil, semanticError(errUnknownTypeMsg, n.token)
+		}
+		// Validate all parameterised types exist
+		if n.left != nil {
+			for _, typeParam := range n.left.params {
+				_, err := createType(symtab, typeParam)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 		return s.Type, nil
 

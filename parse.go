@@ -112,14 +112,17 @@ func (p *Parser) parseEnum(attrs attributes) *Node {
 
 func (p *Parser) parseStruct(attrs attributes) *Node {
 	p.need(lex.Struct)
-	id := p.need(lex.Identifier)
+	n := &Node{attrs: attrs, op: opStructDcl, token: p.need(lex.Identifier)}
+	if p.is(lex.LGmet) {
+		types, _ := p.parseTypeList()
+		n.params = types
+	}
 	p.need(lex.LBrace)
-	var fields []*Node
 	for p.isNot(lex.RBrace) {
-		fields = append(fields, p.parseParameter())
+		n.stmts = append(n.stmts, p.parseParameter())
 	}
 	p.need(lex.RBrace)
-	return &Node{attrs: attrs, op: opStructDcl, token: id, stmts: fields}
+	return n
 }
 
 func (p *Parser) parseFn(attrs attributes, id *lex.Token, isAnon bool) *Node {
@@ -507,7 +510,12 @@ func (p *Parser) parseType() *Node {
 		p.need(lex.RBrack)
 		return &Node{op: opArrayType, token: t, left: p.parseType()}
 	case lex.Identifier:
-		return &Node{op: opNamedType, token: p.next()}
+		n := &Node{op: opNamedType, token: p.next()}
+		if p.is(lex.LGmet) {
+			types, start := p.parseTypeList()
+			n.left = &Node{op: opTypeList, token: start, params: types }
+		}
+		return n
 	default:
 		p.syntaxError("<type>")
 		return &Node{op: opError, token: p.next()}

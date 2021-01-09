@@ -220,6 +220,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 				goto end
 			}
 			n.typ = n.sym.Type
+			instantiateFunctionTypes(n, func(err error) { errs = append(errs, err) })
 		}
 
 		// Type check stmts
@@ -700,7 +701,7 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	}
 
 	// Attempt to convert from generic -> concrete type. If still generic, check that's allowed in this context
-	returnType = reifyType(returnType, boundTypes)
+	returnType = substituteType(returnType, boundTypes)
 	if returnType.Is(Parameter) && !fn.HasTypeParameter(returnType) {
 		return append(errs, semanticError2(errTypeParameterNotBoundMsg, nf.token, returnType.AsParameter().Name))
 	}
@@ -757,39 +758,51 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 			for s := arg.sym; s != nil; s = s.Next {
 				candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
 			}
-			return semanticError2(errOverloadResolutionMsg, arg.token, reifyType(param, bound),
+			return semanticError2(errOverloadResolutionMsg, arg.token, substituteType(param, bound),
 				candidates.String()), nil
 		}
 
 		// Match on declared type
 		if !arg.typ.PolyMatch(param, bound) {
-			return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, reifyType(param, bound)), nil
+			return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, substituteType(param, bound)), nil
 		}
 	}
 	return nil, bound
 }
 
-func reifyType(t *Type, bound map[*Type]*Type) *Type {
+func substituteType(t *Type, bound map[*Type]*Type) *Type {
 	if len(bound) == 0 {
 		return t
 	}
 	switch {
 	case t.Is(Array):
-		return &Type{Kind: Array, Data: &ArrayType{Elem: reifyType(t.AsArray().Elem, bound)}}
+		return &Type{Kind: Array, Data: &ArrayType{Elem: substituteType(t.AsArray().Elem, bound)}}
 
 	case t.Is(Function):
 		f := t.AsFunction()
 		var params []*Type
 		for _, p := range f.Params {
-			params = append(params, reifyType(p, bound))
+			params = append(params, substituteType(p, bound))
 		}
-		returnType := reifyType(f.ret, bound)
+		returnType := substituteType(f.ret, bound)
 		// TODO: Should Data be copied too?
 		return &Type{Kind: Function, Data:
 			&FunctionType{Kind: f.Kind, isVariadic: f.isVariadic, ret: returnType, Params: params, Data: f.Data, RawValues: f.RawValues}}
 
-	case t.Is(Struct) || t.Is(Enum):
-		panic("reifying structs & enums is not yet supported!")
+	case t.Is(Struct):
+		s := t.AsStruct()
+		var types []*Type
+		for _, tp := range s.Types {
+			types = append(types, substituteType(tp, bound))
+		}
+		var fields []*Symbol
+		for i, f := range s.Fields {
+			fields = append(fields, &Symbol{Name: f.Name, Addr: i * ptrSize, Type: substituteType(f.Type, bound)})
+		}
+		return &Type{Kind: Struct, Data: &StructType{Name: s.Name, Fields: fields, Types: types}}
+
+	case t.Is(Enum):
+		panic("reifying enums is not yet supported!")
 
 	default:
 		for k, tt := range bound {

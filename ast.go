@@ -194,8 +194,18 @@ func (n *Node) typeName() string {
 		return fmt.Sprintf("fn(%v)", strings.Join(typeParams, ", "))
 
 	case opNamedType:
-		return n.token.Val
+		name := n.token.Val
+		if n.left != nil {
+			name = name + n.left.typeName()
+		}
+		return name
 
+	case opTypeList:
+		var typeParams []string
+		for _, p := range n.params {
+			typeParams = append(typeParams, p.typeName())
+		}
+		return fmt.Sprintf("«%v»", strings.Join(typeParams, ", "))
 	default:
 		panic(fmt.Sprintf("AST node [%v]does not represent a type!", nodeTypes[n.op]))
 	}

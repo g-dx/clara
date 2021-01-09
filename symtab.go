@@ -79,12 +79,14 @@ func (t *Type) PolyMatch(x *Type, bound map[*Type]*Type) bool {
 
 func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bool {
 
-	// Bind x to type t & continue matching
+	// Check currently bound (if any) types
 	if x.Kind == Parameter && allowBinding {
-		xt, ok := bound[x]
-		if ok {
-			return t.MatchesImpl(xt, allowBinding, bound)
+		for k, xt := range bound {
+			if k.Matches(x) {
+				return t.MatchesImpl(xt, allowBinding, bound)
+			}
 		}
+		// No type bound - bind to this type & continue
 		bound[x] = t
 		return true
 	}
@@ -93,12 +95,25 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 
 	switch t.Kind {
 	case Struct:
-		return x.Kind == Struct && t.AsStruct().Name == x.AsStruct().Name
+		if x.Kind != Struct {
+			return false
+		}
+		xs := x.AsStruct()
+		ts := t.AsStruct()
+		if ts.Name != xs.Name || len(ts.Types) != len(xs.Types) {
+			return false
+		}
+		for i, tp := range ts.Types {
+			if !tp.MatchesImpl(xs.Types[i], allowBinding, bound) {
+				return false
+			}
+		}
+		return true
 	case Enum:
 		return x.Kind == Enum && t.AsEnum().Name == x.AsEnum().Name
 	case Integer, Byte:
 		return x.Kind == Integer || x.Kind == Byte // Int & bytes can be used interchangeably...
-	case Boolean, String, Nothing:
+	case Boolean, String, Nothing, Pointer:
 		return t.Kind == x.Kind
 	case Array:
 		if x.Kind != Array {
@@ -136,9 +151,12 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 				return tt.MatchesImpl(x, allowBinding, bound)
 			}
 		}
+		if allowBinding {
+			// No type bound - bind to this type & continue
+			bound[x] = t
+			return true
+		}
 		return false
-	case Pointer:
-		return x.Kind == Pointer
 	default:
 		panic("Unknown or unexpected type comparison!")
 	}
@@ -192,7 +210,16 @@ func (t *Type) AsParameter() *ParameterType {
 func (t *Type) String() string {
 	switch t.Kind {
 	case Array: return t.Kind.String() + t.AsArray().Elem.String()
-	case Struct: return t.AsStruct().Name
+	case Struct:
+		st := t.AsStruct()
+		if len(st.Types) == 0 {
+			return st.Name
+		}
+		var tps []string
+		for _, tp := range st.Types {
+			tps = append(tps, tp.String())
+		}
+		return fmt.Sprintf("%v«%v»", st.Name, strings.Join(tps, ","))
 	case Enum: return t.AsEnum().Name
 	case Function:
 		var types []string
@@ -211,7 +238,16 @@ func (t *Type) String() string {
 func (t *Type) AsmName() string {
 	switch t.Kind {
 	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
-	case Struct: return t.AsStruct().Name
+	case Struct:
+		st := t.AsStruct()
+		if len(st.Types) == 0 {
+			return st.Name
+		}
+		var tps []string
+		for _, tp := range st.Types {
+			tps = append(tps, tp.AsmName())
+		}
+		return fmt.Sprintf("%v$%v$", st.Name, strings.Join(tps, "."))
 	case Enum: return t.AsEnum().Name
 	case Function:
 		fn := t.AsFunction()
@@ -264,8 +300,9 @@ func (t *Type) IsPrimitive() bool {
 //----------------------------------------------------------------------------------------------------------------------
 
 type StructType struct {
-	Name string
+	Name   string
 	Fields []*Symbol
+	Types  []*Type
 }
 
 func (st *StructType) GetField(name string) *Symbol {

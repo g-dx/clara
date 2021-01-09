@@ -34,7 +34,52 @@ fn main() {
     apply2(10, fn(i: int) fn(int) bool {
         return fn(i: int) bool = i > 5
     }).println() // EXPECT: true
+
+    // -------------------------------------------------------------
+    // Generic structs
+
+    x := fn(s: string, i: int, b: bool) = printf("%s, %d, %s\n", s, i, b.toString())
+
+    p := Pair(Box(x), [1, 2, 3, 4, 5])
+    p.left.val("Hello", -1, false) // EXPECT: Hello, -1, false
+    p.right[4].println()           // EXPECT: 5
+
+    fn(p: pair«box«fn(string, int, bool) nothing»,[]int») {
+        p.left.val("Goodbye", 9999, true)
+    }(p)
+    // EXPECT: Goodbye, 9999, true
+
+    // Set/get via methods
+    v := 0
+    p2 := p.mapLeft(fn(l: box«fn(string, int, bool) nothing») fn() int = fn() int {
+        v = v + 1
+        return v
+    })
+    p2.left().println() // EXPECT: 1
+    p2.left().println() // EXPECT: 2
+    p2.left().println() // EXPECT: 3
+
+    p3 := p2.mapLeft(fn(l: fn() int) string = "Yo!")
+    p3.left.println() // EXPECT: Yo!
+
+    b := Box("string")
+    b.get().println()   // EXPECT: string
+    b.set("new string")
+    b.get().println()   // EXPECT: new string
 }
+
+struct box«T» {
+    val: T
+}
+fn get«T»(b: box«T») T = b.val
+fn set«T»(b: box«T», t: T) { b.val = t }
+
+struct pair«L, R» {
+    left: L
+    right: R
+}
+
+fn mapLeft«L, R, S»(p: pair«L, R», map: fn(L) S) pair«S, R» = Pair(map(p.left), p.right)
 
 fn identity«T»(t: T) T {
     gc()
@@ -42,7 +87,7 @@ fn identity«T»(t: T) T {
 }
 
 fn closure«T»(t: T) fn() T {
-    return fn«T»() T = identity(t) // TODO: We shouldn't have to declare T again here
+    return fn«T»() T = identity(t) // TODO: Ideally we wouldn't have to declare T again here
 }
 
 fn apply2«T, R»(t: T, f: fn(T) fn(T) R) R {
