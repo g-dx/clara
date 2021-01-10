@@ -35,19 +35,6 @@ fn toBinary(i: int) string {
 fn mod(i: int, m: int) int = i - ((i / m) * m)
 
 // --------------------------------------------------------------------------------
-// Wrappers
-// --------------------------------------------------------------------------------
-
-struct intWrapper { val: int }
-fn unwrapInt(w: intWrapper) int = w.val
-
-struct byteWrapper { val: byte }
-fn unwrapByte(w: byteWrapper) byte = w.val
-
-struct boolWrapper { val: bool }
-fn unwrapBool(w: boolWrapper) bool = w.val
-
-// --------------------------------------------------------------------------------
 // Printing
 // --------------------------------------------------------------------------------
 

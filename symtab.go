@@ -275,28 +275,6 @@ func (t *Type) Width() int {
 	}
 }
 
-func (t *Type) IsPrimitive() bool {
-	switch t.Kind {
-	case Integer, Boolean, Byte:
-		return true
-	case Function:
-		f := t.AsFunction()
-		for _, p := range f.Params {
-			if p.IsPrimitive() {
-				return true
-			}
-		}
-		if f.ret.IsPrimitive() {
-			return true
-		}
-		return false
-	case Array:
-		return t.AsArray().Elem.IsPrimitive()
-	default:
-		return false
-	}
-}
-
 //----------------------------------------------------------------------------------------------------------------------
 
 type StructType struct {
