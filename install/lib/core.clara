@@ -40,6 +40,7 @@ fn mod(i: int, m: int) int = i - ((i / m) * m)
 
 fn print(s: string) = printf("%s", s)
 fn println(s: string) = printf("%s\n", s)
+fn print(i: int) = printf("%lli", i)
 fn println(i: int) = printf("%lli\n", i)
 // TODO: Restore me!
 //fn printByte(b: byte) = printf("%hhi\n", b)

@@ -86,7 +86,20 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 		var topType *Type
 		switch n.op {
 		case opEnumDcl:
-			topType = &Type{Kind: Enum, Data: &EnumType{Name: n.token.Val}}
+			n.symtab = symtab.Child()
+			var types []*Type
+			for _, tParam := range n.params {
+				sym, found := n.symtab.Define(&Symbol{Name: tParam.token.Val, IsType: true})
+				if found {
+					errs = append(errs, semanticError(errRedeclaredMsg, tParam.token))
+					continue
+				}
+				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: tParam.token.Val}}
+				tParam.sym = sym
+				tParam.typ = sym.Type
+				types = append(types, sym.Type)
+			}
+			topType = &Type{Kind: Enum, Data: &EnumType{Name: n.token.Val, Types: types}}
 
 		case opStructDcl:
 			n.symtab = symtab.Child()
@@ -135,7 +148,8 @@ loop:
 			for i, cons := range n.stmts {
 
 				// Build type info
-				consType, err := processFnType(cons, cons.token.Val, symtab, false) // Add to root symtab
+				child := n.symtab.Child()
+				consType, err := processFnType(cons, cons.token.Val, symtab, child, enumType.Types, false) // Add to root symtab
 				if err != nil {
 					errs = append(errs, err)
 					continue loop
@@ -181,7 +195,7 @@ loop:
 
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
 
-			_, err := processFnType(n, n.token.Val, symtab, true)
+			_, err := processFnType(n, n.token.Val, symtab, symtab.Child(), nil, true)
 			if err != nil {
 				errs = append(errs, err)
 				continue loop
@@ -260,9 +274,20 @@ func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
 			}
 			return substituteType(s.Type, bound)
 		case Enum:
-			// TODO:
-
-			return s.Type
+			et := s.Type.AsEnum()
+			if len(et.Types) == 0 {
+				onError(semanticError2(errNoTypeParametersMsg, n.token, et.Name))
+				return s.Type
+			}
+			if len(et.Types) != len(types) {
+				onError(semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(et.Types)))
+				return s.Type
+			}
+			bound := make(map[*Type]*Type)
+			for i, t := range types {
+				bound[et.Types[i]] = t
+			}
+			return substituteType(s.Type, bound)
 		case Integer, String, Boolean, Byte, Pointer, Parameter, Nothing:
 			onError(semanticError2(errNoTypeParametersMsg, n.token, s.Name))
 			return s.Type
@@ -289,9 +314,9 @@ func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
 	}
 }
 
-func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) (*FunctionType, error) {
+func processFnType(n *Node, symName string, symtab *SymTab, child *SymTab, types []*Type, allowOverload bool) (*FunctionType, error) {
 	// Add actual symbol and link to existing symbol if already present
-	fnType := &FunctionType{Kind: Normal}
+	fnType := &FunctionType{Kind: Normal, Types: types}
 	if n.op == opExternFnDcl {
 		fnType.Kind = External
 	}
@@ -310,7 +335,7 @@ func processFnType(n *Node, symName string, symtab *SymTab, allowOverload bool) 
 	n.sym = sym
 
 	// Process parameters
-	n.symtab = symtab.Child()
+	n.symtab = child
 	if n.right != nil {
 		for _, typeParameter := range n.right.params {
 			sym, found := n.symtab.Define(&Symbol{Name: typeParameter.token.Val, IsType: true})

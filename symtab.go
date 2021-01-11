@@ -78,17 +78,19 @@ func (t *Type) PolyMatch(x *Type, bound map[*Type]*Type) bool {
 }
 
 func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bool {
-
-	// Check currently bound (if any) types
-	if x.Kind == Parameter && allowBinding {
-		for k, xt := range bound {
-			if k.Matches(x) {
-				return t.MatchesImpl(xt, allowBinding, bound)
-			}
-		}
-		// No type bound - bind to this type & continue
-		bound[x] = t
+	if t == x {
 		return true
+	}
+
+	if x.Is(Parameter) && allowBinding {
+		// If not currently bound - bind it & continue
+		bind, exists := bound[x]
+		if !exists {
+			bound[x] = t
+			return true
+		}
+		// Assert matches ensuring we disable binding to do so!
+		return t.MatchesImpl(bind, false, bound)
 	}
 
 	// Normal type matching
@@ -110,7 +112,20 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		}
 		return true
 	case Enum:
-		return x.Kind == Enum && t.AsEnum().Name == x.AsEnum().Name
+		if x.Kind != Enum {
+			return false
+		}
+		xe := x.AsEnum()
+		te := t.AsEnum()
+		if te.Name != xe.Name || len(te.Types) != len(xe.Types) {
+			return false
+		}
+		for i, tp := range te.Types {
+			if !tp.MatchesImpl(xe.Types[i], allowBinding, bound) {
+				return false
+			}
+		}
+		return true
 	case Integer, Byte:
 		return x.Kind == Integer || x.Kind == Byte // Int & bytes can be used interchangeably...
 	case Boolean, String, Nothing, Pointer:
@@ -143,20 +158,7 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		}
 		return tf.ret.MatchesImpl(xf.ret, allowBinding, bound)
 	case Parameter:
-		if x.Is(Parameter) {
-			return t.AsParameter().Name == x.AsParameter().Name
-		}
-		for k, tt := range bound {
-			if k.Matches(t) {
-				return tt.MatchesImpl(x, allowBinding, bound)
-			}
-		}
-		if allowBinding {
-			// No type bound - bind to this type & continue
-			bound[x] = t
-			return true
-		}
-		return false
+		return t == x
 	default:
 		panic("Unknown or unexpected type comparison!")
 	}
@@ -220,7 +222,16 @@ func (t *Type) String() string {
 			tps = append(tps, tp.String())
 		}
 		return fmt.Sprintf("%v«%v»", st.Name, strings.Join(tps, ","))
-	case Enum: return t.AsEnum().Name
+	case Enum:
+		e := t.AsEnum()
+		if len(e.Types) == 0 {
+			return e.Name
+		}
+		var tps []string
+		for _, tp := range e.Types {
+			tps = append(tps, tp.String())
+		}
+		return fmt.Sprintf("%v«%v»", e.Name, strings.Join(tps, ","))
 	case Function:
 		var types []string
 		fn := t.AsFunction()
@@ -248,7 +259,16 @@ func (t *Type) AsmName() string {
 			tps = append(tps, tp.AsmName())
 		}
 		return fmt.Sprintf("%v$%v$", st.Name, strings.Join(tps, "."))
-	case Enum: return t.AsEnum().Name
+	case Enum:
+		e := t.AsEnum()
+		if len(e.Types) == 0 {
+			return e.Name
+		}
+		var tps []string
+		for _, tp := range e.Types {
+			tps = append(tps, tp.AsmName())
+		}
+		return fmt.Sprintf("%v$%v$", e.Name, strings.Join(tps, "."))
 	case Function:
 		fn := t.AsFunction()
 		buf := bytes.NewBufferString("fn")
@@ -301,6 +321,7 @@ func (st *StructType) HasField(name string) bool {
 type EnumType struct {
 	Name    string
 	Members []*FunctionType
+	Types   []*Type
 }
 
 func (et *EnumType) HasMember(fn *FunctionType) bool {

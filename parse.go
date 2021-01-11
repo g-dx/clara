@@ -99,15 +99,19 @@ func (p *Parser) parseAttributes() (attr attributes) {
 func (p *Parser) parseEnum(attrs attributes) *Node {
 	p.need(lex.Enum)
 	id := p.need(lex.Identifier)
+	n := &Node{attrs: attrs, op: opEnumDcl, token: id}
+	if p.is(lex.LGmet) {
+		types, _ := p.parseTypeList()
+		n.params = types
+	}
 	p.need(lex.LBrace)
-	var cons []*Node
 	for p.isNot(lex.RBrace) {
-		cons = append(cons,
+		n.stmts = append(n.stmts,
 			&Node{op: opConsFnDcl, token: p.need(lex.Identifier), params: p.parseParameters(),
 				left: &Node{op: opNamedType, token: id}})
 	}
 	p.need(lex.RBrace)
-	return &Node{attrs: attrs, op: opEnumDcl, token: id, stmts: cons}
+	return n
 }
 
 func (p *Parser) parseStruct(attrs attributes) *Node {

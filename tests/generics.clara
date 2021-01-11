@@ -66,6 +66,13 @@ fn main() {
     b.get().println()   // EXPECT: string
     b.set("new string")
     b.get().println()   // EXPECT: new string
+
+    // --------------------------------------------------------------
+    // Generic enums
+    l := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toList()
+    l.foreach(print)
+    println("") // EXPECT: 12345678910
+    l.reduce(0, fn(acc: int, v: int) int = acc + v).println() // EXPECT: 55
 }
 
 struct box«T» {
@@ -111,4 +118,40 @@ struct address {
     street: string
     city: string
     postcode: string
+}
+
+enum list«T» {
+    Element(val: T, rest: list«T»)
+    Empty()
+}
+
+fn toList(a: []int) list«int» {
+    l := Empty«int»()
+    for x in a.length .. 0 {
+        l = Element(a[x], l)
+    }
+    return l
+}
+
+fn foreach«T»(l: list«T», f: fn(T)) {
+    match l {
+        case Empty(): return
+        case Element(e, rest):
+            f(e)
+            rest.foreach(f)
+    }
+}
+
+fn map«T, R»(l: list«T», f: fn(T) R) list«R» {
+    match l {
+        case Empty(): return Empty«R»()
+        case Element(e, rest): return Element(f(e), rest.map(f))
+    }
+}
+
+fn reduce«T»(l: list«T», acc: T, f: fn(T, T) T) T {
+    match l {
+        case Empty(): return acc
+        case Element(e, rest): return rest.reduce(f(acc, e), f)
+    }
 }

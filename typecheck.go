@@ -214,7 +214,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 
 		// Closures will not have been annotated yet. Do it now.
 		if n.sym == nil {
-			_, err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab, false)
+			_, err := processFnType(n, fmt.Sprintf("%X", rand.Uint32()), symtab, symtab.Child(), nil,false)
 			if err != nil {
 				errs = append(errs, err)
 				goto end
@@ -420,11 +420,6 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			goto end
 		}
 
-		// Handle cases
-		for _, caseBlock := range n.stmts {
-			errs = append(errs, typeCheck(caseBlock, symtab, fn, debug)...)
-		}
-
 		// Ensure enum type
 		if !left.typ.Is(Enum) {
 			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, "<enum>"))
@@ -432,6 +427,23 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 		enum := left.typ.AsEnum()
+
+		// If enum is generic, calculate type bindings. This is required during case type checking
+		// to ensure variables are correctly typed
+		bound := emptyMap
+		if len(enum.Types) > 0 {
+			s, _ := symtab.ResolveAll(enum.Name, func(s *Symbol) bool { return s.IsType })
+			bound = make(map[*Type]*Type)
+			for i, t := range enum.Types {
+				bound[s.Type.AsEnum().Types[i]] = t
+			}
+		}
+
+		// Handle cases
+		for _, caseBlock := range n.stmts {
+			errs = append(errs, typeCheckCase(caseBlock, bound, symtab, fn, debug)...)
+		}
+
 		cases := make(map[*FunctionType]bool)
 		for _, cons := range n.stmts {
 			if cons.sym == nil {
@@ -463,39 +475,6 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			goto end
 		}
 
-	case opCase:
-
-		// Attempt to find constructor
-		sym, ok := symtab.Resolve(n.token.Val)
-		if !ok || !sym.Type.Is(Function) || !sym.Type.AsFunction().Is(EnumCons) {
-			errs = append(errs, semanticError(errNotAnEnumCaseMsg, n.token))
-			goto end
-		}
-		n.sym = sym
-
-		// Ensure correct number of args
-		cons := sym.Type.AsFunction()
-		if len(cons.Params) != len(n.params) {
-			errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.params), len(cons.Params)))
-			goto end
-		}
-
-		// Assign types and check for redeclares
-		n.symtab = symtab.Child()
-		for i, arg := range n.params {
-			sym := &Symbol{Name: arg.token.Val, Type: cons.Params[i], IsStack: true}
-			if _, ok := n.symtab.Define(sym); ok {
-				errs = append(errs, semanticError(errRedeclaredMsg, arg.token))
-				continue
-			}
-			arg.sym = sym
-			arg.typ = sym.Type
-		}
-
-		// Type check statements
-		for _, stmt := range n.stmts {
-			errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
-		}
 	case opNamedType, opFuncType, opArrayType:
 		t, err := createType(symtab, n)
 		if err != nil {
@@ -514,6 +493,46 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 	}
 
 end:
+	return errs
+}
+
+func typeCheckCase(n *Node, bound map[*Type]*Type, symtab *SymTab, fn *FunctionType, debug bool) (errs []error) {
+	// Attempt to find constructor
+	sym, ok := symtab.Resolve(n.token.Val)
+	if !ok || !sym.Type.Is(Function) || !sym.Type.AsFunction().Is(EnumCons) {
+		errs = append(errs, semanticError(errNotAnEnumCaseMsg, n.token))
+		return errs
+	}
+	// No need to check for overloads as they are not allowed for enum constructors
+	n.sym = sym
+
+	// Ensure correct number of args
+	cons := sym.Type.AsFunction()
+	if len(cons.Params) != len(n.params) {
+		errs = append(errs, semanticError2(errInvalidNumberArgsMsg, n.token, len(n.params), len(cons.Params)))
+		return errs
+	}
+
+	// Replace generic types with concrete
+	cons = substituteType(sym.Type, bound).AsFunction()
+
+	// Assign types and check for redeclares
+	n.symtab = symtab.Child()
+	for i, arg := range n.params {
+		sym := &Symbol{Name: arg.token.Val, Type: cons.Params[i], IsStack: true}
+		if _, ok := n.symtab.Define(sym); ok {
+			errs = append(errs, semanticError(errRedeclaredMsg, arg.token))
+			continue
+		}
+		arg.sym = sym
+		arg.typ = sym.Type
+	}
+
+	// Type check statements
+	for _, stmt := range n.stmts {
+		errs = append(errs, typeCheck(stmt, n.symtab, fn, debug)...)
+	}
+
 	return errs
 }
 
@@ -737,6 +756,7 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 	if len(types) != 0 && len(types) != len(f.Types) {
 		return semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(f.Types)), nil
 	}
+	// Initialise any explicit type parameters via typed call invocation - f«int»(...)
 	bound := make(map[*Type]*Type)
 	for i, t := range types {
 		bound[f.Types[i]] = t.typ
@@ -744,7 +764,7 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 	argCheck:
 	for i, arg := range args {
 		param := f.Params[i]
-		// Check each overloaded identifier for a match
+		// If the argument is a named function is may be overloaded so check all symbols
 		if arg.op == opIdentifier && arg.sym.Next != nil {
 			for s := arg.sym; s != nil; s = s.Next {
 				if s.Type.PolyMatch(param, bound) {
@@ -802,7 +822,12 @@ func substituteType(t *Type, bound map[*Type]*Type) *Type {
 		return &Type{Kind: Struct, Data: &StructType{Name: s.Name, Fields: fields, Types: types}}
 
 	case t.Is(Enum):
-		panic("reifying enums is not yet supported!")
+		e := t.AsEnum()
+		var types []*Type
+		for _, tp := range e.Types {
+			types = append(types, substituteType(tp, bound))
+		}
+		return &Type{Kind: Enum, Data: &EnumType{Name: e.Name, Types: types, Members: e.Members}}
 
 	default:
 		for k, tt := range bound {
