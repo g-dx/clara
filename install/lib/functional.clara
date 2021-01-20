@@ -1,0 +1,34 @@
+enum option«T» {
+    Some(t: T)
+    None()
+}
+
+fn isNone«T»(o: option«T») bool {
+    match o {
+        case Some(v): return false
+        case None(): return true
+    }
+}
+
+fn isSome«T»(o: option«T») bool = not o.isNone()
+
+fn filter«T»(o: option«T», pred: fn(T) bool) option«T» {
+    match o {
+        case Some(v): return pred(v) ? o : None«T»()
+        case None(): return o
+    }
+}
+
+fn orElse«T»(o: option«T», other: T) T {
+    match o {
+        case Some(v): return v
+        case None(): return other
+    }
+}
+
+fn map«T, R»(o: option«T», f: fn(T) R) option«R» {
+    match o {
+        case Some(v): return Some(f(v))
+        case None(): return None«R»()
+    }
+}

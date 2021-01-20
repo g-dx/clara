@@ -15,7 +15,7 @@ fn main() {
 
     unsafe(SomeStruct(1), -16, type(block)).printTypeName() // EXPECT: someStruct
 
-    unsafe(Some(1), -16, type(block)).printTypeName() // EXPECT: option
+    unsafe(Some(1), -16, type(block)).printTypeName() // EXPECT: option«T»
 }
 
 fn printTypeName(b: block) {
@@ -24,9 +24,4 @@ fn printTypeName(b: block) {
 
 struct someStruct {
     i: int
-}
-
-enum option {
-    Some(i: int)
-    None()
 }
