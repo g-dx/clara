@@ -750,38 +750,76 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 	if len(types) != 0 && len(types) != len(f.Types) {
 		return semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(f.Types)), nil
 	}
-	// Initialise any explicit type parameters via typed call invocation - f«int»(...)
-	bound := make(map[*Type]*Type)
-	for i, t := range types {
-		bound[f.Types[i]] = t.typ
-	}
-	argCheck:
-	for i, arg := range args {
-		param := f.Params[i]
-		// If the argument is a named function is may be overloaded so check all symbols
-		if arg.op == opIdentifier && arg.sym.Next != nil {
-			for s := arg.sym; s != nil; s = s.Next {
-				if s.Type.PolyMatch(param, bound) {
-					arg.sym = s
-					arg.typ = s.Type
-					continue argCheck
-				}
-			}
-			// Failed to find a match
-			candidates := bytes.NewBufferString("")
-			for s := arg.sym; s != nil; s = s.Next {
-				candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
-			}
-			return semanticError2(errOverloadResolutionMsg, arg.token, substituteType(param, bound),
-				candidates.String()), nil
-		}
 
-		// Match on declared type
-		if !arg.typ.PolyMatch(param, bound) {
-			return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, substituteType(param, bound)), nil
+	//
+	// TODO: This is horrible!
+	//
+
+	if len(f.Types) == 0 {
+
+	argCheck:
+		for i, arg := range args {
+			param := f.Params[i]
+			// If the argument is a named function is may be overloaded so check all symbols
+			if arg.op == opIdentifier && arg.sym.Next != nil {
+				for s := arg.sym; s != nil; s = s.Next {
+					if s.Type.Matches(param) {
+						arg.sym = s
+						arg.typ = s.Type
+						continue argCheck
+					}
+				}
+				// Failed to find a match
+				candidates := bytes.NewBufferString("")
+				for s := arg.sym; s != nil; s = s.Next {
+					candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
+				}
+				return semanticError2(errOverloadResolutionMsg, arg.token, param,
+					candidates.String()), nil
+			}
+
+			// Match on declared type
+			if !arg.typ.Matches(param) {
+				return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, param), nil
+			}
 		}
+		return nil, emptyMap
+
+	} else {
+
+		// Initialise any explicit type parameters via typed call invocation - f«int»(...)
+		bound := make(map[*Type]*Type)
+		for i, t := range types {
+			bound[f.Types[i]] = t.typ
+		}
+	polyArgCheck:
+		for i, arg := range args {
+			param := f.Params[i]
+			// If the argument is a named function is may be overloaded so check all symbols
+			if arg.op == opIdentifier && arg.sym.Next != nil {
+				for s := arg.sym; s != nil; s = s.Next {
+					if s.Type.PolyMatch(param, bound) {
+						arg.sym = s
+						arg.typ = s.Type
+						continue polyArgCheck
+					}
+				}
+				// Failed to find a match
+				candidates := bytes.NewBufferString("")
+				for s := arg.sym; s != nil; s = s.Next {
+					candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
+				}
+				return semanticError2(errOverloadResolutionMsg, arg.token, substituteType(param, bound),
+					candidates.String()), nil
+			}
+
+			// Match on declared type
+			if !arg.typ.PolyMatch(param, bound) {
+				return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, substituteType(param, bound)), nil
+			}
+		}
+		return nil, bound
 	}
-	return nil, bound
 }
 
 func substituteType(t *Type, bound map[*Type]*Type) *Type {
