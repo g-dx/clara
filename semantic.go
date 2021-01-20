@@ -636,7 +636,8 @@ func generateStructConstructor(root *Node, n *Node) (*Symbol, error) {
 	}
 
 	// Create function
-	ft := &FunctionType{ret: n.sym.Type, Kind: StructCons}
+	st := n.sym.Type
+	ft := &FunctionType{ret: st, Types: st.AsStruct().Types, Kind: StructCons}
 	fs := &Symbol{Name: constructorName, IsGlobal: true, Type: &Type{Kind: Function, Data: ft}}
 	root.symtab.Define(fs)
 
