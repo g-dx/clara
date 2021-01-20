@@ -476,13 +476,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 	case opNamedType, opFuncType, opArrayType:
-		t, err := createType(symtab, n)
-		if err != nil {
-			errs = append(errs, err)
-			goto end
-		}
-		// TODO: Is a 'dummy' symbol required?
-		n.typ = t
+		n.typ = instantiateType(symtab, n, func(err error) { errs = append(errs, err) })
 	default:
 		panic(fmt.Sprintf("Node type [%v] not processed during type check!", nodeTypes[n.op]))
 	}
