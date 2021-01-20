@@ -13,8 +13,8 @@ fn main() {
     println(getRuntime().args.length) // EXPECT: 1
 
     // Check env vars
-    println(getRuntime().env.get("CLARA_ENV_KEY")) // EXPECT: CLARA_ENV_VAL
-    println(getRuntime().env.get("__NOT_DEFINED__")) // EXPECT: __KEY_NOT_FOUND__
+    println(getRuntime().env.get("CLARA_ENV_KEY").orElse("")) // EXPECT: CLARA_ENV_VAL
+    println(getRuntime().env.get("__NOT_DEFINED__").orElse("not there")) // EXPECT: not there
     println(getRuntime().env.isSet("__NOT_DEFINED__")) // EXPECT: false
 
     // ---------------------------------------------------------------

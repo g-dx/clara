@@ -86,20 +86,21 @@ fn parseEnv(envp: pointer) env {
     return Env(key, val)
 }
 
+// TODO: Replace this with map«string, string»
 struct env {
     key: []string
     val: []string
 }
 
 fn size(e: env) int = e.key.length
-fn isSet(e: env, key: string) bool = not e.get(key).Equals("__KEY_NOT_FOUND__")
-fn get(e: env, key: string) string {
+fn isSet(e: env, key: string) bool = e.get(key).isSome()
+fn get(e: env, key: string) option«string» {
     for i in 0 .. e.key.length {
         if e.key[i].Equals(key) {
-            return e.val[i]
+            return Some(e.val[i])
         }
     }
-    return "__KEY_NOT_FOUND__" // TODO: This is horrible! We need proper Optional/Maybe support
+    return None«string»()
 }
 
 // Called from user code to crash the program
