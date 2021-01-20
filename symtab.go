@@ -140,7 +140,7 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		if te.Kind == Integer || te.Kind == Byte {
 			return te.Kind == xe.Kind
 		} else {
-			return te.Matches(xe)
+			return te.MatchesImpl(xe, allowBinding, bound)
 		}
 	case Function:
 		if x.Kind != Function  {
@@ -151,8 +151,8 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		if len(xf.Params) != len(tf.Params) {
 			return false
 		}
-		for i, param := range xf.Params {
-			if !param.MatchesImpl(tf.Params[i], allowBinding, bound) {
+		for i, tp := range tf.Params {
+			if !tp.MatchesImpl(xf.Params[i], allowBinding, bound) {
 				return false
 			}
 		}
