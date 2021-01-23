@@ -38,7 +38,7 @@ const (
 	errMatchNotExhaustiveMsg    = "%v:%d:%d: error, match over enum '%v' is not exhaustive"
 	errNotAnEnumCaseMsg         = "%v:%d:%d: error, '%v' is not an enum case"
 	errTooManyArgsMsg           = "%v:%d:%d: error, '%v' exceeds maximum argument count of '%v'"
-	errTypeParameterNotBoundMsg = "%v:%d:%d: error, type parameter '%v' is not bound for this function call"
+	errTypeParameterNotKnownMsg = "%v:%d:%d: error, type parameter(s) '%v' of return type '%v' not known, explicit function call type parameters required"
 	errEmptyArrayLiteralMsg     = "%v:%d:%d: error, empty array literal not allowed ... yet!"
 	errNoTypeParametersMsg      = "%v:%d:%d: error, type '%v' does not declare type parameters"
 	maxCaseArgCount             = 5

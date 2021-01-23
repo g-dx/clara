@@ -94,7 +94,7 @@ fn identity«T»(t: T) T {
 }
 
 fn closure«T»(t: T) fn() T {
-    return fn«T»() T = identity(t) // TODO: Ideally we wouldn't have to declare T again here
+    return fn() T = identity(t)
 }
 
 fn apply2«T, R»(t: T, f: fn(T) fn(T) R) R {

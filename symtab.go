@@ -78,9 +78,6 @@ func (t *Type) PolyMatch(x *Type, bound map[*Type]*Type) bool {
 }
 
 func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bool {
-	if t == x {
-		return true
-	}
 
 	if x.Is(Parameter) && allowBinding {
 		// If not currently bound - bind it & continue

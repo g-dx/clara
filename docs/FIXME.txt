@@ -27,5 +27,4 @@ X(println).get()(999)
 - Lexing does not appear to correctly handle guillemots (multi-byte characters) and produces
   Token with invalid positions
 
-- Type substitution should fail when all type parameters are not bound.
 - Clean up function call type checking.

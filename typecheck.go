@@ -678,23 +678,16 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 	// 2 cases, either the function call is a named call (global, parameter, etc) or is
 	// an "anonymous" call from some expression evaluation (f(x)(y), etc)
 
-	// Match results
-	nf := n
-	var returnType *Type
-	var boundTypes map[*Type]*Type
-
 	// TODO: Split into two functions. TypeCheckFnCallByType, TypeCheckFnCallBySymbol (*Node, *Type, map[*Type]*Type)
 	if n.left.sym == nil {
-		err, bound := matchFuncCallByType(n.left.typ, n)
+		retType, err := matchFuncCallByType(n.left.typ, n)
 		if err != nil {
 			return append(errs, err)
 		}
-		nf = n.left
-		returnType = n.left.typ.AsFunction().ret
-		boundTypes = bound
+		n.typ = retType
 	} else {
 		s := n.left.sym
-		match, bound, serrs := matchFuncCallBySymbol(s, n)
+		match, retType, serrs := matchFuncCallBySymbol(s, n)
 		if match == nil {
 			if len(serrs) == 1 {
 				return append(errs, serrs[0])
@@ -709,46 +702,38 @@ func typeCheckFuncCall(n *Node, fnSymtab *SymTab, symtab *SymTab, fn *FunctionTy
 				candidates.String()))
 		}
 		n.left.sym = match
-		returnType = match.Type.AsFunction().ret
-		boundTypes = bound
+		n.typ = retType
 	}
-
-	// Attempt to convert from generic -> concrete type. If still generic, check that's allowed in this context
-	returnType = substituteType(returnType, boundTypes)
-	if returnType.Is(Parameter) && !fn.HasTypeParameter(returnType) {
-		return append(errs, semanticError2(errTypeParameterNotBoundMsg, nf.token, returnType.AsParameter().Name))
-	}
-	n.typ = returnType
 	return errs
 }
 
-func matchFuncCallBySymbol(f *Symbol, n *Node) (s *Symbol, types map[*Type]*Type, errs []error) {
+func matchFuncCallBySymbol(f *Symbol, n *Node) (s *Symbol,  retType *Type, errs []error) {
 	for s = f; s != nil; s = s.Next {
-		err, bound := matchFuncCallByType(s.Type, n)
+		retType, err := matchFuncCallByType(s.Type, n)
 		if err == nil {
-			return s, bound, nil
+			return s, retType, nil
 		}
 		errs = append(errs, err)
 	}
 	return nil, nil, errs
 }
 
-func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
+func matchFuncCallByType(t *Type, n *Node) (*Type, error) {
 	args := n.stmts
 	if !t.Is(Function) {
 		var argTypes []string
 		for _, arg := range args {
 			argTypes = append(argTypes, arg.typ.String())
 		}
-		return semanticError2(errMismatchedTypesMsg, n.token, t, fmt.Sprintf("fn(%v)", strings.Join(argTypes, ","))), nil
+		return nil, semanticError2(errMismatchedTypesMsg, n.token, t, fmt.Sprintf("fn(%v)", strings.Join(argTypes, ",")))
 	}
 	f := t.AsFunction()
 	if len(args) != len(f.Params) {
-		return semanticError2(errInvalidNumberArgsMsg, n.token, len(args), len(f.Params)), nil
+		return nil, semanticError2(errInvalidNumberArgsMsg, n.token, len(args), len(f.Params))
 	}
 	types := n.params
 	if len(types) != 0 && len(types) != len(f.Types) {
-		return semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(f.Types)), nil
+		return nil, semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(f.Types))
 	}
 
 	//
@@ -774,16 +759,16 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 				for s := arg.sym; s != nil; s = s.Next {
 					candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
 				}
-				return semanticError2(errOverloadResolutionMsg, arg.token, param,
-					candidates.String()), nil
+				return nil, semanticError2(errOverloadResolutionMsg, arg.token, param,
+					candidates.String())
 			}
 
 			// Match on declared type
 			if !arg.typ.Matches(param) {
-				return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, param), nil
+				return nil, semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, param)
 			}
 		}
-		return nil, emptyMap
+		return f.ret, nil
 
 	} else {
 
@@ -809,16 +794,26 @@ func matchFuncCallByType(t *Type, n *Node) (error, map[*Type]*Type) {
 				for s := arg.sym; s != nil; s = s.Next {
 					candidates.WriteString(fmt.Sprintf("	%v\n", s.Describe()))
 				}
-				return semanticError2(errOverloadResolutionMsg, arg.token, substituteType(param, bound),
-					candidates.String()), nil
+				return nil, semanticError2(errOverloadResolutionMsg, arg.token, substituteType(param, bound),
+					candidates.String())
 			}
 
 			// Match on declared type
 			if !arg.typ.PolyMatch(param, bound) {
-				return semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, substituteType(param, bound)), nil
+				return nil, semanticError2(errMismatchedTypesMsg, arg.token, arg.typ, substituteType(param, bound))
 			}
 		}
-		return nil, bound
+
+		// Check all type parameters of return type are bound
+		unmatched := findUnboundTypeParameters(f.ret, bound)
+		if len(unmatched) > 0 {
+			var types []string
+			for _, t := range unmatched {
+				types = append(types, t.String())
+			}
+			return nil, semanticError2(errTypeParameterNotKnownMsg, n.token, strings.Join(types, ","), f.ret.String())
+		}
+		return substituteType(f.ret, bound), nil
 	}
 }
 
@@ -868,6 +863,49 @@ func substituteType(t *Type, bound map[*Type]*Type) *Type {
 			}
 		}
 		return t
+	}
+}
+
+func findUnboundTypeParameters(t *Type, bound map[*Type]*Type) []*Type {
+	switch {
+	case t.Is(Array):
+		return findUnboundTypeParameters(t.AsArray().Elem, bound)
+
+	case t.Is(Function):
+		f := t.AsFunction()
+		var unmatched []*Type
+		for _, f := range f.Types {
+			unmatched = append(unmatched, findUnboundTypeParameters(f, bound)...)
+		}
+		return unmatched
+
+	case t.Is(Struct):
+		s := t.AsStruct()
+		var unmatched []*Type
+		for _, f := range s.Types {
+			unmatched = append(unmatched, findUnboundTypeParameters(f, bound)...)
+		}
+		return unmatched
+
+	case t.Is(Enum):
+		e := t.AsEnum()
+		var unmatched []*Type
+		for _, tp := range e.Types {
+			unmatched = append(unmatched, findUnboundTypeParameters(tp, bound)...)
+		}
+		return unmatched
+
+	case t.Is(Parameter):
+		for k, _ := range bound {
+			if k.Matches(t) {
+				return nil
+			}
+		}
+		return []*Type{t} // Unmatched
+	case t.IsAny(Nothing, Boolean, Integer, Byte, Pointer, String):
+		return nil
+	default:
+		panic("unreachable")
 	}
 }
 
