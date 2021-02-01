@@ -220,7 +220,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 				goto end
 			}
 			n.typ = n.sym.Type
-			instantiateFunctionTypes(n, func(err error) { errs = append(errs, err) })
+			errs = append(errs, instantiateFunctionTypes(n)...)
 		}
 
 		// Type check stmts
@@ -476,7 +476,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 
 	case opNamedType, opFuncType, opArrayType:
-		n.typ = instantiateType(symtab, n, func(err error) { errs = append(errs, err) })
+		n.typ = instantiateType(symtab, n, &errs)
 	default:
 		panic(fmt.Sprintf("Node type [%v] not processed during type check!", nodeTypes[n.op]))
 	}

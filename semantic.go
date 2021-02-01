@@ -209,64 +209,72 @@ loop:
 
 	// Perform type instantiation for all generic types now that all top
 	// level types have been processed
-	onError := func(err error) { errs = append(errs, err) }
 
 	for _, n := range rootNode.stmts {
 		switch n.op {
 		case opStructDcl:
-			instantiateFieldTypes(n, onError)
+			errs = append(errs, instantiateFieldTypes(n)...)
 		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
-			instantiateFunctionTypes(n, onError)
+			errs = append(errs, instantiateFunctionTypes(n)...)
 		}
 	}
 	return errs
 }
 
-func instantiateFieldTypes(n *Node, onError func(err error)) {
+func instantiateFieldTypes(n *Node) (errs []error) {
 	for _, field := range n.stmts {
 		// TODO: Set field.typ to new type as well?
-		instantiated := instantiateType(n.symtab, field.left, onError)
+		instantiated := instantiateType(n.symtab, field.left, &errs)
 		field.sym.Type = instantiated
 	}
+	return errs
 }
 
-func instantiateFunctionTypes(n *Node, onError func(err error)) {
+func instantiateFunctionTypes(n *Node) (errs []error) {
 	for i, param := range n.params {
 		// TODO: Set param.typ to new type as well?
-		instantiated := instantiateType(n.symtab, param.left, onError)
+		instantiated := instantiateType(n.symtab, param.left, &errs)
 		param.sym.Type = instantiated
 		n.sym.Type.AsFunction().Params[i] = instantiated
 	}
 	if n.left != nil {
-		n.sym.Type.AsFunction().ret = instantiateType(n.symtab, n.left, onError)
+		n.sym.Type.AsFunction().ret = instantiateType(n.symtab, n.left, &errs)
 	}
+	return errs
 }
 
-func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
+func instantiateType(symtab *SymTab, n *Node, errs *[]error) *Type {
 
 	switch n.op {
 	case opNamedType:
-		// TODO: Ignore errors here? Checked earlier?
-		s, _ := symtab.ResolveAll(n.token.Val, func(s *Symbol) bool { return s.IsType })
+		s, ok := symtab.ResolveAll(n.token.Val, func(s *Symbol) bool { return s.IsType })
+		if !ok {
+			*errs = append(*errs, semanticError(errUnknownTypeMsg, n.token))
+			return nil
+		}
 
+		// If not parameterised type simply return as is
 		if n.left == nil {
 			return s.Type
 		}
 		// Instantiate type parameter recursively
 		var types []*Type
 		for _, typeParam := range n.left.params {
-			types = append(types, instantiateType(symtab, typeParam, onError))
+			types = append(types, instantiateType(symtab, typeParam, errs))
 		}
 		switch s.Type.Kind {
 		case Struct:
 			st := s.Type.AsStruct()
 			if len(st.Types) == 0 {
-				onError(semanticError2(errNoTypeParametersMsg, n.token, st.Name))
-				return s.Type
+				*errs = append(*errs, semanticError2(errNoTypeParametersMsg, n.token, st.Name))
+				return nil
 			}
 			if len(st.Types) != len(types) {
-				onError(semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(st.Types)))
-				return s.Type
+				*errs = append(*errs, semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(st.Types)))
+				return nil
+			}
+			if len(*errs) > 0 {
+				return nil
 			}
 			bound := make(map[*Type]*Type)
 			for i, t := range types {
@@ -276,12 +284,15 @@ func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
 		case Enum:
 			et := s.Type.AsEnum()
 			if len(et.Types) == 0 {
-				onError(semanticError2(errNoTypeParametersMsg, n.token, et.Name))
-				return s.Type
+				*errs = append(*errs, semanticError2(errNoTypeParametersMsg, n.token, et.Name))
+				return nil
 			}
 			if len(et.Types) != len(types) {
-				onError(semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(et.Types)))
-				return s.Type
+				*errs = append(*errs, semanticError2(errInvalidNumberTypeArgsMsg, n.token, len(types), len(et.Types)))
+				return nil
+			}
+			if len(*errs) > 0 {
+				return nil
 			}
 			bound := make(map[*Type]*Type)
 			for i, t := range types {
@@ -289,8 +300,8 @@ func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
 			}
 			return substituteType(s.Type, bound)
 		case Integer, String, Boolean, Byte, Pointer, Parameter, Nothing:
-			onError(semanticError2(errNoTypeParametersMsg, n.token, s.Name))
-			return s.Type
+			*errs = append(*errs, semanticError2(errNoTypeParametersMsg, n.token, s.Name))
+			return nil
 		default:
 			panic("unreachable")
 		}
@@ -298,16 +309,23 @@ func instantiateType(symtab *SymTab, n *Node, onError func(err error)) *Type {
 		// TODO: If no parameters or return is generic nothing to
 		var params []*Type
 		for _, param := range n.stmts {
-			params = append(params, instantiateType(symtab, param, onError))
+			params = append(params, instantiateType(symtab, param, errs))
 		}
 		fn := &FunctionType{Params: params, ret: nothingType}
 		if n.left != nil {
-			fn.ret = instantiateType(symtab, n.left, onError)
+			fn.ret = instantiateType(symtab, n.left, errs)
+		}
+		if len(*errs) > 0 {
+			return nil
 		}
 		return &Type{Kind: Function, Data: fn}
 
 	case opArrayType:
-		return &Type{Kind: Array, Data: &ArrayType{Elem: instantiateType(symtab, n.left, onError)}}
+		t := instantiateType(symtab, n.left, errs)
+		if len(*errs) > 0 {
+			return nil
+		}
+		return &Type{Kind: Array, Data: &ArrayType{Elem: t}}
 
 	default:
 		panic(fmt.Sprintf("AST node [%v] does not represent a type!", nodeTypes[n.op]))
