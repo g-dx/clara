@@ -41,26 +41,26 @@ fn main() {
     x := fn(s: string, i: int, b: bool) = printf("%s, %d, %s\n", s, i, b.toString())
 
     p := Pair(Box(x), [1, 2, 3, 4, 5])
-    p.left.val("Hello", -1, false) // EXPECT: Hello, -1, false
-    p.right[4].println()           // EXPECT: 5
+    p.first.val("Hello", -1, false) // EXPECT: Hello, -1, false
+    p.second[4].println()           // EXPECT: 5
 
     fn(p: pair«box«fn(string, int, bool) nothing»,[]int») {
-        p.left.val("Goodbye", 9999, true)
+        p.first.val("Goodbye", 9999, true)
     }(p)
     // EXPECT: Goodbye, 9999, true
 
     // Set/get via methods
     v := 0
-    p2 := p.mapLeft(fn(l: box«fn(string, int, bool) nothing») fn() int = fn() int {
+    p2 := p.mapFirst(fn(l: box«fn(string, int, bool) nothing») fn() int = fn() int {
         v = v + 1
         return v
     })
-    p2.left().println() // EXPECT: 1
-    p2.left().println() // EXPECT: 2
-    p2.left().println() // EXPECT: 3
+    p2.first().println() // EXPECT: 1
+    p2.first().println() // EXPECT: 2
+    p2.first().println() // EXPECT: 3
 
-    p3 := p2.mapLeft(fn(l: fn() int) string = "Yo!")
-    p3.left.println() // EXPECT: Yo!
+    p3 := p2.mapFirst(fn(l: fn() int) string = "Yo!")
+    p3.first.println() // EXPECT: Yo!
 
     b := Box("string")
     b.get().println()   // EXPECT: string
@@ -81,12 +81,7 @@ struct box«T» {
 fn get«T»(b: box«T») T = b.val
 fn set«T»(b: box«T», t: T) { b.val = t }
 
-struct pair«L, R» {
-    left: L
-    right: R
-}
-
-fn mapLeft«L, R, S»(p: pair«L, R», map: fn(L) S) pair«S, R» = Pair(map(p.left), p.right)
+fn mapFirst«L, R, S»(p: pair«L, R», map: fn(L) S) pair«S, R» = Pair(map(p.first), p.second)
 
 fn identity«T»(t: T) T {
     gc()
@@ -118,40 +113,4 @@ struct address {
     street: string
     city: string
     postcode: string
-}
-
-enum list«T» {
-    Element(val: T, rest: list«T»)
-    Empty()
-}
-
-fn toList(a: []int) list«int» {
-    l := Empty«int»()
-    for x in a.length .. 0 {
-        l = Element(a[x], l)
-    }
-    return l
-}
-
-fn foreach«T»(l: list«T», f: fn(T)) {
-    match l {
-        case Empty(): return
-        case Element(e, rest):
-            f(e)
-            rest.foreach(f)
-    }
-}
-
-fn map«T, R»(l: list«T», f: fn(T) R) list«R» {
-    match l {
-        case Empty(): return Empty«R»()
-        case Element(e, rest): return Element(f(e), rest.map(f))
-    }
-}
-
-fn reduce«T»(l: list«T», acc: T, f: fn(T, T) T) T {
-    match l {
-        case Empty(): return acc
-        case Element(e, rest): return rest.reduce(f(acc, e), f)
-    }
 }

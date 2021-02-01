@@ -1,0 +1,80 @@
+enum list«T» {
+    Element(val: T, rest: list«T»)
+    Empty()
+}
+
+fn toList(a: []int) list«int» {
+    l := Empty«int»()
+    for x in a.length .. 0 {
+        l = Element(a[x], l)
+    }
+    return l
+}
+
+fn append«T»(l: list«T», val: T) list«T» = Element(val, l)
+
+fn remove«T»(l: list«T», pred: fn(T) bool) pair«list«T», option«T»» {
+    new := Empty«T»()
+    val := None«T»()
+    loop := true
+    while loop {
+        match l {
+            case Empty():
+                loop = false
+            case Element(v, rest):
+                if pred(v) and val.isNone() {
+                    val = Some(v)
+                } else {
+                    new = Element(v, new)
+                }
+                l = rest
+        }
+    }
+    return Pair(new.reverse(), val)
+}
+
+fn reverse«T»(l: list«T») list«T» {
+    new := Empty«T»()
+    loop := true
+    while loop {
+        match l {
+            case Empty():
+                loop = false
+            case Element(val, rest):
+                new = Element(val, new)
+                l = rest
+        }
+    }
+    return new
+}
+
+fn find«T»(l: list«T», pred: fn(T) bool) option«T» {
+    match l {
+        case Empty(): return None«T»()
+        case Element(val, rest): return pred(val) ? Some(val) : rest.find(pred)
+    }
+}
+
+fn foreach«T»(l: list«T», f: fn(T)) {
+    match l {
+        case Empty(): return
+        case Element(val, rest):
+            f(val)
+            rest.foreach(f)
+    }
+}
+
+fn map«T, R»(l: list«T», f: fn(T) R) list«R» {
+    match l {
+        case Empty(): return Empty«R»()
+        case Element(val, rest): return Element(f(val), rest.map(f))
+    }
+}
+
+fn reduce«T»(l: list«T», acc: T, f: fn(T, T) T) T {
+    match l {
+        case Empty(): return acc
+        case Element(val, rest): return rest.reduce(f(acc, val), f)
+    }
+}
+

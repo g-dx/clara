@@ -32,3 +32,10 @@ fn map«T, R»(o: option«T», f: fn(T) R) option«R» {
         case None(): return None«R»()
     }
 }
+
+// ----------------------------------------------------------------------
+
+struct pair«T, R» {
+    first: T
+    second: R
+}
