@@ -1,7 +1,6 @@
 In no particular order...
 
 - Support variadic functions
-- Support polymorphic types
 - Support stacktraces
 - Support string interpolation
 - Support escape analysis for stack allocation
@@ -10,8 +9,6 @@ In no particular order...
 - Support namespacing constructors
 - Support nullable types
 - Support ignoring cases with 'remaining' keyword
-- Support lists
-- Support maps
 - Support standard functional programming operators (map, filter, reduce, etc)
 - Support some kind of "interface" type
 
@@ -32,3 +29,6 @@ DONE:
 - Add enums
 - Add bitwise operations
 - Escape double quotes in string literals.
+- Support polymorphic types
+- Support lists
+- Support maps
