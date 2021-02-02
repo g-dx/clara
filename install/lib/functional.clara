@@ -33,9 +33,26 @@ fn map«T, R»(o: option«T», f: fn(T) R) option«R» {
     }
 }
 
+fn peek«T»(o: option«T», f: fn(T)) option«T» {
+    match o {
+        case Some(v):
+            f(v)
+        case None():
+    }
+    return o
+}
+
 // ----------------------------------------------------------------------
 
 struct pair«T, R» {
     first: T
     second: R
+}
+
+
+// ----------------------------------------------------------------------
+
+enum either«L, R» {
+    Left(val: L)
+    Right(val: R)
 }

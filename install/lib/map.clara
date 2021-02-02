@@ -1,0 +1,86 @@
+struct map«K, V» {
+    buckets: []list«entry«K, V»»
+    size: int
+    threshold: int
+    hasher: fn(K) int
+    matcher: fn(K, K) bool
+}
+
+struct entry«K, V» {
+    key: K
+    value: V
+}
+
+// TODO: Add constructor which takes system hasher & matcher
+
+fn NewHashMap«K, V»(hasher: fn(K) int, matcher: fn(K, K) bool) map«K, V» {
+    return Map(createBuckets«K, V»(16), 0, threshold(16), hasher, matcher)
+}
+
+fn put«K, V»(m: map«K, V», key: K, value: V) option«V» {
+    match m.search(key) {
+        case Left(e):
+            old := e.value
+            e.value = value
+            return Some(old)
+        case Right(idx):
+            m.buckets[idx] = m.buckets[idx].append(Entry(key, value))
+            m.size = m.size + 1
+            if m.size > m.threshold {
+                m.resize()
+            }
+            return None«V»()
+    }
+}
+
+fn get«K, V»(m: map«K, V», key: K) option«V» {
+    match m.search(key) {
+        case Left(e): return Some(e.value)
+        case Right(idx): return None«V»()
+    }
+}
+
+fn search«K, V»(m: map«K, V», key: K) either«entry«K, V», int» {
+    idx := m.indexFor(key)
+    return m.buckets[idx]
+        .find(fn(b: entry«K, V») bool = m.matcher(b.key, key))
+        .map(fn(e: entry«K, V») either«entry«K, V», int» = Left«entry«K, V», int»(e))
+        .orElse(Right«entry«K, V», int»(idx))
+}
+
+fn remove«K, V»(m: map«K, V», key: K) option«V» {
+    x := m.indexFor(key)
+    listAndEntry := m.buckets[x].remove(fn(b: entry«K, V») bool = m.matcher(b.key, key))
+    m.buckets[x] = listAndEntry.first
+    return listAndEntry.second
+        .peek(fn(b: entry«K, V») { m.size = m.size - 1 })
+        .map(fn(b: entry«K, V») V = b.value)
+}
+
+fn orElse«K, V»(m: map«K, V», key: K, other: V) V = m.get(key).orElse(other)
+
+fn indexFor«K, V»(m: map«K, V», key: K) int = m.hasher(key).mod(m.buckets.length)
+
+fn resize«K, V»(m: map«K, V») {
+    buckets := createBuckets«K, V»(m.buckets.length << 1) // Double size of array
+    for bucket in m.buckets {
+        bucket.foreach(fn(e: entry«K, V») {
+            slot := m.hasher(e.key).mod(buckets.length)
+            buckets[slot] = buckets[slot].append(e)
+        })
+    }
+    m.threshold = threshold(buckets.length)
+    m.buckets = buckets
+}
+
+// Calculates map resizing threshold using a fixed 0.75 load factor by assuming power of 2 sizing
+fn threshold(size: int) int = size - (size >> 2)
+
+fn createBuckets«K, V»(size: int) []list«entry«K, V»» {
+    // TODO: []T or []any support is required here. Live with the hack for the meantime...
+    buckets := unsafe(stringArray(size, ""), 0, type([]list«entry«K, V»»))
+    for i in 0 .. buckets.length {
+        buckets[i] = Empty«entry«K, V»»()
+    }
+    return buckets
+}

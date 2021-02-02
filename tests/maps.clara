@@ -1,0 +1,22 @@
+fn main() {
+    m := NewHashMap«string, string»(fnv1a, Equals)
+
+    // Initial state
+    m.size.println() // EXPECT: 0
+    m.remove("KEY").orElse("NOT PRESENT").println() // EXPECT: NOT PRESENT
+    m.size.println() // EXPECT: 0
+
+    // Put (add) & Get
+    m.put("KEY", "CURRENT VALUE").orElse("NOT PRESENT").println() // EXPECT: NOT PRESENT
+    m.size.println() // EXPECT: 1
+    m.get("KEY").orElse("NOT PRESENT").println() // EXPECT: CURRENT VALUE
+
+    // Put (replace) & Get
+    m.put("KEY", "NEW VALUE").orElse("NOT PRESENT").println() // EXPECT: CURRENT VALUE
+    m.size.println() // EXPECT: 1
+    m.get("KEY").orElse("NOT PRESENT").println() // EXPECT: NEW VALUE
+
+    // Remove
+    m.remove("KEY").orElse("NOT PRESENT").println() // EXPECT: NEW VALUE
+    m.size.println() // EXPECT: 0
+}
