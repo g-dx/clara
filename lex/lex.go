@@ -546,7 +546,11 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 }
 
 func (l *Lexer) linePos(start int) int {
-	return start - strings.LastIndex(l.input[:start], "\n")
+	lineIndex := strings.LastIndex(l.input[:start], "\n")
+	if lineIndex == -1 {
+		lineIndex = 0
+	}
+	return utf8.RuneCountInString(l.input[lineIndex:start])
 }
 
 func (l *Lexer) lineNumber() int {

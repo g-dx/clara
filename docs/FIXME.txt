@@ -24,7 +24,4 @@ X(println).get()(999)
   * get(b: box«T») T
   * get(b: box«int») int
 
-- Lexing does not appear to correctly handle guillemots (multi-byte characters) and produces
-  Token with invalid positions
-
 - Clean up function call type checking.
