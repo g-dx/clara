@@ -40,10 +40,18 @@ fn get«K, V»(m: map«K, V», key: K) option«V» {
     }
 }
 
+fn contains«K, V»(m: map«K, V», key: K) bool = m.get(key).isSome()
+
+fn foreach«K, V»(m: map«K, V», f: fn(K, V)) {
+    for bucket in m.buckets {
+        bucket.foreach(fn(e: entry«K, V») = f(e.key, e.value))
+    }
+}
+
 fn search«K, V»(m: map«K, V», key: K) either«entry«K, V», int» {
     idx := m.indexFor(key)
     return m.buckets[idx]
-        .find(fn(b: entry«K, V») bool = m.matcher(b.key, key))
+        .find(fn(e: entry«K, V») bool = m.matcher(e.key, key))
         .map(fn(e: entry«K, V») either«entry«K, V», int» = Left«entry«K, V», int»(e))
         .orElse(Right«entry«K, V», int»(idx))
 }
@@ -53,8 +61,8 @@ fn remove«K, V»(m: map«K, V», key: K) option«V» {
     listAndEntry := m.buckets[x].remove(fn(b: entry«K, V») bool = m.matcher(b.key, key))
     m.buckets[x] = listAndEntry.first
     return listAndEntry.second
-        .peek(fn(b: entry«K, V») { m.size = m.size - 1 })
-        .map(fn(b: entry«K, V») V = b.value)
+        .peek(fn(e: entry«K, V») { m.size = m.size - 1 })
+        .map(fn(e: entry«K, V») V = e.value)
 }
 
 fn orElse«K, V»(m: map«K, V», key: K, other: V) V = m.get(key).orElse(other)

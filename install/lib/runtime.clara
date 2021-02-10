@@ -14,7 +14,7 @@ struct gcMap {
 // Runtime information
 struct runtime {
     args: []string
-    env: env
+    env: map«string, string»
 }
 
 // C -> Clara entrypoint
@@ -32,76 +32,51 @@ fn parseArgs(argc: int, argv: pointer) []string {
     args := stringArray(argc, "")
     buf := NewByteBuffer(16)
     for i in 0 .. argc {
-        buf.parseCString(argv.inc(i * 8).deref)
-        args[i] = buf.toString()
+        args[i] = buf.parseCString(argv.inc(i * 8).deref).toString()
         buf.reset()
     }
     return args
 }
 
-fn parseCString(buf: byteBuffer, arg: pointer) {
+fn parseCString(buf: byteBuffer, arg: pointer) byteBuffer {
     off := 0
     while true {
         bytes := arg.inc(off).deref.toTaggedInt()
         b := bytes & 0xFF
         if b == 0x00 {
-            return
+            return buf
         }
         buf.append(b)
         off = off + 1
     }
+    return buf
 }
 
-fn parseEnv(envp: pointer) env {
-    forEach := fn(envp: pointer, f: fn(pointer, int)) int {
-        i := 0
-        var := envp.inc(i * 8).deref
-        while not var.isNull() {
-            f(var, i)
-            i = i + 1
-            var = envp.inc(i * 8).deref
-        }
-        return i
-    }
-
-    // Parse env vars
-    n := forEach(envp, fn(arg: pointer, idx: int) {})
-    key := stringArray(n, "")
-    val := stringArray(n, "")
-
+fn parseEnv(envp: pointer) map«string, string» {
+    env := NewHashMap«string, string»(fnv1a, Equals)
     buf := NewByteBuffer(16)
-    forEach(envp, fn(arg: pointer, idx: int) {
-        buf.parseCString(arg)
-        s := buf.toString()
+
+    // envp is a pointer to an array of pointers. Each entry points to a read-only
+    // string which contains the env var in the form "NAME=VALUE". The end of the
+    // array is marked by a null pointer
+    idx := envp
+    entry := idx.deref
+    while not entry.isNull() {
+        s := buf.parseCString(entry).toString()
         i := s.IndexOf("=") // TODO: Update IndexOf() to support passing a []byte
         if i == -1 {
-            key[idx] = s
-            val[idx] = ""
+            env.put(s, "")
         } else {
-            key[idx] = buf.substring(0, i)
-            val[idx] = buf.substring(i+1, buf.size-i-1) // TODO: Should be calling buf.size()
+            // TODO: Should be calling buf.size() here
+            env.put(buf.substring(0, i), buf.substring(i+1, buf.size-i-1))
         }
         buf.reset()
-    })
-    return Env(key, val)
-}
-
-// TODO: Replace this with map«string, string»
-struct env {
-    key: []string
-    val: []string
-}
-
-fn size(e: env) int = e.key.length
-fn isSet(e: env, key: string) bool = e.get(key).isSome()
-fn get(e: env, key: string) option«string» {
-    for i in 0 .. e.key.length {
-        if e.key[i].Equals(key) {
-            return Some(e.val[i])
-        }
+        idx = idx.inc(8) // Point to next array index
+        entry = idx.deref  // Get value
     }
-    return None«string»()
+    return env
 }
+
 
 // Called from user code to crash the program
 fn panic(cause: string) {
