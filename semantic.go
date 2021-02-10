@@ -465,29 +465,6 @@ func foldConstants(errs *[]error, n *Node) {
 	}
 }
 
-func declareCaseVars(symtab *SymTab, n *Node) {
-	if n.op == opMatch {
-
-		// AST: case <ident>(<var1>, <var2>, etc...): -> <var1> = asEnum(e)._1, <var2> = asEnum(e)._2, etc...
-		asEnum := symtab.MustResolve("asEnum")
-		enum := symtab.MustResolve("enum_").Type.AsStruct()
-		for _, cas := range n.stmts {
-			var vars []*Node
-			for i, v := range cas.params {
-				field := enum.GetField(fmt.Sprintf("_%v", i))
-				vars = append(vars,
-					&Node{op: opDas, left: v, right: &Node{op: opDot,
-						left:  fnCallBySym(lex.NoToken, asEnum, n.left),
-						right: ident(lex.NoToken, field),
-						typ:   v.typ}, // Expression yields type on left!
-					})
-			}
-			cas.stmts = append(vars, cas.stmts...)
-			cas.params = nil
-		}
-	}
-}
-
 func lowerForStatement(n *Node) {
 	// Maybe: for x in b where x > 2 {}      // Iterator with predicate
 	if n.op == opFor {
@@ -553,9 +530,9 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 
 		// AST:
 		// match <expr> {
-		//   case First(...):
+		//   case First(a, b):
 		//
-		//   case Second(...):
+		//   case Second(c):
 		//
 		// }
 		//
@@ -564,14 +541,16 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 		// {
 		//   $tmp1 := <expr>
 		//   if asEnum($tmp1).Tag == First.Tag {
+		//      a := asEnum($tmp1)._0
+		//      b := asEnum($tmp1)._1
 		//
 		//   } else if asEnum($tmp1).Tag == Second.Tag {
-		//
+		//      c := asEnum($tmp1)._0
 		//   }
 		// }
 
 		// Declare var for match expression result
-		matchVar := ident(lex.NoToken, &Symbol{Name: "$tmp", Type: n.left.typ, IsStack: true})
+		matchVar := newVar("$tmp", n.left.typ)
 		matchExpr := das(matchVar, n.left)
 
 		// Convert cases to if/else if
@@ -582,15 +561,11 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 
 			// Create expr to compare tags
 			tag := cas.sym.Type.AsFunction().AsEnumCons().Tag
-			caseExpr := &Node{op: opEq,
-				left: &Node{op: opDot,
-					left:  fnCallBySym(lex.NoToken, asEnum, matchVar),
-					right: ident(lex.NoToken, enum.GetField("tag")),
-					typ: intType,
-				},
-				right: intLit(tag),
-				typ:   boolType,
-			}
+			caseExpr := eq(
+				dot(fnCallBySym(lex.NoToken, asEnum, matchVar),
+					ident(lex.NoToken, enum.GetField("tag")), intType),
+				intLit(tag),
+			)
 
 			// opCase -> opIf/ElseIf
 			cas.left = caseExpr
@@ -605,6 +580,18 @@ func lowerMatchStatement(symtab *SymTab, n *Node) {
 				cur.right = cas
 			}
 			cur = cas
+
+			// Declare case vars
+			var vars []*Node
+			for i, v := range cas.params {
+				field := enum.GetField(fmt.Sprintf("_%v", i))
+				vars = append(vars,
+					das(v,
+						dot(fnCallBySym(lex.NoToken, asEnum, matchVar),
+							ident(lex.NoToken, field), v.typ))) // Expression yields type on left!
+			}
+			cas.stmts = append(vars, cas.stmts...)
+			cas.params = nil
 		}
 
 		// opMatch -> opBlock

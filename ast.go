@@ -250,6 +250,10 @@ func length(id *Node) *Node {
 	return &Node{op: opDot, token: lex.NoToken, left: id, right: ident(lex.NoToken, length), typ: intType}
 }
 
+func eq(left, right *Node) *Node {
+	return &Node{op: opEq, token: lex.NoToken, left: left, right: right, typ: boolType}
+}
+
 func lt(left, right *Node) *Node {
 	return &Node{op: opLt, token: lex.NoToken, left: left, right: right, typ: boolType}
 }
@@ -264,6 +268,10 @@ func while(cond *Node) *Node {
 
 func das(left, right *Node) *Node {
 	return &Node{op: opDas, token: lex.NoToken, left: left, right: right}
+}
+
+func dot(left, right *Node, t *Type) *Node {
+	return &Node{op: opDot, token: lex.NoToken, left: left, right: right, typ: t}
 }
 
 func intLit(i int) *Node {
