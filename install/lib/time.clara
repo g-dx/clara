@@ -11,6 +11,10 @@ struct time {
 fn Now() time {
     t := Time(0, 0)
     gettimeofday(t, 0)
+
+    // Ensure to tag values
+    t.sec = t.sec.tag()
+    t.usec = t.usec.tag()
     return t
 }
 fn toMicros(t: time) int = (t.sec * 1000000) + t.usec
