@@ -3,8 +3,6 @@
 - Allow panic() to operate as a return statement
 - Add boolean short circuiting
 - Update ASM generation to produce PIE executables. This will allow passing external functions as parameters
-- Generic call sites within other generic functions require type parameters to match between functions
-- Generic closures require type parameters to be declared again
 - Parser bug:
 
 struct x { f: fn(int) nothing }
