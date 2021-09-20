@@ -214,7 +214,7 @@ loop:
 		switch n.op {
 		case opStructDcl:
 			errs = append(errs, instantiateFieldTypes(n)...)
-		case opBlockFnDcl, opExternFnDcl, opExprFnDcl:
+		case opBlockFnDcl, opExternFnDcl, opExprFnDcl, opConsFnDcl:
 			errs = append(errs, instantiateFunctionTypes(n)...)
 		}
 	}
