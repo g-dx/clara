@@ -1,5 +1,4 @@
 - Type check variadic function calls
-- Add byte support for bitwise operators.
 - Allow panic() to operate as a return statement
 - Add boolean short circuiting
 - Update ASM generation to produce PIE executables. This will allow passing external functions as parameters

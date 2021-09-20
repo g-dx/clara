@@ -141,7 +141,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 		}
 		n.typ = boolType
 
-	case opBNot:
+	case opBNot, opNeg:
 		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
 
 		if !left.hasType() {
@@ -153,19 +153,6 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			goto end
 		}
 		n.typ = intType
-
-	case opNeg:
-		errs = append(errs, typeCheck(left, symtab, fn, debug)...)
-
-		if !left.hasType() {
-			goto end
-		}
-
-		if !(left.typ.Is(Integer) || left.typ.Is(Byte)) {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, left.token, left.typ, fmt.Sprintf("%v or %v", Integer, Byte)))
-			goto end
-		}
-		n.typ = left.typ
 
 	case opLit:
 		s, found := symtab.Resolve(n.token.Val)
@@ -898,7 +885,7 @@ func findUnboundTypeParameters(t *Type, bound map[*Type]*Type) []*Type {
 			}
 		}
 		return []*Type{t} // Unmatched
-	case t.IsAny(Nothing, Boolean, Integer, Byte, Pointer, String):
+	case t.IsAny(Nothing, Boolean, Integer, Bytes, Pointer, String):
 		return nil
 	default:
 		panic("unreachable")

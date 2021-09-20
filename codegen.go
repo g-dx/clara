@@ -216,7 +216,7 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	var et *Type
 	for _, t := range gt.types {
 		switch t.Kind {
-		case String, Array, Function:
+		case String, Array, Bytes, Function:
 			roots = append(roots, noGc)
 			tag = 0
 		case Struct:
@@ -301,6 +301,8 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 				w.tab(".8byte", elemIsPointer)
 			case Function:
 				w.taggedInt(3)
+			case Bytes:
+				w.taggedInt(4)
 			}
 		}))
 	}
@@ -521,18 +523,8 @@ func genAssignStmt(asm asmWriter, n *Node, fn *function) {
 	restore(asm, fn, rbx)
 	src := rbx
 
-	if slot.op == opArray && slot.typ.Is(Byte) && n.right.typ.IsAny(Byte, Integer) {
-		// Move a single, untagged byte to array slot
-		untag(asm, n.right, src)
-		asm.ins(movb, src._8bit(), rax.deref()) // [rax] = src (8-bits);
-	} else if slot.typ.Is(Byte) && n.right.typ.Is(Integer) {
-		// Cast int -> byte
-		int2Byte(asm, rax)
-		asm.ins(movq, src, rax.deref()) // [rax] = src;
-	} else {
-		// Simply write slot
-		asm.ins(movq, src, rax.deref()) // [rax] = src;
-	}
+	// Write slot
+	asm.ins(movq, src, rax.deref()) // [rax] = src;
 
 	// If decl & assign start tracking as gc root
 	if n.op == opDas {
@@ -573,13 +565,6 @@ func genReturnStmt(asm asmWriter, expr *Node, fn *function) {
 	// If return has expression evaluate it
 	if expr != nil {
 		genExpr(asm, expr, false, fn)
-		// Handle int/byte automatic conversion
-		switch {
-		case expr.typ.Is(Integer) && fn.Type.ret.Is(Byte):
-			int2Byte(asm, rax)
-		case expr.typ.Is(Byte) && fn.Type.ret.Is(Integer):
-			byte2Int(asm, rax)
-		}
 	}
 
 	// Clean stack & return
@@ -612,20 +597,12 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		// Create "raw" values for any external functions which require them
 		if fn.Is(External) && fn.RawValues {
 			switch arg.typ.Kind {
-			case String, Array:
-				// Modify pointer to point past array length
+			case String, Array, Bytes:
+				// Modify pointer to point past length
 				asm.ins(leaq, regs[i].displace(8), regs[i])
-			case Byte, Integer:
+			case Integer:
 				// Ensure valid "C" value
 				untag(asm, arg, regs[i])
-			}
-		} else {
-			// Handle int/byte automatic conversion
-			switch {
-			case arg.typ.Is(Integer) && fn.Params[i].Is(Byte):
-				int2Byte(asm, regs[i])
-			case arg.typ.Is(Byte) && fn.Params[i].Is(Integer):
-				byte2Int(asm, regs[i])
 			}
 		}
 	}
@@ -654,8 +631,9 @@ func genFnCall(asm asmWriter, n *Node, f *function) {
 		asm.ins(call, fnOp(fn.AsmName(s.Name))) // Named func call
 	}
 
+	// TODO: Hoist this into the language!
 	// Convert any "raw" values
-	if fn.Is(External) && fn.RawValues && (fn.ret.Is(Byte) || fn.ret.Is(Integer)) {
+	if fn.Is(External) && fn.RawValues && fn.ret.Is(Integer) {
 		tagAs(asm, fn.ret.Kind, rax)
 	}
 
@@ -681,7 +659,7 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		case String:
 			asm.ins(movabs, asm.stringLit(expr.sym.Name), rax)
 
-		case Byte, Integer:
+		case Integer:
 			// Parse
 			i, err := strconv.ParseInt(expr.sym.Name, 0, 64)
 			if err != nil {
@@ -840,8 +818,6 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 
 	case opArray:
 
-		width := expr.typ.Width()
-
 		// Calculate array address
 		genExpr(asm, expr.left, false, fn)
 		save(asm, fn, rax)
@@ -864,22 +840,13 @@ func genExpr(asm asmWriter, expr *Node, takeAddr bool, fn *function) {
 		restore(asm, fn, rax)
 		asm.ins(jae, labelOp("ioob"))
 
-		// Displace + 8 to skip over length
+		// Displace + ptrSize to skip over length
+		inst := movq
 		if takeAddr {
-			asm.ins(leaq, rax.index(rbx).scale(width).displace(8), rax) // rax = [rax + rbx * width + 8]
-		} else {
-
-			// Read value according to width
-			switch width {
-			case 1:
-				asm.ins(movsbq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
-				tag(asm, expr, rax) // Bytes are stored without a tag
-			case 8:
-				asm.ins(movq, rax.index(rbx).scale(width).displace(8), rax) // rax = load[rax(*array) + (rbx(index) * width + 8)]
-			default:
-				panic(fmt.Sprintf("Array access for element of width (%d) not yet implemented", width))
-			}
+			inst = leaq
 		}
+		asm.ins(inst, rax.index(rbx).scale(ptrSize).displace(ptrSize), rax) // rax = load[rax(*array) + (rbx(index) * 8 + 8)]
+
 	case opNamedType, opFuncType, opArrayType:
 		// Nothing do to - yet!
 
@@ -905,23 +872,10 @@ func untagAs(asm asmWriter, t TypeKind, r reg) {
 	asm.ins(sarq, intOp(tagLenFor(t)), r)
 }
 
-func byte2Int(asm asmWriter, r reg) {
-	asm.ins(orq, intOp(1), r)
-}
-
-func int2Byte(asm asmWriter, r reg) {
-	// Strip tag, sign extend lowest 8-bits into same reg & add tag
-	untagAs(asm, Integer, r)
-	asm.ins(movsbq, r._8bit(), r)
-	tagAs(asm, Byte, r)
-}
-
 func tagFor(tk TypeKind) int {
 	switch tk {
 	case Integer:
 		return 0b1
-	case Byte:
-		return 0b0
 	default:
 		panic(fmt.Sprintf("TypeKind (%v) does not have a tag", typeKindNames[tk]))
 	}
@@ -930,8 +884,6 @@ func tagFor(tk TypeKind) int {
 func tagLenFor(tk TypeKind) int {
 	switch tk {
 	case Integer:
-		return 1
-	case Byte:
 		return 1
 	default:
 		panic(fmt.Sprintf("TypeKind (%v) does not have a tag", typeKindNames[tk]))

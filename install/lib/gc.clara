@@ -67,6 +67,8 @@ fn gcMarkPointer(p: pointer, level: int) {
             }
         case StringType():
             // Already marked - no further action required
+        case BytesType():
+            // Already marked - no further action required
         case ArrayType(name, elemIsPointer):
             if elemIsPointer {
                 len := p.deref.toRawInt() // Array lengths are already tagged
@@ -123,6 +125,7 @@ enum typeInfo {
     StringType()
     ArrayType(name: string, elemIsPointer: bool)
     FunctionType()
+    BytesType()
 }
 
 fn getName(t: typeInfo) string {
@@ -133,6 +136,8 @@ fn getName(t: typeInfo) string {
             return name
         case StringType():
             return "string"
+        case BytesType():
+            return "bytes"
         case FunctionType():
             return "function"
     }

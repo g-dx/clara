@@ -11,16 +11,14 @@ const ptrSize = 8 // 64-bit pointer size in bytes
 const fnPrefix = "clara_"
 //----------------------------------------------------------------------------------------------------------------------
 
-var byteType = &Type{ Kind: Byte, Data: &IntType{ Width: 1 } }
-var intType = &Type{ Kind: Integer, Data: &IntType{ Width: 8 } }
-var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
-var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
-var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
-var byteArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: byteType } }
-var bytesType = &Type{ Kind: String, Data: &IntType{ Width: 8 } } // TODO: Consider dedicated kind
+var intType = &Type{ Kind: Integer, Data: &IntType{} }
+var boolType = &Type{ Kind: Boolean, Data: &BoolType{} }
+var stringType = &Type{ Kind: String, Data: &StringType{} }
+var nothingType = &Type{ Kind: Nothing, Data: &NothingType{} }
+var bytesType = &Type{Kind: Bytes, Data: &BytesType{}}
 var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
 var stringArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: stringType } }
-var pointerType = &Type{ Kind: Pointer, Data: IntType{ Width: 8} }
+var pointerType = &Type{ Kind: Pointer, Data: IntType{} }
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -30,7 +28,7 @@ const (
 	Enum
 	Function
 	Integer
-	Byte
+	Bytes
 	Boolean
 	String
 	Array
@@ -44,7 +42,7 @@ var typeKindNames = map[TypeKind]string {
 	Enum:     "enum",
 	Function: "function",
 	Integer:  "int",
-	Byte:     "byte",
+	Bytes:    "bytes",
 	Boolean:  "bool",
 	String:   "string",
 	Array:    "[]",
@@ -124,8 +122,8 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 			}
 		}
 		return true
-	case Integer, Byte:
-		return x.Kind == Integer || x.Kind == Byte // Int & bytes can be used interchangeably...
+	case Integer, Bytes:
+		return x.Kind == Integer || x.Kind == Bytes // Int & bytes can be used interchangeably...
 	case Boolean, String, Nothing, Pointer:
 		return t.Kind == x.Kind
 	case Array:
@@ -134,12 +132,7 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 		}
 		te := t.AsArray().Elem
 		xe := x.AsArray().Elem
-		// SPECIAL CASE: Int & Byte are _not_ interchangeable in arrays!
-		if te.Kind == Integer || te.Kind == Byte {
-			return te.Kind == xe.Kind
-		} else {
-			return te.MatchesImpl(xe, allowBinding, bound)
-		}
+		return te.MatchesImpl(xe, allowBinding, bound)
 	case Function:
 		if x.Kind != Function  {
 			return false
@@ -184,7 +177,7 @@ func (t *Type) IsFunction(kind TypeKind) bool {
 }
 
 func (t *Type) IsPointer() bool {
-	return t.IsAny(Array, Struct, String, Function, Enum, Parameter)
+	return t.IsAny(Array, Struct, String, Function, Enum, Parameter, Bytes)
 }
 
 func (t *Type) AsStruct() *StructType {
@@ -282,16 +275,6 @@ func (t *Type) AsmName() string {
 		return buf.String()
 	default:
 		return t.Kind.String()
-	}
-}
-
-func (t *Type) Width() int {
-	switch x := t.Data.(type) {
-	case *IntType: return x.Width
-	case *BoolType: return x.Width
-	case *StructType, *EnumType, *StringType, *ArrayType, *ParameterType: return ptrSize
-	default:
-		panic(fmt.Sprintf("Type.Width() called for unknown data type: %T", t.Data))
 	}
 }
 
@@ -438,26 +421,27 @@ type ArrayType struct {
 
 //----------------------------------------------------------------------------------------------------------------------
 
+type BytesType struct {
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 type IntType struct {
-	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type StringType struct {
-	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type BoolType struct {
-	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 type NothingType struct {
-	Width int
 }
 
 //----------------------------------------------------------------------------------------------------------------------

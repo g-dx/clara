@@ -1,1 +1,0 @@
-- Move int -> byte casting into the AST rather than outputting them during code gen

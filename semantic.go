@@ -53,16 +53,16 @@ const (
 type OperatorTypes map[int][]TypeKind
 
 var operatorTypes = OperatorTypes{
-	opAdd:    {Integer, Byte},
-	opSub:    {Integer, Byte},
-	opMul:    {Integer, Byte},
-	opDiv:    {Integer, Byte},
-	opRange:  {Integer, Byte},
+	opAdd:    {Integer},
+	opSub:    {Integer},
+	opMul:    {Integer},
+	opDiv:    {Integer},
+	opRange:  {Integer},
 	opOr:     {Boolean},
 	opAnd:    {Boolean},
-	opBAnd:   {Integer, Byte},
-	opBOr:    {Integer, Byte},
-	opBXor:   {Integer, Byte},
+	opBAnd:   {Integer},
+	opBOr:    {Integer},
+	opBXor:   {Integer},
 	opBLeft:  {Integer},
 	opBRight: {Integer},
 	// TODO: What about unary operators? Operators which return a different type?
@@ -94,7 +94,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 					errs = append(errs, semanticError(errRedeclaredMsg, tParam.token))
 					continue
 				}
-				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: tParam.token.Val}}
+				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Name: tParam.token.Val}}
 				tParam.sym = sym
 				tParam.typ = sym.Type
 				types = append(types, sym.Type)
@@ -110,7 +110,7 @@ func processTopLevelTypes(rootNode *Node, symtab *SymTab) (errs []error) {
 					errs = append(errs, semanticError(errRedeclaredMsg, tParam.token))
 					continue
 				}
-				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: tParam.token.Val}}
+				sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Name: tParam.token.Val}}
 				tParam.sym = sym
 				tParam.typ = sym.Type
 				types = append(types, sym.Type)
@@ -173,7 +173,7 @@ loop:
 
 			strt := n.sym.Type.AsStruct()
 
-			fields:
+		fields:
 			for x, stmt := range n.stmts {
 
 				// Look up type
@@ -299,7 +299,7 @@ func instantiateType(symtab *SymTab, n *Node, errs *[]error) *Type {
 				bound[et.Types[i]] = t
 			}
 			return substituteType(s.Type, bound)
-		case Integer, String, Boolean, Byte, Pointer, Parameter, Nothing:
+		case Integer, String, Boolean, Bytes, Pointer, Parameter, Nothing:
 			*errs = append(*errs, semanticError2(errNoTypeParametersMsg, n.token, s.Name))
 			return nil
 		default:
@@ -360,7 +360,7 @@ func processFnType(n *Node, symName string, symtab *SymTab, child *SymTab, types
 			if found {
 				return nil, semanticError(errRedeclaredMsg, typeParameter.token)
 			}
-			sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Width: 8, Name: typeParameter.token.Val}}
+			sym.Type = &Type{Kind: Parameter, Data: &ParameterType{Name: typeParameter.token.Val}}
 			typeParameter.sym = sym
 			typeParameter.typ = sym.Type
 			fnType.Types = append(fnType.Types, sym.Type)
@@ -500,7 +500,7 @@ func lowerForStatement(n *Node) {
 			while := while(cond)
 			while.stmts = append(while.stmts, n.stmts...)
 			while.stmts = append(while.stmts, nextVal)
-			n.stmts = []*Node{ das(val, initVal), while }
+			n.stmts = []*Node{das(val, initVal), while}
 		}
 		n.op = opBlock
 		n.token = lex.WithVal(n.token, "-")

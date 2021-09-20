@@ -204,13 +204,11 @@ func stdSyms() []*Symbol {
 	return []*Symbol{
 		{ Name: "string", Type: stringType, IsType: true },
 		{ Name: "int", Type: intType, IsType: true },
-		{ Name: "byte", Type: byteType, IsType: true },
 		{ Name: "bool", Type: boolType, IsType: true },
 		{ Name: "pointer", Type: pointerType, IsType: true },
 		{ Name: "nothing", Type: nothingType, IsType: true },
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
-		{ Name: "[]byte", Type: byteArrayType },
 		{ Name: "bytes", Type: bytesType, IsType: true },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:

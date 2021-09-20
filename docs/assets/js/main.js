@@ -54,7 +54,7 @@ Prism.languages.clara = {
         greedy: true
     },
     'keyword': /\b(?:if|elseif|while|return|fn|struct|and|not|or|match|case|enum)\b/,
-    'builtin': /\b(?:int|string|bool|byte|nothing)\b/,
+    'builtin': /\b(?:int|string|bool|bytes|nothing)\b/,
     'boolean': /\b(?:true|false)\b/,
     'function': /[a-z0-9_]+(?=\()/i,
     'number': /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i,

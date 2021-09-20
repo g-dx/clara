@@ -1,5 +1,5 @@
 fn Bytes(length: int) bytes {
-    header := claralloc(length + 8, "bytes", 6).toBytesHeader()
+    header := claralloc(length + 8, "bytes", 1).toBytesHeader()
     header.length = length
     return header.toBytes()
 }
