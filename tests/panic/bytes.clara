@@ -1,0 +1,4 @@
+fn main() {
+    b := Bytes(1)
+    b.set(2, 1) // EXPECT: idx is out of range
+}

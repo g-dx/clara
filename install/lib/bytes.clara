@@ -1,0 +1,25 @@
+fn Bytes(length: int) bytes {
+    header := claralloc(length + 8, "bytes", 10000).toBytesHeader()
+    header.length = length
+    return header.toBytes()
+}
+
+fn length(b: bytes) int = b.toBytesHeader().length
+
+fn get(b: bytes, idx: int) int {
+    assert(idx < b.length(), "idx is out of range")
+    return b.toPointer(8).readByte(idx).tag() // Tag after read
+}
+
+fn set(b: bytes, idx: int, val: int) {
+    assert(idx < b.length(), "idx is out of range")
+    b.toPointer(8).writeByte(idx, val.untag()) // Untag before write
+}
+
+fn toBytes(h: bytesHeader) bytes = unsafe(h, 0, type(bytes))
+fn toBytesHeader(b: block) bytesHeader = unsafe(b, 0, type(bytesHeader))
+fn toBytesHeader(b: bytes) bytesHeader = unsafe(b, 0, type(bytesHeader))
+
+struct bytesHeader {
+    length: int
+}

@@ -17,6 +17,7 @@ var boolType = &Type{ Kind: Boolean, Data: &BoolType{ Width: 8 } }
 var stringType = &Type{ Kind: String, Data: &StringType{ Width: 8 } }
 var nothingType = &Type{ Kind: Nothing, Data: &NothingType{ Width: 0 } }
 var byteArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: byteType } }
+var bytesType = &Type{ Kind: Pointer, Data: &IntType{ Width: 8 } }
 var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
 var stringArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: stringType } }
 var pointerType = &Type{ Kind: Pointer, Data: IntType{ Width: 8} }
@@ -165,7 +166,7 @@ func (t *Type) Is(kind TypeKind) bool {
 	return t.Kind == kind
 }
 
-func (t *Type) IsAny(kinds ... TypeKind) bool {
+func (t *Type) IsAny(kinds ...TypeKind) bool {
 	for _, kind := range kinds {
 		if t.Is(kind) {
 			return true
@@ -208,7 +209,8 @@ func (t *Type) AsParameter() *ParameterType {
 
 func (t *Type) String() string {
 	switch t.Kind {
-	case Array: return t.Kind.String() + t.AsArray().Elem.String()
+	case Array:
+		return t.Kind.String() + t.AsArray().Elem.String()
 	case Struct:
 		st := t.AsStruct()
 		if len(st.Types) == 0 {
@@ -245,7 +247,8 @@ func (t *Type) String() string {
 
 func (t *Type) AsmName() string {
 	switch t.Kind {
-	case Array: return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
+	case Array:
+		return fmt.Sprintf("array$%v$", t.AsArray().Elem.AsmName())
 	case Struct:
 		st := t.AsStruct()
 		if len(st.Types) == 0 {

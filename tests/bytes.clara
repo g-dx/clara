@@ -1,0 +1,45 @@
+fn main() {
+    b := Bytes(5)
+
+    // EXPECT: 0
+    // EXPECT: 0
+    // EXPECT: 0
+    // EXPECT: 0
+    // EXPECT: 0
+    for idx in 0 .. b.length() {
+        b.get(idx).println()
+    }
+
+    // EXPECT: 0
+    // EXPECT: 1
+    // EXPECT: 2
+    // EXPECT: 3
+    // EXPECT: 4
+    for idx in 0 .. b.length() {
+        b.set(idx, idx)
+        b.get(idx).println()
+    }
+
+    // Check edges
+    b.set(0, -2) b.get(0).println()  // EXPECT: -2
+    b.set(0, -1) b.get(0).println()  // EXPECT: -1
+    b.set(0, 0) b.get(0).println()   // EXPECT: 0
+    b.set(0, 1) b.get(0).println()   // EXPECT: 1
+    b.set(0, 2) b.get(0).println()   // EXPECT: 2
+    // ..
+    b.set(0, 127) b.get(0).println() // EXPECT: 127
+    b.set(0, 128) b.get(0).println() // EXPECT: -128
+    b.set(0, 129) b.get(0).println() // EXPECT: -127
+    // ..
+    b.set(0, 254) b.get(0).println() // EXPECT: -2
+    b.set(0, 255) b.get(0).println() // EXPECT: -1
+    b.set(0, 256) b.get(0).println() // EXPECT: 0
+    b.set(0, 257) b.get(0).println() // EXPECT: 1
+    b.set(0, 258) b.get(0).println() // EXPECT: 2
+
+    // Check other slots
+    b.get(1).println() // EXPECT: 1
+    b.get(2).println() // EXPECT: 2
+    b.get(3).println() // EXPECT: 3
+    b.get(4).println() // EXPECT: 4
+}

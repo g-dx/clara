@@ -86,6 +86,12 @@ fn panic(cause: string) {
     exit(1)
 }
 
+fn assert(condition: bool, msg: string) {
+    if not condition {
+        panic(msg)
+    }
+}
+
 // Invoked by an ASM trampoline (See codegen.go) for invalid array access
 fn indexOutOfBounds(index: int, length: int) {
     printf("\n// -----------------------------------------------------------------------------\n")
@@ -128,6 +134,12 @@ fn isClosure(p: pointer) bool {
 // Runtime tagging support
 
 fn tag(i: int) int = unsafe(i, 0, type(pointer)).toTaggedInt()
+fn untag(i: int) int = unsafe(i, 0, type(pointer)).toUntaggedInt()
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Raw memory access
+
+fn toPointer«T»(t: T, off: int) pointer = unsafe(t, off, type(pointer))
 
 // ---------------------------------------------------------------------------------------------------------------------
 // External Functions
@@ -147,6 +159,12 @@ fn isStackBase(f: frame) bool
 fn setStackBase(f: frame) nothing
 fn setRuntime(r: runtime) nothing
 fn getRuntime() runtime
+
+// Raw memory access (Implemented in assembly by codegen.go)
+fn readInt(p: pointer, idx: int) int
+fn readByte(p: pointer, idx: int) int
+fn writeByte(p: pointer, idx: int, val: int) nothing
+fn writeInt(p: pointer, idx: int, val: int) nothing
 
 // WARNING: Type system escape hatch! Use with extreme caution!
 //

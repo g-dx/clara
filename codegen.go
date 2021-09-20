@@ -121,13 +121,24 @@ func codegen(symtab *SymTab, tree []*Node, asm asmWriter) error {
 		}
 	}
 
-	genIoobTrampoline(asm, fnOp(ioob.Type.AsFunction().AsmName(ioob.Name)));
+	// Raw memory access
+	genRead(asm, "Byte", 1)
+	asm.spacer()
+	genRead(asm, "Int", 8)
+	asm.spacer()
+	genWrite(asm, "Byte", 1)
+	asm.spacer()
+	genWrite(asm, "Int", 8)
+	asm.spacer()
+	genIoobTrampoline(asm, fnOp(ioob.Type.AsFunction().AsmName(ioob.Name)))
 	asm.spacer()
 	genFramePointerAccess(asm)
 	asm.spacer()
 	genUnsafe(asm)
 	asm.spacer()
 	genToTaggedInt(asm)
+	asm.spacer()
+	genToUntaggedInt(asm)
 	asm.spacer()
 	genAsmEntrypoint(asm, fnOp(entrypoint.Type.AsFunction().AsmName(entrypoint.Name)))
 	asm.spacer()
@@ -309,6 +320,31 @@ func genTypeInfoTable(asm asmWriter, gt *GcTypes) {
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 
+func genRead(asm asmWriter, suffix string, scale int) {
+	genFnEntry(asm, "read"+suffix, 0) // NOTE: Lie! This function takes 2 parameters!
+	untagAs(asm, Integer, rsi)        // Strip tag from idx
+	read := movq
+	if scale == 1 {
+		read = movsbq
+	}
+	asm.ins(read, rdi.index(rsi).scale(scale), rax)
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
+func genWrite(asm asmWriter, suffix string, scale int) {
+	genFnEntry(asm, "write"+suffix, 0) // NOTE: Lie! This function takes 3 parameters!
+	untagAs(asm, Integer, rsi)         // Strip tag from idx
+	asm.ins(leaq, rdi.index(rsi).scale(scale), rax)
+	reg := rdx
+	write := movq
+	if scale == 1 {
+		reg = reg._8bit()
+		write = movb
+	}
+	asm.ins(write, reg, rax.deref())
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
 func genFramePointerAccess(asm asmWriter) {
 	// Requires non-standard entry & exit!
 	asm.fnStart("getFramePointer")
@@ -328,6 +364,14 @@ func genToTaggedInt(asm asmWriter) {
 	genFnEntry(asm, "toTaggedInt", 0) // NOTE: Lie! This function takes 1 parameters!
 	// rdi + rdi + 1 = add int tag
 	asm.ins(leaq, rdi.displace(1).index(rdi), rax)
+	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
+}
+
+func genToUntaggedInt(asm asmWriter) {
+	genFnEntry(asm, "toUntaggedInt", 0) // NOTE: Lie! This function takes 1 parameters!
+	// rdi >> 1
+	asm.ins(sarq, intOp(1), rdi)
+	asm.ins(movq, rdi, rax)
 	genFnExit(asm, true) // NOTE: Defined in Clara code as external function so no GC
 }
 

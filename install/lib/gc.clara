@@ -166,3 +166,4 @@ fn typeInfoTable() []typeInfo
 // Implemented in assembly by codegen.go
 // TODO: It would be nice to have control over this directly in Clara
 fn toTaggedInt(p: pointer) int
+fn toUntaggedInt(p: pointer) int

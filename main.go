@@ -211,6 +211,7 @@ func stdSyms() []*Symbol {
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
 		{ Name: "[]byte", Type: byteArrayType },
+		{ Name: "bytes", Type: bytesType, IsType: true },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:
 			&FunctionType{ Params: []*Type {stringType, stringType }, ret: nothingType, Kind: External, isVariadic: true, RawValues: true}}},
