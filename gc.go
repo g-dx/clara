@@ -110,6 +110,10 @@ func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
 	// Id = 5, Create fake type for all functions
 	fn := &Type{ Function, &FunctionType{} }
 	gt.types = append(gt.types, fn)
+
+	// Id = 6
+	bs := symtab.MustResolve("bytes")
+	gt.types = append(gt.types, bs.Type)
 }
 
 func (gt *GcTypes) AssignId(typ *Type) int {

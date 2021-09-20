@@ -2,14 +2,6 @@
 // Conversions
 // --------------------------------------------------------------------------------
 
-fn toByte(i: int) byte = i
-fn toBytes(s: string) []byte {
-    buf := byteArray(s.length)
-    for i in 0 .. s.length {
-        buf[i] = s[i]
-    }
-    return buf
-}
 fn toBinary(i: int) string {
     buf := NewByteBuffer(77) // 63 digits + 7, 2-byte separators
     digits := "01"
@@ -42,8 +34,6 @@ fn print(s: string) = printf("%s", s)
 fn println(s: string) = printf("%s\n", s)
 fn print(i: int) = printf("%lli", i)
 fn println(i: int) = printf("%lli\n", i)
-// TODO: Restore me!
-//fn printByte(b: byte) = printf("%hhi\n", b)
 fn println(b: bool) = println(b.toString())
 
 // Int
@@ -58,19 +48,19 @@ fn toString(val: int) string {
     digits := "0123456789"
     // Int min: -4611686018427387904
     // Int max: 4611686018427387903
-    buf := byteArray(20)
+    buf := Bytes(20)
     base := 10
     n := val
-    x := buf.length - 1
+    x := buf.length() - 1
     while not (n == 0) {
         quotient := n / base
-        buf[x] = digits[val < 0 ? (base * quotient) - n : n - (base * quotient)]
+        buf.set(x, digits[val < 0 ? (base * quotient) - n : n - (base * quotient)])
         n = quotient
         x = x - 1
     }
     if val < 0 {
-        buf[x] = 0x2d // minus sign
+        buf.set(x, 0x2d) // minus sign
         x = x - 1
     }
-    return buf.toString(x+1, buf.length-1-x)
+    return buf.toString(x+1, buf.length()-1-x)
 }

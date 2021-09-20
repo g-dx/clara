@@ -1,6 +1,6 @@
 fn main() {
-    b := byteArray(1)
-    b[0] = 127
+    b := Bytes(1)
+    b.set(0, 127)
     i := intArray(1)
     i[0] = 123456789
     a := Arrays(b, i)
@@ -10,7 +10,7 @@ fn main() {
 
     s := Structs(a, f, e)
 
-    println(s.a.b[0]) // EXPECT: 127
+    println(s.a.b.get(0)) // EXPECT: 127
     println(s.a.i[0]) // EXPECT: 123456789
     println(s.f.f1()) // EXPECT: fns.f1
     println(s.f.f2().i[0]) // EXPECT: 123456789
@@ -23,7 +23,7 @@ fn main() {
     match s.e.e2 {
         case First(a):
         case Second(f):
-            println(f.f2().b[0]) // EXPECT: 127
+            println(f.f2().b.get(0)) // EXPECT: 127
     }
 
     f1 := Fns(fn() string = f.f1(), fn() arrays = f.f2())
@@ -37,7 +37,7 @@ struct structs {
 }
 
 struct arrays {
-    b: []byte
+    b: bytes
     i: []int
 }
 

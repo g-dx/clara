@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn copyArray(src: []byte, srcPos: int, dest: []byte, destPos: int) {
-    if src.length == srcPos or dest.length == destPos {
+fn copyArray(src: bytes, srcPos: int, dest: bytes, destPos: int) {
+    if src.length() == srcPos or dest.length() == destPos {
         return
     }
-    dest[destPos] = src[srcPos]
+    dest.set(destPos, src.get(srcPos))
     copyArray(src, srcPos+1, dest, destPos+1)
 }
 
@@ -41,25 +41,6 @@ fn intArray(length: int) []int {
     return h.toIntArray()
 }
 
-fn byteArray(length: int) []byte {
-    return byteArray(length, length)
-}
-
-// TODO: Should be private!
-fn byteArray(size: int, length: int) []byte {
-    return byteArray(size, length, 1, "[]byte")
-}
-
-fn byteArray(size: int, length: int, id: int, desc: string) []byte {
-    if length > size {
-        panic("Length cannot be greater than size!")
-    }
-    h := claralloc(size + 8, desc, id).toHeader() // + 8 for length
-    h.length = length
-    return h.toByteArray()
-}
-
 fn toStringArray(header: arrayHeader) []string = unsafe(header, 0, type([]string))
 fn toIntArray(header: arrayHeader) []int = unsafe(header, 0, type([]int))
-fn toByteArray(header: arrayHeader) []byte = unsafe(header, 0, type([]byte))
 fn toHeader(b: block) arrayHeader = unsafe(b, 0, type(arrayHeader))

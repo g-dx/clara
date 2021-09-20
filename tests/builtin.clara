@@ -3,7 +3,6 @@ fn main() {
     println(1234567890)         // EXPECT: 1234567890
     printf("%#x\n", 0xDEADBEEF) // EXPECT: 0xdeadbeef
     println("<string>")         // EXPECT: <string>
-    println(toByte(255))        // EXPECT: -1
     println(true)               // EXPECT: true
     println(false)              // EXPECT: false
 }

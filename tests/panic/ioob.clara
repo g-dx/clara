@@ -1,4 +1,4 @@
 fn main() {
-    b := byteArray(1)
+    b := intArray(1)
     b[2] = 1  // EXPECT: Panic: index out of bounds! index = 2, array.length = 1
 }

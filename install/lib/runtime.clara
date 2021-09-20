@@ -41,8 +41,8 @@ fn parseArgs(argc: int, argv: pointer) []string {
 fn parseCString(buf: byteBuffer, arg: pointer) byteBuffer {
     off := 0
     while true {
-        bytes := arg.inc(off).deref.toTaggedInt()
-        b := bytes & 0xFF
+        val := arg.inc(off).deref.toTaggedInt()
+        b := val & 0xFF
         if b == 0x00 {
             return buf
         }

@@ -5,7 +5,8 @@ fn main() {
 
     unsafe("Hello", -16, type(block)).printTypeName() // EXPECT: string
 
-    unsafe(byteArray(0), -16, type(block)).printTypeName() // EXPECT: []byte
+// TODO: Correct me!
+//    unsafe(Bytes(0), -16, type(block)).printTypeName() // EXPECT: bytes
 
     unsafe(intArray(0), -16, type(block)).printTypeName() // EXPECT: []int
 

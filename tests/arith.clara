@@ -42,12 +42,4 @@ fn main() {
     println(minInt)   // EXPECT: -4611686018427387904
     println(maxInt+1) // EXPECT: -4611686018427387904
     println(minInt-1) // EXPECT: 4611686018427387903
-
-    // Max byte & signed wrap around
-    maxByte := toByte(127) // 1<<8 - 1
-    minByte := toByte(-128) // -1<<8
-    println(maxByte) // EXPECT: 127
-    println(minByte) // EXPECT: -128
-    println(toByte(maxByte+toByte(1))) // EXPECT: -128
-    println(toByte(minByte-toByte(1))) // EXPECT: 127
 }

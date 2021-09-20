@@ -1,7 +1,7 @@
 // Entry point
 fn main() {
-  buf := byteArray(256)
-  err := getcwd(buf, buf.length)
+  buf := Bytes(256)
+  err := getcwd(buf, buf.length())
   if err == 0 {
     printf("Failed to read working directory!\n")
     return
@@ -10,4 +10,5 @@ fn main() {
 }
 
 // http://man7.org/linux/man-pages/man2/getcwd.2.html
-fn getcwd(buf: []byte, size: int) int
+#[RawValues]
+fn getcwd(buf: bytes, size: int) int

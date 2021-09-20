@@ -19,8 +19,6 @@ fn main() {
   // EXPECT: 4
   // EXPECT: 2
   // EXPECT: true
-  b := byteArray(0)
-  for v in b { }
 
   for v in 0 .. 3 { v.println() }
   // EXPECT: 0

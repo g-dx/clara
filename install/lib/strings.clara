@@ -14,7 +14,7 @@ fn Equals(s1: string, s2: string) bool {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn Substring(s: string, start: int, end: int) string = toString(s.asByteArray(), start, end - start)
+fn Substring(s: string, start: int, end: int) string = toString(s.asBytes(), start, end - start)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -57,13 +57,13 @@ fn IndexOf(s: string, sub: string, from: int) int {
 // ---------------------------------------------------------------------------------------------------------------------
 
 struct byteBuffer {
-    data: []byte
+    data: bytes
     size: int
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn NewByteBuffer(cap: int) byteBuffer = ByteBuffer(byteArray(cap), 0)
+fn NewByteBuffer(cap: int) byteBuffer = ByteBuffer(Bytes(cap), 0)
 
 fn size(buf: byteBuffer) int = buf.size
 fn reset(buf: byteBuffer) { buf.size = 0 }
@@ -73,7 +73,7 @@ fn toString(buf: byteBuffer) string = buf.data.toString(buf.size)
 
 fn append(buf: byteBuffer, s: string) byteBuffer {
     newSize := buf.size + s.length
-    if newSize > buf.data.length {
+    if newSize > buf.data.length() {
         buf.grow()
     }
     copyString(s, 0, buf.data, buf.size)
@@ -98,19 +98,19 @@ fn substring(buf: byteBuffer, pos: int, length: int) string {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn append(buf: byteBuffer, b: byte) {
+fn append(buf: byteBuffer, b: int) {
     newSize := buf.size + 1
-    if newSize > buf.data.length {
+    if newSize > buf.data.length() {
         buf.grow()
     }
-    buf.data[buf.size] = b
+    buf.data.set(buf.size, b)
     buf.size = newSize
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // TODO: Should be "private"
 fn grow(buf: byteBuffer) {
-    data := byteArray(buf.data.length * 2)
+    data := Bytes(buf.data.length() * 2)
     copyArray(buf.data, 0, data, 0)
     buf.data = data
 }
@@ -119,17 +119,18 @@ fn grow(buf: byteBuffer) {
 
 fn append(s1: string, s2: string) string {
     length := s1.length + s2.length
-    bytes := byteArray(length + 1, length) // + 1 for NUL byte
-    copyString(s1, 0, bytes, 0)
-    copyString(s2, 0, bytes, s1.length)
-    return bytes.asString()
+    buf := Bytes(length + 1) // + 1 for NUL byte
+    buf.unsafe(0, type(bytesHeader)).length = length // Ugh!
+    copyString(s1, 0, buf, 0)
+    copyString(s2, 0, buf, s1.length)
+    return buf.asString()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
-    while srcPos < src.length and destPos < dest.length {
-        dest[destPos] = src[srcPos]
+fn copyString(src: string, srcPos: int, dest: bytes, destPos: int) {
+    while srcPos < src.length and destPos < dest.length() {
+        dest.set(destPos, src.asBytes().get(srcPos))
         srcPos = srcPos+1
         destPos = destPos+1
     }
@@ -137,14 +138,15 @@ fn copyString(src: string, srcPos: int, dest: []byte, destPos: int) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn toString(b: []byte) string = toString(b, b.length)
-fn toString(b: []byte, length: int) string = toString(b, 0, length)
-fn toString(b: []byte, pos: int, length: int) string {
-    s := byteArray(length + 1, length, 4, "string") // + 1 for NUL byte
+fn toString(b: bytes) string = toString(b, b.length())
+fn toString(b: bytes, length: int) string = toString(b, 0, length)
+fn toString(b: bytes, pos: int, length: int) string {
+    s := Bytes(length + 1) // + 1 for NUL byte
+    s.unsafe(0, type(bytesHeader)).length = length // Ugh!
     copyArray(b, pos, s, 0)
     return s.asString()
 }
 
 // TODO: Should be private!
-fn asString(b: []byte) string = unsafe(b, 0, type(string))
-fn asByteArray(s: string) []byte = unsafe(s, 0, type([]byte))
+fn asString(b: bytes) string = unsafe(b, 0, type(string))
+fn asBytes(s: string) bytes = unsafe(s, 0, type(bytes))
