@@ -462,9 +462,9 @@ func (gw *gasWriter) gcMap(name string, offsets []int) labelOp {
 	gw.taggedInt(len(offsets))
 	var s []string
 	for _, off := range offsets {
-		s = append(s, strconv.Itoa(off)) // Bytes are stored in arrays *without* tags!
+		s = append(s, strconv.Itoa((off<<1)+1)) // Ensure offsets are tagged!
 	}
-	gw.tab(".byte", strings.Join(s, ","))
+	gw.tab(".8byte", strings.Join(s, ","))
 	gw.spacer()
 	return labelOp(name)
 }

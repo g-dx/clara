@@ -4,11 +4,11 @@ struct frame {
     map: gcMap
 }
 
-fn slot(f: frame, off: byte) pointer = unsafe(f, -off * 8, type(pointer))
+fn slot(f: frame, off: int) pointer = unsafe(f, -off * 8, type(pointer))
 
 // GC roots at a particular point in a stack frame
 struct gcMap {
-    roots: []byte
+    roots: []int
 }
 
 // Runtime information
@@ -63,7 +63,7 @@ fn parseEnv(envp: pointer) map«string, string» {
     entry := idx.deref
     while not entry.isNull() {
         s := buf.parseCString(entry).toString()
-        i := s.IndexOf("=") // TODO: Update IndexOf() to support passing a []byte
+        i := s.IndexOf("=") // TODO: Update IndexOf() to support passing bytes
         if i == -1 {
             env.put(s, "")
         } else {

@@ -36,7 +36,7 @@ fn gcMark() {
     gcMarkPointer(unsafe(getRuntime(), 0, type(pointer)), 0)
 }
 
-fn gcMarkSlot(fp: frame, off: byte) {
+fn gcMarkSlot(fp: frame, off: int) {
     gcMarkPointer(fp.slot(off).deref, 1)
 }
 
@@ -119,7 +119,7 @@ fn inc(p: pointer, off: int) pointer = unsafe(p, off, type(pointer))
 
 // Compile time generated structure holding runtime type information
 enum typeInfo {
-    StructType(name: string, roots: []byte)
+    StructType(name: string, roots: []int)
     StringType()
     ArrayType(name: string, elemIsPointer: bool)
     FunctionType()
