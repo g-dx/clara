@@ -414,7 +414,7 @@ func lexText(l *Lexer) stateFn {
 			l.emit(EOF)
 			return nil
 		default:
-			return l.errorf("Unexpected character %#U", r)
+			return l.errorf("Unexpected character %[1]q (%[1]U)", r)
 		}
 	}
 }
@@ -496,7 +496,7 @@ func lexIdentifier(l *Lexer) stateFn {
 		l.next()
 	}
 	if !l.atTerminator() {
-		return l.errorf("Unexpected character %#U", l.peek())
+		return l.errorf("Unexpected character %[1]q (%[1]U)", l.peek())
 	}
 
 	// Differentiate between known keywords and identifiers
