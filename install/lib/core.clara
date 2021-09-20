@@ -12,7 +12,7 @@ fn toBinary(i: int) string {
         if (i & mask) == mask {
             n = 1
         }
-        buf.append(digits[n])
+        buf.append(digits.byte(n))
         if j > 0 and j.mod(8) == 0 {
             buf.append(sep)
         }
@@ -54,7 +54,7 @@ fn toString(val: int) string {
     x := buf.length() - 1
     while not (n == 0) {
         quotient := n / base
-        buf.set(x, digits[val < 0 ? (base * quotient) - n : n - (base * quotient)])
+        buf.set(x, digits.byte(val < 0 ? (base * quotient) - n : n - (base * quotient)))
         n = quotient
         x = x - 1
     }

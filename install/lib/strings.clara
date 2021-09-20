@@ -1,11 +1,17 @@
 // ---------------------------------------------------------------------------------------------------------------------
+fn byte(s: string, idx: int) int {
+    assert(idx < s.length, "idx is out of range")
+    return s.toPointer(8).readByte(idx).tag()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 fn Equals(s1: string, s2: string) bool {
     if not (s1.length == s2.length) {
         return false
     }
 
     for i in 0 .. s1.length {
-        if not (s1[i] == s2[i]) {
+        if not (s1.byte(i) == s2.byte(i)) {
             return false
         }
     }
@@ -37,7 +43,7 @@ fn IndexOf(s: string, sub: string, from: int) int {
     matchRun := fn(s: string, sub: string, pos: int) bool {
         i := 1 // First byte already matched
         while pos < s.length and i < sub.length {
-            if not (s[pos] == sub[i]) {
+            if not (s.byte(pos) == sub.byte(i)) {
                 return false
             }
             i = i + 1
@@ -47,7 +53,7 @@ fn IndexOf(s: string, sub: string, from: int) int {
     }
 
     for pos in from .. s.length {
-        if s[pos] == sub[0] and matchRun(s, sub, pos+1) {
+        if s.byte(pos) == sub.byte(0) and matchRun(s, sub, pos+1) {
             return pos // Match found
         }
     }

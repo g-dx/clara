@@ -14,15 +14,15 @@ fn main() {
     s.append("<extra>")
     println(s) // EXPECT: <string>
 
-    // Index
-    println(s[0]) // EXPECT: 60
-    println(s[1]) // EXPECT: 115
-    println(s[2]) // EXPECT: 116
-    println(s[3]) // EXPECT: 114
-    println(s[4]) // EXPECT: 105
-    println(s[5]) // EXPECT: 110
-    println(s[6]) // EXPECT: 103
-    println(s[7]) // EXPECT: 62
+    // Byte lookup
+    println(s.byte(0)) // EXPECT: 60
+    println(s.byte(1)) // EXPECT: 115
+    println(s.byte(2)) // EXPECT: 116
+    println(s.byte(3)) // EXPECT: 114
+    println(s.byte(4)) // EXPECT: 105
+    println(s.byte(5)) // EXPECT: 110
+    println(s.byte(6)) // EXPECT: 103
+    println(s.byte(7)) // EXPECT: 62
 
     // Index (taken from https://github.com/golang/go/blob/master/src/strings/strings_test.go)
     n := 76

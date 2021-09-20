@@ -339,15 +339,11 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			goto end
 		}
 
-		// SPECIAL CASE: If the left type is a string, array access yields a byte
-		if left.typ.Is(String) {
-			n.typ = byteType
-		} else if left.typ.Is(Array) {
-			n.typ = left.typ.AsArray().Elem
-		} else {
-			errs = append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, "string or array type"))
+		if !left.typ.Is(Array) {
+			errs = append(errs, semanticError2(errMismatchedTypesMsg, n.token, left.typ, "array"))
 			goto end
 		}
+		n.typ = left.typ.AsArray().Elem
 
 	case opDas:
 		errs = append(errs, typeCheck(right, symtab, fn, debug)...)

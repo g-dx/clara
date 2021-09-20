@@ -6,7 +6,7 @@
 fn fnv1a(s: string) int {
     hash := 0x811c9dc5
     for i in 0 .. s.length {
-        hash = hash ^ (s[i] & 0xff)
+        hash = hash ^ (s.byte(i) & 0xff)
         hash = (hash * 0x01000193) & 0xffffffff
     }
     return hash
