@@ -238,6 +238,7 @@ func typeCheck(n *Node, symtab *SymTab, fn *FunctionType, debug bool) (errs []er
 			// Rewrite to func call
 			n.op = opFuncCall
 			n.token = right.token
+			n.params = right.params
 
 			// Check if call is field _of_ struct or normal dot selection rules apply
 			if left.typ.Is(Struct) && left.typ.AsStruct().HasField(right.left.token.Val) {
