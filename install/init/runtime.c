@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
 #include "shared.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -54,3 +55,8 @@ void debug(char *logType, char *format, ...)
 
     va_end(args);
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Error support
+
+int errnum() { return errno; }

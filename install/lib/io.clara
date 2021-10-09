@@ -1,0 +1,30 @@
+// Helpers
+fn ioOk«T»(t: T) result«T, error» = Ok«T, error»(t)
+fn ioErr«T»() result«T, error» = Err«T, error»(Error(None«string»(), errnum()))
+fn ioErr«T»(msg: string) result«T, error» = Err«T, error»(Error(Some(msg), errnum()))
+
+fn seek(f: file, off: int, mode: int) result«int, error» {
+    pos := lseek(f.fd, off, mode)
+    return pos == -1 ? ioErr«int»(f.path) : ioOk(pos)
+}
+
+fn read(f: file, buf: bytes, size: int) option«error» {
+    if size > buf.length() {
+        return Some(Error(Some("buffer is too small for requested read size"), -1))
+    }
+    return read(f.fd, buf, size) == -1 ? Some(Error(Some(file.path), errnum())) : None«error»()
+}
+// ---------------------------------------------------------------------------------------------------------------------
+// External Functions
+// ---------------------------------------------------------------------------------------------------------------------
+
+#[RawValues]
+fn read(fd: int, buf: bytes, size: int) int
+
+// https://www.gnu.org/software/libc/manual/html_node/File-Position-Primitive.html
+//
+// #define SEEK_SET        0        /* Seek from beginning of file.  */
+// #define SEEK_CUR        1        /* Seek from current position.  */
+// #define SEEK_END        2        /* Seek from end of file.  */
+#[RawValues]
+fn lseek(fd: int, zero: int, mode: int) int

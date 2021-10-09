@@ -1,0 +1,32 @@
+struct file {
+    fd: int
+    path: string
+}
+
+fn open(path: string) result«file, error» {
+    fd := open(path, 0) // O_RDONLY (read)
+    // NOTE: This API returns int (i.e. 32-bit int)
+    return fd == -1 or fd == 4294967295 ? ioErr«file»(path) : ioOk(File(fd, path))
+}
+
+fn readAll(f: file) result«string, error» {
+    return f.size()
+        .map(Bytes)
+        .peek(fn(buf: bytes) option«error» = f.read(buf, buf.length()))
+        .map(toString)
+}
+
+fn size(f: file) result«int, error» =
+    // Get current pos, go to end then reset to current pos
+    f.seek(0, 1)
+        .then(fn(cur: int) result«pair«int, int», error» =
+            f.seek(0, 2).map(fn(size: int) pair«int, int» = Pair(cur, size)))
+        .then(fn(curSize: pair«int, int») result«int, error» =
+            f.seek(curSize.first, 0).map(fn(x: int) int = curSize.second))
+
+// -------------------------------------------------------------------
+
+// https://www.gnu.org/software/libc/manual/html_node/Opening-and-Closing-Files.html
+// https://www.gnu.org/software/libc/manual/html_node/Access-Modes.html
+#[RawValues]
+fn open(path: string, flags: int) int

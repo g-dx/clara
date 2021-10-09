@@ -1,0 +1,94 @@
+struct error {
+    msg: option«string»
+    err: int
+}
+
+fn describe(e: error) string {
+    return NewByteBuffer(16)
+        .append(e.err.describe())
+        .append(e.msg.map(fn(s: string) string = ":\n - ".append(s)).orElse(""))
+        .toString()
+}
+
+fn describe(err: int) string {
+    // https://code.woboq.org/userspace/include/asm-generic/errno-base.h.html
+    // /usr/include/asm-generic/errno-base.h
+    if err == 1 {
+          return "Operation not permitted"
+    } elseif err == 2 {
+          return "No such file or directory"
+    } elseif err == 3 {
+          return "No such process"
+    } elseif err == 4 {
+          return "Interrupted system call"
+    } elseif err == 5 {
+          return "I/O error"
+    } elseif err == 6 {
+          return "No such device or address"
+    } elseif err == 7 {
+          return "Argument list too long"
+    } elseif err == 8 {
+          return "Exec format error"
+    } elseif err == 9 {
+          return "Bad file descriptor"
+    } elseif err == 10 {
+          return "No child processes"
+    } elseif err == 11 {
+          return "Try again"
+    } elseif err == 12 {
+          return "Out of memory"
+    } elseif err == 13 {
+          return "Permission denied"
+    } elseif err == 14 {
+          return "Bad address"
+    } elseif err == 15 {
+          return "Block device required"
+    } elseif err == 16 {
+          return "Device or resource busy"
+    } elseif err == 17 {
+          return "File exists"
+    } elseif err == 18 {
+          return "Cross-device link"
+    } elseif err == 19 {
+          return "No such device"
+    } elseif err == 20 {
+          return "Not a directory"
+    } elseif err == 21 {
+          return "Is a directory"
+    } elseif err == 22 {
+          return "Invalid argument"
+    } elseif err == 23 {
+          return "File table overflow"
+    } elseif err == 24 {
+          return "Too many open files"
+    } elseif err == 25 {
+          return "Not a typewriter"
+    } elseif err == 26 {
+          return "Text file busy"
+    } elseif err == 27 {
+          return "File too large"
+    } elseif err == 28 {
+          return "No space left on device"
+    } elseif err == 29 {
+          return "Illegal seek"
+    } elseif err == 30 {
+          return "Read-only file system"
+    } elseif err == 31 {
+          return "Too many links"
+    } elseif err == 32 {
+          return "Broken pipe"
+    } elseif err == 33 {
+          return "Math argument out of domain of func"
+    } elseif err == 34 {
+          return "Math result not representable"
+    } else {
+        return "Unknown error code: ".append(err.toString())
+    }
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// External Functions
+// ---------------------------------------------------------------------------------------------------------------------
+#[RawValues]
+fn errnum() int

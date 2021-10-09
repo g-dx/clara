@@ -1,0 +1,9 @@
+// Entry point
+fn main() {
+  match open("/home/user/some-file.txt").then(readAll) {
+    case Ok(s):
+        s.println()
+    case Err(e):
+        e.describe().println()
+  }
+}
