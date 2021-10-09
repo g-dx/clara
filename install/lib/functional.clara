@@ -49,6 +49,40 @@ struct pair«T, R» {
     second: R
 }
 
+// ----------------------------------------------------------------------
+
+enum result«T, E» {
+    Ok(val: T)
+    Err(val: E)
+}
+
+fn map«T, E, R»(r: result«T, E», f: fn(T) R) result«R, E» {
+    match r {
+        case Ok(v): return Ok«R, E»(f(v))
+        case Err(e): return r.unsafe(0, type(result«R, E»))
+    }
+}
+
+fn then«T, E, R»(r: result«T, E», f: fn(T) result«R, E») result«R, E» {
+    match r {
+        case Ok(v): return f(v)
+        case Err(e): return r.unsafe(0, type(result«R, E»))
+    }
+}
+
+fn peek«T, E»(r: result«T, E», f: fn(T) option«E») result«T, E» {
+    match r {
+        case Ok(v):
+            match f(v) {
+                case Some(e):
+                    return Err«T, E»(e)
+                case None():
+                    return r
+            }
+        case Err(e): return r
+    }
+}
+
 
 // ----------------------------------------------------------------------
 
