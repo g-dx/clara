@@ -21,3 +21,6 @@ X(println).get()(999)
   * get(b: box«int») int
 
 - Clean up function call type checking.
+- Function call typechecking should consult symbol table for functions only. Currently, this will fail
+
+fn x(l: length) = Bytes(1).length()
