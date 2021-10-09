@@ -80,7 +80,7 @@ fn toString(buf: byteBuffer) string = buf.data.toString(buf.size)
 fn append(buf: byteBuffer, s: string) byteBuffer {
     newSize := buf.size + s.length
     if newSize > buf.data.length() {
-        buf.grow()
+        buf.grow(newSize)
     }
     copyString(s, 0, buf.data, buf.size)
     buf.size = newSize
@@ -107,7 +107,7 @@ fn substring(buf: byteBuffer, pos: int, length: int) string {
 fn append(buf: byteBuffer, b: int) {
     newSize := buf.size + 1
     if newSize > buf.data.length() {
-        buf.grow()
+        buf.grow(newSize)
     }
     buf.data.set(buf.size, b)
     buf.size = newSize
@@ -115,8 +115,12 @@ fn append(buf: byteBuffer, b: int) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // TODO: Should be "private"
-fn grow(buf: byteBuffer) {
-    data := Bytes(buf.data.length() * 2)
+fn grow(buf: byteBuffer, requiredSize: int) {
+    newSize := buf.data.length() * 2
+    while newSize < requiredSize {
+        newSize = newSize * 2
+    }
+    data := Bytes(newSize)
     copyArray(buf.data, 0, data, 0)
     buf.data = data
 }
