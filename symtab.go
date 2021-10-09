@@ -122,9 +122,7 @@ func (t *Type) MatchesImpl(x *Type, allowBinding bool, bound map[*Type]*Type) bo
 			}
 		}
 		return true
-	case Integer, Bytes:
-		return x.Kind == Integer || x.Kind == Bytes // Int & bytes can be used interchangeably...
-	case Boolean, String, Nothing, Pointer:
+	case Boolean, String, Nothing, Pointer, Integer, Bytes:
 		return t.Kind == x.Kind
 	case Array:
 		if x.Kind != Array {
