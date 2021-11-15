@@ -15,11 +15,9 @@ To get Clara running on your machine you'll need the following available on your
 Then if you are on Linux or Mac simply run the following:
 
 <pre>
-  <code class="language-bash">
-    git clone https://github.com/g-dx/clara/
-    cd clara
-    ./build-and-run hello.clara
-  </code>
+<code class="language-bash">git clone https://github.com/g-dx/clara/
+cd clara
+./build-and-run hello.clara</code>
 </pre>
 
 This will build the compiler, run all tests, prepare the standard library, compile the _./install/examples/hello.clara_ program 
@@ -48,11 +46,9 @@ Clara's heritage is mixed but can largely be traced to the following languages:
 ## Hello World <a name="hello"></a>
 As usual we start with the obligatory _hello world_ program:
 <pre>
-  <code class="language-clara">
-    fn main() {
-        printf("Hello World!\n")
-    }
-  </code>
+<code class="language-clara">fn main() {
+    printf("Hello World!\n")
+}</code>
 </pre>
 
 ## Values
@@ -65,7 +61,7 @@ Clara contains the following _built-in_ types which will be familiar to most use
  * `bytes` - a block of memory holding a contiguous series of bytes.
 
 <pre>
-// Bool
+<code class="language-clara">// Bool
 true
 false
 
@@ -78,7 +74,7 @@ false
 "Hello!"
 
 // Bytes
-Bytes(10)
+Bytes(10)</code>
 </pre>
 
 ### Variables
@@ -87,16 +83,15 @@ Clara contains two statements for working with variables; declaration & assignme
 assignment `=`
 
 <pre>
-  <code class="language-clara">
-// Declare a new variable 'x' in the current lexical scope and assign it the integer value 100
+<code class="language-clara">// Declare a new variable 'x' in the current lexical scope and 
+// assign it the integer value 100
 x := 100 
 
 // Assign variable 'x' the integer value 1000
 x = 1000
 
 // Compiler error!
-x := 10000
-  </code>
+x := 10000</code>
 </pre>
 
 In Clara there is no way to construct an uninitialised variable.
@@ -106,8 +101,7 @@ In Clara there is no way to construct an uninitialised variable.
 Clara also has some _array_ variants of the built-in types with support for _array literals_.
 
 <pre>
-  <code class="language-clara">
-ints := intArray(2)
+<code class="language-clara">ints := intArray(2)
 ints[0] = 1
 ints[1] = 2
 ints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -115,8 +109,7 @@ ints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 strings := stringArray(2)
 strings = "Hello"
 strings = "World!"
-strings = ["Hello", "World"]
-  </code>
+strings = ["Hello", "World"]</code>
 </pre>
 
 ## Control Flow
@@ -124,35 +117,29 @@ strings = ["Hello", "World"]
 Clara supports a 2 control flow constructs; `while` & `for`. 
 
 <pre>
-  <code class="language-clara">
-vals := [1, 2, 3, 4, 5, 6, 7, 8, 9]
+<code class="language-clara">vals := [1, 2, 3, 4, 5, 6, 7, 8, 9]
 i := 0
 while i < vals.length {
    vals[i].println()
    i = i + 1
-}
-  </code>
+}</code>
 </pre>
 
 A safer way to write the above loop is to use the `for` statement:
 
 <pre>
-  <code class="language-clara">
-for val in [1, 2, 3, 4, 5, 6, 7, 8, 9] {
+<code class="language-clara">for val in [1, 2, 3, 4, 5, 6, 7, 8, 9] {
    val.println()
-}
-  </code>
+}</code>
 </pre>
 (The compiler actually lowers all `for` statements to `while` statements)
 
 Another way to write the above loop is using the `for .. in` statement which supports _integer ranges_
 
 <pre>
-  <code class="language-clara">
-for val in 0 .. 10 {
+<code class="language-clara">for val in 0 .. 10 {
    val.println()
-}
-  </code>
+}</code>
 </pre>
 
 When the range is _increasing_ the beginning is _inclusive_ and the end is _exclusive_. These are 
@@ -166,14 +153,12 @@ any data other than its inputs or output.
 Function declarations are fairly straightforward. The following computes the fibonacci sequence: 
 
 <pre>
-  <code class="language-clara">    
-    fn fib(n: int) int {
-        if n < 2 {
-            return n
-        }
-        return fib(n - 1) + fib(n - 2)
-    }
-  </code>
+<code class="language-clara">fn fib(n: int) int {
+     if n < 2 {
+         return n
+     }
+     return fib(n - 1) + fib(n - 2)
+ }</code>
 </pre>
 
 The `fib` function accepts a single parameter `n` of type `int` & returns an `int`. 
@@ -181,20 +166,16 @@ The `fib` function accepts a single parameter `n` of type `int` & returns an `in
 Functions which do not return anything are said to return `nothing` and declaring the return type is optional:
 
 <pre>
-  <code class="language-clara">    
-    fn hello(msg: string) {
-        printf("Hello message is: %s\n", msg)
-    }
-  </code>
+<code class="language-clara">fn hello(msg: string) {
+    printf("Hello message is: %s\n", msg)
+}</code>
 </pre>
 
 Functions which return the result of a single _expression_ may use the _function expression_ syntax and omit the return 
 keyword & curly braces:
 
 <pre>
-  <code class="language-clara">    
-    fn product(x: int, y: int, z: int) int = x * y * z
-  </code>
+<code class="language-clara">fn product(x: int, y: int, z: int) int = x * y * z</code>
 </pre>
 
 #### Dot Selection 
@@ -203,14 +184,12 @@ Functions can be invoked in the normal way by passing all required arguments but
 "dot selection" notation. The following example illustrates this:
 
 <pre>
-  <code class="language-clara">
-    fn main() {
-        add(2, 3)
-        2.add(3)  // Equivalent to the line above 
-    }
-    
-    fn add(x: int, y: int) int = x + y
-  </code>
+<code class="language-clara">fn main() {
+    add(2, 3)
+    2.add(3)  // Equivalent to the line above 
+}
+
+fn add(x: int, y: int) int = x + y</code>
 </pre>
 
 Here it important to note that the second `add` function call is simply "syntactic sugar" for the 
@@ -218,13 +197,11 @@ first `add` call. These are functionally equivalent. This allows for easy functi
 types by simply writing a new function which takes that type as its first argument:
 
 <pre>
-  <code class="language-clara">
-    fn main() {
-        printf("%s\n", "Clara!".bold())
-    }
-    
-    fn bold(s: string) string = "**".append(s).append("**")    
-  </code>
+<code class="language-clara">fn main() {
+    printf("%s\n", "Clara!".bold())
+}
+
+fn bold(s: string) string = "**".append(s).append("**")</code>
 </pre> 
 
 #### First Class Functions
@@ -233,42 +210,38 @@ Functions in Clara are also said to be "first class" in that they can be passed 
 returned as values from functions & assigned to local variables or stored in data structures.
 
 <pre>
-  <code class="language-clara">
-    fn main() {
-        msg := "Down with this sort of thing. Careful now."
-        x := printf
-        x("%s\n", msg)
-        x("%s\n", apply(bold, msg)
-        x("%s\n", apply(italic, msg)
-    }
-    
-    fn apply(f: fn(s: string) string, s: string) = f(s)
-    fn bold(s: string) string = "**".append(s).append("**")
-    fn italics(s: string) string = "_".append(s).append("_")
-  </code>
+<code class="language-clara">fn main() {
+    msg := "Down with this sort of thing. Careful now."
+    x := printf
+    x("%s\n", msg)
+    x("%s\n", apply(bold, msg)
+    x("%s\n", apply(italic, msg)
+}
+
+fn apply(f: fn(s: string) string, s: string) = f(s)
+fn bold(s: string) string = "**".append(s).append("**")
+fn italics(s: string) string = "_".append(s).append("_")</code>
 </pre> 
  
 Clara also supports both anonymous functions and closures: 
 
 <pre>
-  <code class="language-clara">
-    fn main() {
-        square := fn(x: int) int = x * x
-        printf("6² = %d\n", square(6))
-        
-        c := counter(10)
-        printf("%d\n", c()) // 11
-        printf("%d\n", c()) // 12
-        printf("%d\n", c()) // ...   
-    }
+<code class="language-clara">fn main() {
+    square := fn(x: int) int = x * x
+    printf("6² = %d\n", square(6))
     
-    fn counter(x: int) fn() int {
-        return fn() int {
-            x = x + 1
-            return x
-        }
+    c := counter(10)
+    printf("%d\n", c()) // 11
+    printf("%d\n", c()) // 12
+    printf("%d\n", c()) // ...   
+}
+
+fn counter(x: int) fn() int {
+    return fn() int {
+        x = x + 1
+        return x
     }
-  </code>
+}</code>
 </pre>
  
 ## Structs
@@ -276,18 +249,16 @@ Clara also supports both anonymous functions and closures:
 Structs represent a _composite data type_ over other types, including other structs. Here is an example of a `employee` 
 struct:
 <pre>
-  <code class="language-clara">
-    struct employee {
-        name: string
-        age: int
-        department: string
-        active: bool
-    }
-    
-    fn main() {
-        e := Employee("Clark Kent", 35, "Journalism", true)
-    }
-  </code>
+<code class="language-clara">struct employee {
+    name: string
+    age: int
+    department: string
+    active: bool
+}
+
+fn main() {
+    e := Employee("Clark Kent", 35, "Journalism", true)
+}</code>
 </pre>
 
 The compiler automatically generates a _constructor_ function for all `struct`s using a capitalised version
@@ -299,17 +270,15 @@ Enums, also called tagged unions, variants or sum types, are a data type which m
 values.
 
 <pre>
-  <code class="language-clara"> 
-    enum food {
-        Pizza(kind: string, inches: int)
-        Soup(vegetables: []string, containsMeat: bool)
-    }
-    
-    fn main() {
-        f := Pizza("Pepperoni", "12")
-        f := Soup(["pea", "mint", "courgette"], false)
-    }
-  </code>
+<code class="language-clara">enum food {
+    Pizza(kind: string, inches: int)
+    Soup(vegetables: []string, containsMeat: bool)
+}
+
+fn main() {
+    f := Pizza("Pepperoni", "12")
+    f := Soup(["pea", "mint", "courgette"], false)
+}</code>
 </pre>
 
 // TODO: Expand this further
@@ -320,17 +289,15 @@ Structs, enums & functions also support _parameter types_ or parameterisation of
 their parameters or fields.
 
 <pre>
-  <code class="language-clara"> 
-struct box«T» {
-    val: T
+<code class="language-clara">struct box«T» {
+  val: T
 }
 
 fn main() {
-    intBox := Box(1)      // box«int»
-    boolBox := Box(false) // box«bool»
-    intBox = boolBox      // Compiler error!
-}
-  </code>
+  intBox := Box(1)      // box«int»
+  boolBox := Box(false) // box«bool»
+  intBox = boolBox      // Compiler error!
+}</code>
 </pre>
 
 // TODO: Expand this further
