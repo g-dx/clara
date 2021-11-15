@@ -57,7 +57,106 @@ As usual we start with the obligatory _hello world_ program:
 
 ## Values
 
-// TODO
+Clara contains the following _built-in_ types which will be familiar to most users.
+
+ * `bool` - with two possible literal values, `true` & `false`
+ * `int` - a signed, 63-bit integer defined using decimal or hexadecimal notation
+ * `string` - a block of memory holding a contiguous series of bytes which represent _text_
+ * `bytes` - a block of memory holding a contiguous series of bytes.
+
+<pre>
+// Bool
+true
+false
+
+// Integer
+100
+-2
+0xFF
+
+// String
+"Hello!"
+
+// Bytes
+Bytes(10)
+</pre>
+
+### Variables
+
+Clara contains two statements for working with variables; declaration & assignment `:=` & 
+assignment `=`
+
+<pre>
+  <code class="language-clara">
+// Declare a new variable 'x' in the current lexical scope and assign it the integer value 100
+x := 100 
+
+// Assign variable 'x' the integer value 1000
+x = 1000
+
+// Compiler error!
+x := 10000
+  </code>
+</pre>
+
+In Clara there is no way to construct an uninitialised variable.
+
+### Arrays
+
+Clara also has some _array_ variants of the built-in types with support for _array literals_.
+
+<pre>
+  <code class="language-clara">
+ints := intArray(2)
+ints[0] = 1
+ints[1] = 2
+ints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+strings := stringArray(2)
+strings = "Hello"
+strings = "World!"
+strings = ["Hello", "World"]
+  </code>
+</pre>
+
+## Control Flow
+
+Clara supports a 2 control flow constructs; `while` & `for`. 
+
+<pre>
+  <code class="language-clara">
+vals := [1, 2, 3, 4, 5, 6, 7, 8, 9]
+i := 0
+while i < vals.length {
+   vals[i].println()
+   i = i + 1
+}
+  </code>
+</pre>
+
+A safer way to write the above loop is to use the `for` statement:
+
+<pre>
+  <code class="language-clara">
+for val in [1, 2, 3, 4, 5, 6, 7, 8, 9] {
+   val.println()
+}
+  </code>
+</pre>
+(The compiler actually lowers all `for` statements to `while` statements)
+
+Another way to write the above loop is using the `for .. in` statement which supports _integer ranges_
+
+<pre>
+  <code class="language-clara">
+for val in 0 .. 10 {
+   val.println()
+}
+  </code>
+</pre>
+
+When the range is _increasing_ the beginning is _inclusive_ and the end is _exclusive_. These are 
+flipped when the range is _decreasing_.
 
 ## Functions
 
@@ -174,7 +273,7 @@ Clara also supports both anonymous functions and closures:
  
 ## Structs
 
-Structs represent an aggregate data type over other types, including other structs. Here is an example of a `employee` 
+Structs represent a _composite data type_ over other types, including other structs. Here is an example of a `employee` 
 struct:
 <pre>
   <code class="language-clara">
@@ -190,11 +289,63 @@ struct:
     }
   </code>
 </pre>
-All `struct`s automatically come with _constructor_ functions to create instances of a  
+
+The compiler automatically generates a _constructor_ function for all `struct`s using a capitalised version
+of the struct name. This has the requirement that all `struct` names *must* begin with a lowercase letter.
 
 ## Enums
 
-// TODO!
+Enums, also called tagged unions, variants or sum types, are a data type which may hold one of a fixed list of possible 
+values.
+
+<pre>
+  <code class="language-clara"> 
+    enum food {
+        Pizza(kind: string, inches: int)
+        Soup(vegetables: []string, containsMeat: bool)
+    }
+    
+    fn main() {
+        f := Pizza("Pepperoni", "12")
+        f := Soup(["pea", "mint", "courgette"], false)
+    }
+  </code>
+</pre>
+
+// TODO: Expand this further
+
+## Generics
+
+Structs, enums & functions also support _parameter types_ or parameterisation of the _type_ of 
+their parameters or fields.
+
+<pre>
+  <code class="language-clara"> 
+struct box«T» {
+    val: T
+}
+
+fn main() {
+    intBox := Box(1)      // box«int»
+    boolBox := Box(false) // box«bool»
+    intBox = boolBox      // Compiler error!
+}
+  </code>
+</pre>
+
+// TODO: Expand this further
+
+## Functional Programming
+
+Clara contains a small standard library with support for the following functional types:
+
+ * [option«T»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L1-L4)
+ * [result«T, E»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L54-L57)
+ * [either«L, R»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L89-L92)
+ * [pair«T, R»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L47-L50)
+ * [map«K, V»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/map.clara#L1-L7)
+
+The standard operators such as `map`, `filter`, `then`, `peek`, etc are supported.
 
 ## Garbage Collection
 
@@ -213,7 +364,6 @@ The following is a list, in no particular order, of features which are slated fo
  * Modules
  * Nullable Types
  * Default Arguments
- * Polymorphic Types
  * ToString() & Equals()
  * Interpolated Strings 
 
