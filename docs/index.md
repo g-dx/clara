@@ -47,7 +47,7 @@ Clara's heritage is mixed but can largely be traced to the following languages:
 As usual we start with the obligatory _hello world_ program:
 <pre>
 <code class="language-clara">fn main() {
-    printf("Hello World!\n")
+    "Hello World!".println()
 }</code>
 </pre>
 
@@ -90,7 +90,7 @@ x := 100
 // Assign variable 'x' the integer value 1000
 x = 1000
 
-// Compiler error!
+// Compiler error as 'x' cannot be redeclared!
 x := 10000</code>
 </pre>
 
@@ -167,7 +167,7 @@ Functions which do not return anything are said to return `nothing` and declarin
 
 <pre>
 <code class="language-clara">fn hello(msg: string) {
-    printf("Hello message is: %s\n", msg)
+    "Hello message is: ".append(msg).println()
 }</code>
 </pre>
 
@@ -175,7 +175,7 @@ Functions which return the result of a single _expression_ may use the _function
 keyword & curly braces:
 
 <pre>
-<code class="language-clara">fn product(x: int, y: int, z: int) int = x * y * z</code>
+<code class="language-clara">fn isEven(x: int) bool = x.mod(2) == 0</code>
 </pre>
 
 #### Dot Selection 
@@ -198,10 +198,10 @@ types by simply writing a new function which takes that type as its first argume
 
 <pre>
 <code class="language-clara">fn main() {
-    printf("%s\n", "Clara!".bold())
+    "Clara!".emphasize().println()
 }
 
-fn bold(s: string) string = "**".append(s).append("**")</code>
+fn emphasize(s: string) string = "** ".append(s).append(" **")</code>
 </pre> 
 
 #### First Class Functions
@@ -211,16 +211,27 @@ returned as values from functions & assigned to local variables or stored in dat
 
 <pre>
 <code class="language-clara">fn main() {
-    msg := "Down with this sort of thing. Careful now."
-    x := printf
-    x("%s\n", msg)
-    x("%s\n", apply(bold, msg)
-    x("%s\n", apply(italic, msg)
+    msg := "Down with this sort of thing. Careful now!"
+
+    style := italic
+    style.applyTo(msg).println()
+
+    style = [bold, italic].compose()
+    style.applyTo(msg).println()
 }
 
-fn apply(f: fn(s: string) string, s: string) = f(s)
+fn applyTo(f: fn(string) string, s: string) string = f(s)
 fn bold(s: string) string = "**".append(s).append("**")
-fn italics(s: string) string = "_".append(s).append("_")</code>
+fn italic(s: string) string = "_".append(s).append("_")
+
+fn compose(styles: []fn(string) string) fn(string) string {
+    return fn(msg: string) string {
+        for style in styles {
+            msg = msg.style()
+        }
+        return msg
+    }
+}</code>
 </pre> 
  
 Clara also supports both anonymous functions and closures: 
@@ -228,15 +239,16 @@ Clara also supports both anonymous functions and closures:
 <pre>
 <code class="language-clara">fn main() {
     square := fn(x: int) int = x * x
-    printf("6² = %d\n", square(6))
-    
-    c := counter(10)
-    printf("%d\n", c()) // 11
-    printf("%d\n", c()) // 12
-    printf("%d\n", c()) // ...   
+    "6² = ".append(square(6).toString()).println()
+
+    next := intStream(0)
+    next().println() // 1
+    next().println() // 2
+    next().println() // 3
+    next().println() // 4 ... etc
 }
 
-fn counter(x: int) fn() int {
+fn intStream(x: int) fn() int {
     return fn() int {
         x = x + 1
         return x
@@ -310,6 +322,7 @@ Clara contains a small standard library with support for the following functiona
  * [result«T, E»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L54-L57)
  * [either«L, R»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L89-L92)
  * [pair«T, R»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/functional.clara#L47-L50)
+ * [list«T»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/list.clara#L1-L4)
  * [map«K, V»](https://github.com/g-dx/clara/blob/d81debd436723a811298ec3d9d43900c6f99ff06/install/lib/map.clara#L1-L7)
 
 The standard operators such as `map`, `filter`, `then`, `peek`, etc are supported.
