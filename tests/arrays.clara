@@ -44,4 +44,16 @@ fn main() {
     // EXPECT: b
     // EXPECT: c
     // EXPECT: d
+
+    for p in [Person("John"), Person("Mary"), Person("Steven"), Person("Clare")] {
+        p.name.println()
+    }
+    // EXPECT: John
+    // EXPECT: Mary
+    // EXPECT: Steven
+    // EXPECT: Clare
+}
+
+struct person {
+    name: string
 }

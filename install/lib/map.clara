@@ -84,11 +84,4 @@ fn resize«K, V»(m: map«K, V») {
 // Calculates map resizing threshold using a fixed 0.75 load factor by assuming power of 2 sizing
 fn threshold(size: int) int = size - (size >> 2)
 
-fn createBuckets«K, V»(size: int) []list«entry«K, V»» {
-    // TODO: []T or []any support is required here. Live with the hack for the meantime...
-    buckets := unsafe(stringArray(size, ""), 0, type([]list«entry«K, V»»))
-    for i in 0 .. buckets.length {
-        buckets[i] = Empty«entry«K, V»»()
-    }
-    return buckets
-}
+fn createBuckets«K, V»(size: int) []list«entry«K, V»» = array(size, Empty«entry«K, V»»())

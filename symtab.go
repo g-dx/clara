@@ -16,8 +16,10 @@ var boolType = &Type{ Kind: Boolean, Data: &BoolType{} }
 var stringType = &Type{ Kind: String, Data: &StringType{} }
 var nothingType = &Type{ Kind: Nothing, Data: &NothingType{} }
 var bytesType = &Type{Kind: Bytes, Data: &BytesType{}}
+var parameterType = &Type{Kind: Parameter, Data: &ParameterType{Name: "?"}}
 var intArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: intType } }
 var stringArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: stringType } }
+var genericArrayType = &Type{ Kind: Array, Data: &ArrayType{ Elem: parameterType } }
 var pointerType = &Type{ Kind: Pointer, Data: IntType{} }
 
 //----------------------------------------------------------------------------------------------------------------------

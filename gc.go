@@ -114,6 +114,10 @@ func (gt *GcTypes) AddBuiltins(symtab *SymTab) {
 	// Id = 6
 	bs := symtab.MustResolve("bytes")
 	gt.types = append(gt.types, bs.Type)
+
+	// Id = 7
+	t := symtab.MustResolve("[]T")
+	gt.types = append(gt.types, t.Type)
 }
 
 func (gt *GcTypes) AssignId(typ *Type) int {

@@ -8,8 +8,7 @@ fn copyArray(src: bytes, srcPos: int, dest: bytes, destPos: int) {
     copyArray(src, srcPos+1, dest, destPos+1)
 }
 
-// TODO: Should either "any" type or type <T>
-fn setElement(src: []int, pos: int, val: int) []int {
+fn setElement«T»(src: []T, pos: int, val: T) []T {
     src[pos] = val
     return src
 }
@@ -20,27 +19,35 @@ struct arrayHeader {
     length: int
 }
 
-fn stringArray(length: int, default: string) []string {
-    h := claralloc((length * 8) + 8, "[]string", 3).toHeader() // int == 8 bytes, + 8 for length
-    h.length = length
-    a := h.toStringArray()
+fn array«T»(length: int) []option«T» = array(length, None«T»())
+fn array«T»(length: int, default: T) []T = array(length, initWith(default), "[]T", 7)
 
-    // ----------------------------------------------------------------------
-    // Initialise contents. This prevents NULL from escaping into user
-    // code. Revisit when option/maybe is fully worked out
-    // ----------------------------------------------------------------------
-    for i in 0 .. a.length {
-        a[i] = default
-    }
+// Special function used by the compiler when dealing with array literals TODO: Should be private
+fn arrayNoInit«T»(length: int) []T = array(length, noInit«T»(), "[]T", 7)
+
+// TODO: Should be private
+fn array«T»(length: int, init: fn([]T), description: string, tag: int) []T {
+    // TODO: Would be nice to lookup type ID for default & configure array type ID appropriately
+    h := claralloc((length * 8) + 8, description, tag).toHeader() // pointer == 8 bytes, + 8 for length
+    h.length = length
+    a := h.toArray«T»()
+    init(a)
     return a
 }
 
-fn intArray(length: int) []int {
-    h := claralloc((length * 8) + 8, "[]int", 2).toHeader() // int == 8 bytes, + 8 for length
-    h.length = length
-    return h.toIntArray()
+fn stringArray(length: int, default: string) []string = array(length, initWith(default), "[]string", 3)
+fn intArray(length: int) []int = array(length, noInit«int»(), "[]int", 2)
+
+// Array initializers
+fn initWith«T»(default: T) fn([]T) {
+    return fn(a: []T) {
+        for i in 0 .. a.length {
+            a[i] = default
+        }
+    }
 }
 
-fn toStringArray(header: arrayHeader) []string = unsafe(header, 0, type([]string))
-fn toIntArray(header: arrayHeader) []int = unsafe(header, 0, type([]int))
+fn noInit«T»() fn([]T) = fn(a: []T) {}
+
 fn toHeader(b: block) arrayHeader = unsafe(b, 0, type(arrayHeader))
+fn toArray«T»(header: arrayHeader) []T = unsafe(header, 0, type([]T))

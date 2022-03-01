@@ -11,6 +11,8 @@ fn main() {
 
     unsafe(stringArray(0, ""), -16, type(block)).printTypeName() // EXPECT: []string
 
+    unsafe(array(0, 0), -16, type(block)).printTypeName() // EXPECT: []?
+
     unsafe(println, -16, type(block)).printTypeName() // EXPECT: function
 
     unsafe(SomeStruct(1), -16, type(block)).printTypeName() // EXPECT: someStruct

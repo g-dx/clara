@@ -209,6 +209,7 @@ func stdSyms() []*Symbol {
 		{ Name: "nothing", Type: nothingType, IsType: true },
 		{ Name: "[]string", Type: stringArrayType },
 		{ Name: "[]int", Type: intArrayType },
+		{ Name: "[]T", Type: genericArrayType },
 		{ Name: "bytes", Type: bytesType, IsType: true },
 		// debug (from runtime.c)
 		{ Name: "debug", IsGlobal: true, Type: &Type{ Kind: Function, Data:

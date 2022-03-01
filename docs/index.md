@@ -98,18 +98,32 @@ In Clara there is no way to construct an uninitialised variable.
 
 ### Arrays
 
-Clara also has some _array_ variants of the built-in types with support for _array literals_.
+Clara supports _arrays_ of values. These are laid out contiguously in memory. They may
+be constructed two ways.
+
+ * Direct invocation of the `array` function or
+ * Via an array literal.
+
+Arrays are not permitted to contain `null` or `undefined` values. Either a default value
+must be supplied which is written into all slots or the returned array is filled with empty
+optionals.
 
 <pre>
-<code class="language-clara">ints := intArray(2)
-ints[0] = 1
-ints[1] = 2
-ints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+<code class="language-clara">// Array of size 10 with '0xFF' written to all slots
+allZeros := array(10, 0xFF)
+allZeros[0].printHex() // OxFF
+allZeros[1].printHex() // OxFF
+// ... etc ...
 
-strings := stringArray(2)
-strings = "Hello"
-strings = "World!"
-strings = ["Hello", "World"]</code>
+// Array of size 10 with None«string» written to all slots
+optionals := array«string»(10)
+optionals[0] = Some("Value")
+optionals[1] = Some("Another Value")
+
+// Array literals 
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].foreach(print) // Prints 0 1 2 ... etc
+[false, true, true]
+strings := ["hello", "world", "!"]</code>
 </pre>
 
 ## Control Flow

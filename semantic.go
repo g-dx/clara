@@ -514,7 +514,7 @@ func lowerForStatement(n *Node) {
 func rewriteArrayLiteralExpr(n *Node, symtab *SymTab) {
 	if n.Is(opArrayLit) {
 		setElement := symtab.MustResolve("setElement")
-		x := fnCallBySym(lex.NoToken, symtab.MustResolve("intArray"), intLit(len(n.stmts)))
+		x := fnCallBySym(lex.NoToken, symtab.MustResolve("arrayNoInit"), intLit(len(n.stmts)))
 		for i, expr := range n.stmts {
 			if i < len(n.stmts) {
 				x = fnCallBySym(lex.NoToken, setElement, x, intLit(i), expr)

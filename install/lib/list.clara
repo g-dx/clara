@@ -3,8 +3,8 @@ enum list«T» {
     Empty()
 }
 
-fn toList(a: []int) list«int» {
-    l := Empty«int»()
+fn toList«T»(a: []T) list«T» {
+    l := Empty«T»()
     for x in a.length .. 0 {
         l = Element(a[x], l)
     }
