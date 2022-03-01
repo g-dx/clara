@@ -22,7 +22,7 @@ fn claralloc(size: int, description: string, id: int) block {
     b.next = getBlocks()
     setBlocks(b)
     b = b.inc(16) // Skip past next & header
-    debug("gc", "🚧\n - %s (Id=%d, Size=%d, Addr=0x%lx)\n", description, id, size, b)
+    debug("gc", "🚧\n - %s (Id=%d, Size=%d, Addr=0x%09lx)\n", description, id, size, b)
     debug("gc", "──────────────────────────────────────────────────────────────────────── MALLOC \n")
     return b
 }
